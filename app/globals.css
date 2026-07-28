@@ -1,32 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Backgrounds — deep navy-black ──────────────────────────── */
-  --bg:           #03030a;
-  --bg-panel:     #06060f;
-  --bg-elevated:  #0c0c1c;
-  --bg-card:      #10101e;
+  /* ── Backgrounds — deep forest greens ───────────────────────── */
+  --bg:           #030b06;
+  --bg-panel:     #05130a;
+  --bg-elevated:  #081c10;
+  --bg-card:      #0b2415;
 
   /* ── Gold ───────────────────────────────────────────────────── */
-  --gold:         #d4af37;
-  --gold-bright:  #f0cc4a;
-  --gold-dim:     rgba(212,175,55,0.10);
-  --gold-border:  rgba(212,175,55,0.20);
+  --gold:         #b89b28;
+  --gold-bright:  #d4b83a;
+  --gold-dim:     rgba(184,155,40,0.10);
+  --gold-border:  rgba(184,155,40,0.22);
 
   /* ── Prices ─────────────────────────────────────────────────── */
-  --up:           #00e07a;
-  --up-dim:       rgba(0,224,122,0.08);
-  --down:         #ff4545;
-  --down-dim:     rgba(255,69,69,0.08);
+  --up:           #00b868;
+  --up-dim:       rgba(0,184,104,0.08);
+  --down:         #cc3a3a;
+  --down-dim:     rgba(204,58,58,0.08);
 
   /* ── Text ───────────────────────────────────────────────────── */
-  --text-primary:   #eeeef8;
-  --text-secondary: #7878a0;
-  --text-muted:     #3c3c58;
+  --text-primary:   #e8f5ec;
+  --text-secondary: #6f9a7e;
+  --text-muted:     #35543f;
 
   /* ── Fonts ──────────────────────────────────────────────────── */
-  --font-display: "Geomini", sans-serif;
-  --font-body:    "Manrope", sans-serif;
+  --font-display: "Quantico", sans-serif;
+  --font-body:    "Quantico", sans-serif;
 }
 
 html, body {
@@ -40,5 +40,5 @@ html, body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.38); }
+::-webkit-scrollbar-thumb { background: rgba(184,155,40,0.18); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(184,155,40,0.38); }

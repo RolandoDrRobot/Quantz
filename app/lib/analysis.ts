@@ -31,6 +31,19 @@ export interface BreakoutEvent {
   direction: "long" | "short";
   breakoutTime: number;
   strength: number;
+  retestZone: number; // price tolerance around the level that counts as a retest
+}
+
+export interface ProbFactor {
+  label: string;
+  points: number;
+  max: number;
+}
+
+export interface Warning {
+  severity: "high" | "medium";
+  title: string;
+  detail: string;
 }
 
 export interface AnalysisResult {
@@ -43,6 +56,10 @@ export interface AnalysisResult {
   priceChangePct: number;
   tradeSetup: TradeSetup | null;
   breakout: BreakoutEvent | null;
+  probability: number;
+  probFactors: ProbFactor[];
+  penalties: ProbFactor[];
+  warnings: Warning[];
   marketOpen: boolean;
   inSetupWindow: boolean;
   minutesToOpen: number;
@@ -118,11 +135,13 @@ function detectTrend(candles: RawCandle[]): TrendInfo {
 
 // ─── Breakout Detection ──────────────────────────────────────────────────────
 
-function detectBreakout(candles: RawCandle[], levels: Level[]): BreakoutEvent | null {
+function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number): BreakoutEvent | null {
   if (candles.length < 15) return null;
 
   // Look only at last 24 candles (2 hours) — stale breakouts don't matter
   const window = candles.slice(-24);
+  const retestZone = slPoints * 0.25; // retest = price within 1/4 SL of the level
+  const failDist  = slPoints * 0.75; // close beyond this against the break = failed breakout
 
   for (let i = window.length - 1; i >= 2; i--) {
     const curr = window[i];
@@ -134,23 +153,28 @@ function detectBreakout(candles: RawCandle[], levels: Level[]): BreakoutEvent | 
     if (range === 0 || bodySize / range < 0.45 || bodySize / curr.close < 0.0006) continue;
 
     for (const level of levels) {
-      // Bullish breakout: prev closed below, curr opens below and closes above (pierces through)
-      if (
-        prev.close < level.price &&
-        curr.close > level.price &&
-        curr.open < level.price  // started below — not a gap
-      ) {
-        return { level: level.price, direction: "long", breakoutTime: curr.time, strength: level.strength };
-      }
+      // Abrupt pierce through the level, no gap
+      const isBull = prev.close < level.price && curr.close > level.price && curr.open < level.price;
+      const isBear = prev.close > level.price && curr.close < level.price && curr.open > level.price;
+      if (!isBull && !isBear) continue;
 
-      // Bearish breakout: prev closed above, curr opens above and closes below
-      if (
-        prev.close > level.price &&
-        curr.close < level.price &&
-        curr.open > level.price  // started above — not a gap
-      ) {
-        return { level: level.price, direction: "short", breakoutTime: curr.time, strength: level.strength };
+      // Invalidation: if any later candle closed back beyond the level against
+      // the breakout, it was a trap — the setup is dead, don't wait for retest
+      let failed = false;
+      for (let j = i + 1; j < window.length; j++) {
+        const c = window[j].close;
+        if (isBull && c < level.price - failDist) { failed = true; break; }
+        if (isBear && c > level.price + failDist) { failed = true; break; }
       }
+      if (failed) return null;
+
+      return {
+        level: level.price,
+        direction: isBull ? "long" : "short",
+        breakoutTime: curr.time,
+        strength: level.strength,
+        retestZone,
+      };
     }
   }
 
@@ -164,16 +188,20 @@ function calculateTradeSetup(
   currentPrice: number,
   levels: Level[],
   slPoints: number,
-  trendDirection: "bullish" | "bearish" | "neutral"
+  trendDirection: "bullish" | "bearish" | "neutral",
+  breakout: BreakoutEvent | null
 ): TradeSetup | null {
   const resistances = levels.filter(l => l.type === "resistance").sort((a, b) => a.price - b.price);
   const supports    = levels.filter(l => l.type === "support").sort((a, b) => b.price - a.price);
 
-  if (resistances.length === 0 && supports.length === 0) return null;
+  if (resistances.length === 0 && supports.length === 0 && !breakout) return null;
 
-  // For WAIT, pick direction from trend; if neutral, pick nearest level
+  // Active breakout drives the setup: the strategy enters at the retest of the
+  // broken level, in the direction of the break
   let direction: "long" | "short";
-  if (signal === "GO_LONG") {
+  if (breakout) {
+    direction = breakout.direction;
+  } else if (signal === "GO_LONG") {
     direction = "long";
   } else if (signal === "GO_SHORT") {
     direction = "short";
@@ -187,18 +215,22 @@ function calculateTradeSetup(
     }
   }
 
-  const entryPrice = direction === "long"
-    ? (resistances[0]?.price ?? currentPrice)
-    : (supports[0]?.price ?? currentPrice);
+  const entryPrice = breakout
+    ? breakout.level
+    : direction === "long"
+      ? (resistances[0]?.price ?? currentPrice)
+      : (supports[0]?.price ?? currentPrice);
 
   const stopLoss = direction === "long" ? entryPrice - slPoints : entryPrice + slPoints;
 
+  // TP: next opposite level, but never accept less than 1.5R — a trade that
+  // risks $100 to make less than $150 is not part of the playbook
   let takeProfit: number;
   if (direction === "long") {
-    const next = resistances.find(r => r.price > entryPrice + slPoints * 0.5);
+    const next = resistances.find(r => r.price >= entryPrice + slPoints * 1.5);
     takeProfit = next?.price ?? entryPrice + slPoints * 2;
   } else {
-    const next = supports.find(s => s.price < entryPrice - slPoints * 0.5);
+    const next = supports.find(s => s.price <= entryPrice - slPoints * 1.5);
     takeProfit = next?.price ?? entryPrice - slPoints * 2;
   }
 
@@ -277,20 +309,138 @@ export function runAnalysis(
 
   const msgData = { chg, r1, r1s, s1, s1s, ma20: trend.ma20.toFixed(2), mom: trend.momentum, mkt: marketLabel };
 
-  // Signal based purely on technicals — no time gate
+  const breakout = detectBreakout(candles, levels, slPoints);
+
+  // Signal follows the strategy: the trigger is a breakout IN the direction of
+  // the trend. A counter-trend breakout is usually a trap → WAIT. No breakout
+  // → nothing to trade yet → WAIT (message carries the directional bias).
+  const breakoutAligned = !!breakout && (
+    (breakout.direction === "long"  && trend.direction === "bullish") ||
+    (breakout.direction === "short" && trend.direction === "bearish")
+  );
+
   let signal: Signal;
-  if (trend.direction === "bullish" && trend.momentum !== "weak" && r1) {
-    signal = "GO_LONG";
-  } else if (trend.direction === "bearish" && trend.momentum !== "weak" && s1) {
-    signal = "GO_SHORT";
+  if (breakoutAligned) {
+    signal = breakout!.direction === "long" ? "GO_LONG" : "GO_SHORT";
   } else {
     signal = "WAIT";
   }
 
-  const arr = MESSAGES[signal];
-  const message = arr[Math.floor(Math.random() * arr.length)](msgData);
-  const tradeSetup = calculateTradeSetup(signal, currentPrice, levels, slPoints, trend.direction);
-  const breakout = detectBreakout(candles, levels);
+  let message: string;
+  if (breakout && breakoutAligned) {
+    const dirTxt = breakout.direction === "long" ? "to the upside" : "to the downside";
+    message = `Level ${breakout.level.toFixed(2)} broken ${dirTxt} with the trend behind it. Now comes the part that separates the pros: wait for the retest. If price comes back to ${breakout.level.toFixed(2)} and respects it with a confirmation candle — that's your trade. No retest, no entry.`;
+  } else if (breakout && !breakoutAligned) {
+    const dirTxt = breakout.direction === "long" ? "to the upside" : "to the downside";
+    message = `Heads up: level ${breakout.level.toFixed(2)} broke ${dirTxt}, but the trend is ${trend.direction} — it's against you. Counter-trend breakouts are usually traps. Stay out unless the retest shows very strong confirmation. Protecting capital is also a trade.`;
+  } else {
+    const arr = MESSAGES[signal];
+    message = arr[Math.floor(Math.random() * arr.length)](msgData);
+  }
+
+  const tradeSetup = calculateTradeSetup(signal, currentPrice, levels, slPoints, trend.direction, breakout);
+
+  // ── Probability score: confluence of every strategy requirement ──────────
+  const dir = tradeSetup?.direction ?? null;
+  const trendAligned = !!dir && (
+    (dir === "long" && trend.direction === "bullish") ||
+    (dir === "short" && trend.direction === "bearish")
+  );
+  const lvlStrength = breakout?.strength
+    ?? (dir === "long" ? resistances[0]?.strength : supports[0]?.strength)
+    ?? 0;
+  const rr = tradeSetup?.rrRatio ?? 0;
+
+  const probFactors: ProbFactor[] = [
+    { label: "Breakout confirmed", max: 25, points: breakout ? 25 : 0 },
+    { label: "Trend aligned",      max: 20, points: trendAligned ? 20 : 0 },
+    { label: "Momentum",           max: 15, points: trend.momentum === "strong" ? 15 : trend.momentum === "moderate" ? 9 : 3 },
+    { label: "Level strength",     max: 15, points: lvlStrength >= 4 ? 15 : lvlStrength === 3 ? 12 : lvlStrength === 2 ? 8 : lvlStrength === 1 ? 4 : 0 },
+    { label: "Risk:Reward",        max: 15, points: rr >= 2 ? 15 : rr >= 1.5 ? 10 : rr >= 1 ? 6 : 2 },
+    { label: "Session window",     max: 10, points: timing.inSetupWindow ? 10 : 2 },
+  ];
+  // ── Warnings & penalties: the context the raw score can't see ────────────
+  const warnings: Warning[] = [];
+  const penalties: ProbFactor[] = [];
+  const recent2h = candles.slice(-24);
+  const hi2h = Math.max(...recent2h.map(c => c.high));
+  const lo2h = Math.min(...recent2h.map(c => c.low));
+
+  // Whipsaw: the breakout level was crossed in BOTH directions in the last hour
+  if (breakout) {
+    const w = candles.slice(-12);
+    let up = 0, down = 0;
+    for (let i = 1; i < w.length; i++) {
+      if (w[i - 1].close < breakout.level && w[i].close > breakout.level) up++;
+      if (w[i - 1].close > breakout.level && w[i].close < breakout.level) down++;
+    }
+    if (up >= 1 && down >= 1) {
+      warnings.push({
+        severity: "high",
+        title: "Whipsaw at the level",
+        detail: `${breakout.level.toFixed(2)} broke in BOTH directions within the last hour — breakouts here are eating each other. Classic range noise.`,
+      });
+      penalties.push({ label: "Whipsaw at level", points: -20, max: 0 });
+    }
+  }
+
+  // Dead momentum: abrupt candles with no follow-through
+  if (trend.momentum === "weak") {
+    warnings.push({
+      severity: "high",
+      title: "Dead momentum",
+      detail: `Only ${trend.change1h.toFixed(2)}% move in the last hour. Each abrupt candle is getting reversed — breakouts lack follow-through.`,
+    });
+  }
+
+  // Range-bound: 2h range too small relative to the SL
+  const range2h = hi2h - lo2h;
+  if (range2h < slPoints * 3) {
+    warnings.push({
+      severity: "medium",
+      title: "Range-bound market",
+      detail: `The 2h range is only ${range2h.toFixed(2)} pts vs your ${slPoints}-pt SL. Normal chop can hit your stop without a real move.`,
+    });
+    penalties.push({ label: "Range-bound tape", points: -10, max: 0 });
+  }
+
+  // SL exposed: the stop sits inside the recent price range
+  if (tradeSetup) {
+    const slExposed = tradeSetup.direction === "short"
+      ? tradeSetup.stopLoss <= hi2h
+      : tradeSetup.stopLoss >= lo2h;
+    if (slExposed) {
+      warnings.push({
+        severity: "medium",
+        title: "SL inside recent range",
+        detail: `Your stop at ${tradeSetup.stopLoss.toFixed(2)} sits inside the last 2h range (${lo2h.toFixed(2)}–${hi2h.toFixed(2)}). A normal whipsaw can take it out.`,
+      });
+    }
+  }
+
+  // Thin session for 24h markets (gold outside London/NY hours)
+  if (is24h) {
+    const etNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const h = etNow.getHours();
+    if (h >= 16 || h < 3) {
+      warnings.push({
+        severity: "medium",
+        title: "Thin session",
+        detail: "NY is closed — Asian hours mean lower liquidity and choppier moves. Levels get pierced without conviction.",
+      });
+      penalties.push({ label: "Thin session", points: -8, max: 0 });
+    }
+  }
+
+  let probability = probFactors.reduce((s, f) => s + f.points, 0)
+    + penalties.reduce((s, p) => s + p.points, 0);
+
+  // Weak momentum caps the score — a breakout without fuel can't be high probability
+  if (trend.momentum === "weak" && probability > 60) {
+    penalties.push({ label: "Weak momentum cap", points: 60 - probability, max: 0 });
+    probability = 60;
+  }
+  probability = Math.max(5, Math.min(92, probability));
 
   return {
     signal,
@@ -302,6 +452,10 @@ export function runAnalysis(
     priceChangePct,
     tradeSetup,
     breakout,
+    probability,
+    probFactors,
+    penalties,
+    warnings,
     is24h,
     ...timing,
   };

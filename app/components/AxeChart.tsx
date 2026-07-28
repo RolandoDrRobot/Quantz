@@ -6,53 +6,31 @@ import type { Level, TradeSetup, BreakoutEvent } from "../lib/analysis";
 
 // ─── Axe Capital Palette ─────────────────────────────────────────────────────
 const P = {
-  bg:        "#03030a",
-  bgLabel:   "#0c0c1c",
-  grid:      "#0b0b18",
-  text:      "#3e3e58",
+  bg:        "#030b06",
+  bgLabel:   "#081c10",
+  grid:      "#08160d",
+  text:      "#3d6049",
 
   // Solid MT-style bodies — high contrast, easy to read
-  upBody:    "#00c870",
-  upBorder:  "#00c870",
-  upWick:    "#00c870",
-  downBody:  "#f23645",
-  downBorder:"#f23645",
-  downWick:  "#f23645",
+  upBody:    "#00a05c",
+  upBorder:  "#00a05c",
+  upWick:    "#00a05c",
+  downBody:  "#b83038",
+  downBorder:"#b83038",
+  downWick:  "#b83038",
 
-  crosshair: "rgba(212,175,55,0.22)",
+  crosshair: "rgba(184,155,40,0.22)",
 
-  resistance: "rgba(230,55,55,1)",
-  support:    "rgba(0,210,115,1)",
+  // Analysis lines at 0.7 opacity — visible but never in the way of the tape
+  resistance: "rgba(190,55,55,0.7)",
+  support:    "rgba(0,165,95,0.7)",
 
-  entry: "#f0cc4a",
-  sl:    "#ff3535",
-  tp:    "#00e878",
+  entry: "rgba(212,184,58,0.7)",
+  sl:    "rgba(194,48,48,0.7)",
+  tp:    "rgba(0,184,104,0.7)",
 };
 
-// Retest zone: price within 0.18% of the broken level
-const RETEST_THRESHOLD_PCT = 0.0018;
-
 const TD_API_KEY = process.env.NEXT_PUBLIC_TWELVEDATA_API_KEY;
-
-function playAlertSound() {
-  try {
-    const ctx = new AudioContext();
-    [[440, 0], [554, 0.18], [659, 0.36], [880, 0.54]].forEach(([freq, delay]) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const t = ctx.currentTime + delay;
-      gain.gain.setValueAtTime(0.0, t);
-      gain.gain.linearRampToValueAtTime(0.35, t + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
-      osc.start(t);
-      osc.stop(t + 0.4);
-    });
-  } catch { /* audio not available */ }
-}
 
 interface Props {
   candles: RawCandle[];
@@ -63,20 +41,21 @@ interface Props {
   accentColor?: string;
   symbol: string;
   tdSymbol: string;
+  onTick?: (price: number) => void;
 }
 
 const LEGEND = [
-  { color: P.upBorder,    label: "Vela sube",     style: "solid" },
-  { color: P.downBorder,  label: "Vela baja",     style: "solid" },
-  { color: "rgba(212,175,55,0.6)", label: "MA 20 (tendencia)", style: "solid" },
-  { color: P.resistance,  label: "Resistencia",   style: "solid" },
-  { color: P.support,     label: "Soporte",       style: "solid" },
-  { color: P.entry,       label: "Entrada",       style: "dashed" },
-  { color: P.sl,          label: "Stop Loss",     style: "solid" },
-  { color: P.tp,          label: "Take Profit",   style: "solid" },
+  { color: P.upBorder,    label: "Bullish candle", style: "solid" },
+  { color: P.downBorder,  label: "Bearish candle", style: "solid" },
+  { color: "rgba(184,155,40,0.6)", label: "MA 20 (trend)", style: "solid" },
+  { color: P.resistance,  label: "Resistance",     style: "solid" },
+  { color: P.support,     label: "Support",        style: "solid" },
+  { color: P.entry,       label: "Entry",          style: "dashed" },
+  { color: P.sl,          label: "Stop Loss",      style: "solid" },
+  { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#d4af37", symbol, tdSymbol }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#b89b28", symbol, tdSymbol, onTick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -84,9 +63,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   const seriesRef = useRef<any>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
-  const [retestActive, setRetestActive] = useState(false);
-  const inRetestZoneRef = useRef(false);
-  const retestDismissedRef = useRef(false);
+  const onTickRef = useRef(onTick);
+  onTickRef.current = onTick;
 
   // ── Main chart init ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -168,13 +146,23 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         maSeries.setData(maData);
       }
 
-      // ── Only the single strongest R above + single strongest S below ──
+      // ── Levels & setup — deduplicated so labels never stack ──────────
       const currentPrice = clean[clean.length - 1]?.close ?? 0;
+      const eps = currentPrice * 0.0006; // prices closer than this are "the same line"
+      const near = (a: number, b: number) => Math.abs(a - b) < eps;
+
+      const entryIsBrokenLevel = !!(tradeSetup && breakout && near(tradeSetup.entryPrice, breakout.level));
+
+      // Prices already covered by setup/breakout lines — S/R there would be a duplicate
+      const taken: number[] = [];
+      if (tradeSetup) taken.push(tradeSetup.entryPrice, tradeSetup.stopLoss, tradeSetup.takeProfit);
+      if (breakout) taken.push(breakout.level);
+
       const topR = levels
-        .filter(l => l.type === "resistance" && l.price > currentPrice)
+        .filter(l => l.type === "resistance" && l.price > currentPrice && !taken.some(p => near(p, l.price)))
         .sort((a, b) => b.strength - a.strength)[0];
       const topS = levels
-        .filter(l => l.type === "support" && l.price < currentPrice)
+        .filter(l => l.type === "support" && l.price < currentPrice && !taken.some(p => near(p, l.price)))
         .sort((a, b) => b.strength - a.strength)[0];
 
       if (topR) {
@@ -184,7 +172,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           lineWidth: 2,
           lineStyle: LW.LineStyle.Solid,
           axisLabelVisible: true,
-          title: `RESISTENCIA  (${topR.strength}x)`,
+          title: `RESISTANCE  (${topR.strength}x)`,
         });
       }
       if (topS) {
@@ -194,7 +182,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           lineWidth: 2,
           lineStyle: LW.LineStyle.Solid,
           axisLabelVisible: true,
-          title: `SOPORTE  (${topS.strength}x)`,
+          title: `SUPPORT  (${topS.strength}x)`,
         });
       }
 
@@ -206,7 +194,9 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           lineWidth: 3,
           lineStyle: LW.LineStyle.Dashed,
           axisLabelVisible: true,
-          title: `ENTRADA  ${tradeSetup.direction === "long" ? "▲ LONG" : "▼ SHORT"}`,
+          title: entryIsBrokenLevel
+            ? `ENTRY ${tradeSetup.direction === "long" ? "▲ LONG" : "▼ SHORT"} · BROKEN LEVEL — WAIT RETEST`
+            : `ENTRY  ${tradeSetup.direction === "long" ? "▲ LONG" : "▼ SHORT"}`,
         });
         cs.createPriceLine({
           price: tradeSetup.stopLoss,
@@ -226,20 +216,23 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         });
       }
 
-      // ── Breakout level ───────────────────────────────────────────────────
+      // ── Breakout level (own line only if the entry doesn't already mark it) ──
       if (breakout) {
-        const bColor = breakout.direction === "long" ? "#ffe566" : "#ff6060";
-        cs.createPriceLine({
-          price: breakout.level,
-          color: bColor,
-          lineWidth: 2,
-          lineStyle: LW.LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: `▶ NIVEL ROTO  (${breakout.direction === "long" ? "LONG" : "SHORT"})  — ESPERA RETEST`,
-        });
-        const zone = breakout.level * RETEST_THRESHOLD_PCT;
-        cs.createPriceLine({ price: breakout.level + zone, color: bColor + "44", lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
-        cs.createPriceLine({ price: breakout.level - zone, color: bColor + "44", lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
+        const bColor = breakout.direction === "long" ? "rgba(201,184,69,0.7)" : "rgba(214,72,72,0.7)";
+        const bZone  = breakout.direction === "long" ? "rgba(201,184,69,0.25)" : "rgba(214,72,72,0.25)";
+        if (!entryIsBrokenLevel) {
+          cs.createPriceLine({
+            price: breakout.level,
+            color: bColor,
+            lineWidth: 2,
+            lineStyle: LW.LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: `▶ BROKEN LEVEL  (${breakout.direction === "long" ? "LONG" : "SHORT"})  — WAIT RETEST`,
+          });
+        }
+        // Retest zone boundaries (subtle dotted lines, no labels)
+        cs.createPriceLine({ price: breakout.level + breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
+        cs.createPriceLine({ price: breakout.level - breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
       }
 
       // Show last 4 hours of candles (240 bars for 1m, less for 5m)
@@ -267,31 +260,11 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     };
   }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
 
-  // Reset retest state when breakout changes (new analysis or market switch)
-  useEffect(() => {
-    setRetestActive(false);
-    inRetestZoneRef.current = false;
-    retestDismissedRef.current = false;
-  }, [breakout]);
-
   // ── Live data ────────────────────────────────────────────────────────────
   // Primary: Twelve Data WebSocket (real-time streaming ticks).
   // Fallback: Yahoo polling every 1 s if the WS delivers nothing in 15 s.
   useEffect(() => {
     if (!symbol) return;
-
-    const checkRetest = (price: number) => {
-      if (!breakout || retestDismissedRef.current) return;
-      const zone = breakout.level * RETEST_THRESHOLD_PCT;
-      const isInZone = Math.abs(price - breakout.level) < zone;
-      if (isInZone && !inRetestZoneRef.current) {
-        inRetestZoneRef.current = true;
-        setRetestActive(true);
-        playAlertSound();
-      } else if (!isInZone && inRetestZoneRef.current) {
-        inRetestZoneRef.current = false;
-      }
-    };
 
     let disposed = false;
     let pollId: ReturnType<typeof setInterval> | null = null;
@@ -311,7 +284,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       }
       try { seriesRef.current.update({ ...cur }); } catch { /* out-of-order tick */ }
       setLivePrice(price);
-      checkRetest(price);
+      onTickRef.current?.(price);
     };
 
     // ── Yahoo polling (fallback) ────────────────────────────────────────
@@ -327,7 +300,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           try { seriesRef.current.update({ ...data.candle }); } catch { /* skip */ }
           cur = null; // yahoo owns the candle now
           setLivePrice(data.currentPrice);
-          checkRetest(data.currentPrice);
+          onTickRef.current?.(data.currentPrice);
         } catch { /* skip */ }
       };
       tick();
@@ -384,7 +357,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       if (heartbeatId) clearInterval(heartbeatId);
       ws?.close();
     };
-  }, [symbol, tdSymbol, breakout]);
+  }, [symbol, tdSymbol]);
 
   return (
     <div className="relative w-full h-full" style={{ background: P.bg }}>
@@ -394,41 +367,12 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {livePrice !== null && (
         <div
           className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded"
-          style={{ background: "rgba(7,7,12,0.92)", border: "1px solid rgba(212,175,55,0.3)" }}
+          style={{ background: "rgba(3,11,6,0.92)", border: "1px solid rgba(184,155,40,0.3)" }}
         >
-          <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#d4af37" }} />
-          <span className="font-bold text-sm tracking-wide" style={{ color: "#d4af37", fontFamily: "var(--font-display)" }}>
+          <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#b89b28" }} />
+          <span className="font-bold text-sm tracking-wide" style={{ color: "#b89b28", fontFamily: "var(--font-display)" }}>
             LIVE &nbsp;{livePrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-        </div>
-      )}
-
-      {/* Retest alert overlay */}
-      {retestActive && breakout && (
-        <div
-          className="absolute left-3 right-3 rounded-lg p-4 flex items-center justify-between"
-          style={{
-            top: livePrice ? "3.5rem" : "0.75rem",
-            background: "rgba(7,7,12,0.97)",
-            border: `2px solid ${breakout.direction === "long" ? "#ffe566" : "#ff6060"}`,
-            boxShadow: `0 0 24px ${breakout.direction === "long" ? "rgba(255,229,102,0.4)" : "rgba(255,96,96,0.4)"}`,
-          }}
-        >
-          <div>
-            <div className="font-black text-lg tracking-wider" style={{ color: breakout.direction === "long" ? "#ffe566" : "#ff6060" }}>
-              ⚡ RETEST ACTIVO — {breakout.level.toFixed(2)}
-            </div>
-            <div className="text-sm mt-0.5" style={{ color: "#c8c8d8" }}>
-              {breakout.direction === "long" ? "▲ LONG" : "▼ SHORT"} · El nivel fue roto · Confirma la vela antes de entrar
-            </div>
-          </div>
-          <button
-            onClick={() => { setRetestActive(false); retestDismissedRef.current = true; }}
-            className="ml-4 px-3 py-1.5 rounded text-xs font-bold flex-shrink-0"
-            style={{ background: "rgba(255,255,255,0.08)", color: "#888", cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            ✕
-          </button>
         </div>
       )}
 
@@ -436,18 +380,18 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       <button
         onClick={() => setShowLegend(v => !v)}
         className="absolute top-3 right-3 px-3 py-1.5 rounded text-xs font-bold tracking-wider"
-        style={{ background: "rgba(7,7,12,0.92)", border: "1px solid rgba(212,175,55,0.2)", color: "#d4af37", cursor: "pointer" }}
+        style={{ background: "rgba(3,11,6,0.92)", border: "1px solid rgba(184,155,40,0.2)", color: "#b89b28", cursor: "pointer" }}
       >
-        {showLegend ? "✕ LEYENDA" : "? LEYENDA"}
+        {showLegend ? "✕ LEGEND" : "? LEGEND"}
       </button>
 
       {/* Legend panel */}
       {showLegend && (
         <div
           className="absolute top-12 right-3 rounded p-4 flex flex-col gap-3"
-          style={{ background: "rgba(7,7,12,0.96)", border: "1px solid rgba(212,175,55,0.25)", minWidth: 210 }}
+          style={{ background: "rgba(3,11,6,0.96)", border: "1px solid rgba(184,155,40,0.25)", minWidth: 210 }}
         >
-          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#d4af37" }}>QUÉ ES CADA LÍNEA</div>
+          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#b89b28" }}>WHAT EACH LINE MEANS</div>
           {LEGEND.map((item, i) => (
             <div key={i} className="flex items-center gap-3">
               {/* Line preview */}
@@ -462,7 +406,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
                   <div className="h-0.5 w-10 rounded" style={{ background: item.color }} />
                 )}
               </div>
-              <span className="text-xs" style={{ color: "#c8c8d8" }}>{item.label}</span>
+              <span className="text-xs" style={{ color: "#c2d8ca" }}>{item.label}</span>
             </div>
           ))}
         </div>
