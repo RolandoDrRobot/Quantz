@@ -1,26 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Backgrounds — deep navy-black ──────────────────────────── */
+  --bg:           #03030a;
+  --bg-panel:     #06060f;
+  --bg-elevated:  #0c0c1c;
+  --bg-card:      #10101e;
+
+  /* ── Gold ───────────────────────────────────────────────────── */
+  --gold:         #d4af37;
+  --gold-bright:  #f0cc4a;
+  --gold-dim:     rgba(212,175,55,0.10);
+  --gold-border:  rgba(212,175,55,0.20);
+
+  /* ── Prices ─────────────────────────────────────────────────── */
+  --up:           #00e07a;
+  --up-dim:       rgba(0,224,122,0.08);
+  --down:         #ff4545;
+  --down-dim:     rgba(255,69,69,0.08);
+
+  /* ── Text ───────────────────────────────────────────────────── */
+  --text-primary:   #eeeef8;
+  --text-secondary: #7878a0;
+  --text-muted:     #3c3c58;
+
+  /* ── Fonts ──────────────────────────────────────────────────── */
+  --font-display: "Geomini", sans-serif;
+  --font-body:    "Manrope", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.18); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(212,175,55,0.38); }
