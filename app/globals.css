@@ -25,8 +25,8 @@
   --text-muted:     #35543f;
 
   /* ── Fonts ──────────────────────────────────────────────────── */
-  --font-display: "Quantico", sans-serif;
-  --font-body:    "Quantico", sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body:    "Space Grotesk", sans-serif;
 }
 
 html, body {

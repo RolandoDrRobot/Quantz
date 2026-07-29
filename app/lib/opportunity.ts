@@ -10,6 +10,7 @@ export type OppPhase =
   | "CONFIRMED"      // retest held — trade is live, tracking P/L
   | "TP_HIT"
   | "SL_HIT"
+  | "CLOSED"         // manually closed at market price
   | "INVALIDATED";
 
 export interface Opportunity {
@@ -23,6 +24,7 @@ export interface Opportunity {
   slPoints: number;
   startedAt: number;
   updatedAt: number;
+  exitPrice?: number;  // set when the position is closed manually
 }
 
 export function createOpportunity(a: AnalysisResult, slPoints: number): Opportunity | null {
@@ -42,7 +44,10 @@ export function createOpportunity(a: AnalysisResult, slPoints: number): Opportun
   };
 }
 
-export function advanceOpportunity(o: Opportunity, price: number): Opportunity {
+// autoTrade = Trade Bot ON: entries are taken automatically when the retest
+// holds. With the bot OFF, RETEST_ACTIVE waits for the user to take the trade
+// manually (takeTrade) — if price leaves the zone untaken, we re-arm the retest.
+export function advanceOpportunity(o: Opportunity, price: number, autoTrade = true): Opportunity {
   const now = Date.now();
   const dirUp = o.direction === "long";
   const beyond = dirUp ? price > o.level : price < o.level;  // past the level in trade direction
@@ -65,7 +70,11 @@ export function advanceOpportunity(o: Opportunity, price: number): Opportunity {
     case "RETEST_ACTIVE":
       if (failed) return { ...o, phase: "INVALIDATED", updatedAt: now };
       // Retest held: price bounced off the level and cleared the zone again
-      if (beyond && !inZone) return { ...o, phase: "CONFIRMED", updatedAt: now };
+      if (beyond && !inZone) {
+        return autoTrade
+          ? { ...o, phase: "CONFIRMED", updatedAt: now }   // bot takes the trade
+          : { ...o, phase: "AWAIT_RETEST", updatedAt: now }; // untaken — wait for next touch
+      }
       return { ...o, updatedAt: now };
 
     case "CONFIRMED": {
@@ -79,6 +88,22 @@ export function advanceOpportunity(o: Opportunity, price: number): Opportunity {
     default:
       return o; // terminal phases stay put
   }
+}
+
+// Manual mode actions
+export function takeTrade(o: Opportunity): Opportunity {
+  if (o.phase !== "RETEST_ACTIVE" && o.phase !== "AWAIT_RETEST") return o;
+  return { ...o, phase: "CONFIRMED", updatedAt: Date.now() };
+}
+
+export function skipTrade(o: Opportunity): Opportunity {
+  return { ...o, phase: "INVALIDATED", updatedAt: Date.now() };
+}
+
+// Close an open position at the current market price
+export function closeTrade(o: Opportunity, price: number): Opportunity {
+  if (o.phase !== "CONFIRMED") return o;
+  return { ...o, phase: "CLOSED", exitPrice: price, updatedAt: Date.now() };
 }
 
 // Live P/L in dollars assuming entry at the level with the account's risk sizing

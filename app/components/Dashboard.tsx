@@ -6,7 +6,7 @@ import BobbyPanel from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
-import { createOpportunity, advanceOpportunity, type Opportunity } from "../lib/opportunity";
+import { createOpportunity, advanceOpportunity, takeTrade, skipTrade, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "sp500"];
@@ -29,18 +29,23 @@ export default function Dashboard() {
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
+  const [botMode, setBotMode] = useState(true);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
   analysisRef.current = analysis;
   const symbolRef = useRef(cfg.symbol);
   symbolRef.current = cfg.symbol;
+  const botModeRef = useRef(botMode);
+  botModeRef.current = botMode;
 
-  // Restore last selected market on mount
+  // Restore last selected market + bot mode on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_MARKET) as MarketKey | null;
       if (saved && MARKETS[saved]) setMarket(saved);
+      const bot = localStorage.getItem("axe-bot-mode");
+      if (bot !== null) setBotMode(bot === "true");
     } catch { /* storage unavailable */ }
   }, []);
 
@@ -93,9 +98,9 @@ export default function Dashboard() {
     setLivePrice(price);
     setOpportunity(prev => {
       if (!prev) return prev;
-      const next = advanceOpportunity(prev, price);
+      const next = advanceOpportunity(prev, price, botModeRef.current);
       if (next.phase !== prev.phase) {
-        if (next.phase === "AWAIT_RETEST") playBreakoutSound();
+        if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") playBreakoutSound();
         else if (next.phase === "RETEST_ACTIVE") playRetestSound();
         else if (next.phase === "TP_HIT") playResolvedSound(true);
         else if (next.phase === "SL_HIT") playResolvedSound(false);
@@ -108,6 +113,46 @@ export default function Dashboard() {
   const handleMarketChange = useCallback((key: MarketKey) => {
     setMarket(key);
     try { localStorage.setItem(STORAGE_MARKET, key); } catch { /* ignore */ }
+  }, []);
+
+  const handleToggleBot = useCallback(() => {
+    setBotMode(v => {
+      try { localStorage.setItem("axe-bot-mode", String(!v)); } catch { /* ignore */ }
+      return !v;
+    });
+  }, []);
+
+  const handleTakeTrade = useCallback(() => {
+    setOpportunity(prev => {
+      if (!prev) return prev;
+      const next = takeTrade(prev);
+      saveState(symbolRef.current, analysisRef.current, next);
+      return next;
+    });
+  }, []);
+
+  const handleSkipTrade = useCallback(() => {
+    setOpportunity(prev => {
+      if (!prev) return prev;
+      const next = skipTrade(prev);
+      saveState(symbolRef.current, analysisRef.current, next);
+      return next;
+    });
+  }, []);
+
+  const livePriceRef = useRef<number | null>(null);
+  livePriceRef.current = livePrice;
+
+  const handleCloseTrade = useCallback(() => {
+    setOpportunity(prev => {
+      if (!prev || livePriceRef.current === null) return prev;
+      const next = closeTrade(prev, livePriceRef.current);
+      if (next.phase === "CLOSED") {
+        playResolvedSound(livePnl(next, livePriceRef.current) >= 0);
+        saveState(symbolRef.current, analysisRef.current, next);
+      }
+      return next;
+    });
   }, []);
 
   return (
@@ -199,6 +244,11 @@ export default function Dashboard() {
             onAnalysis={handleAnalysis}
             opportunity={opportunity}
             livePrice={livePrice}
+            botMode={botMode}
+            onToggleBot={handleToggleBot}
+            onTakeTrade={handleTakeTrade}
+            onSkipTrade={handleSkipTrade}
+            onCloseTrade={handleCloseTrade}
           />
         </aside>
       </div>

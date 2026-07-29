@@ -13,13 +13,14 @@ const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; 
 };
 
 const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
-  HUNTING:       { label: "HUNTING BREAKOUT", color: "#7878a0", step: 0 },
-  AWAIT_RETEST:  { label: "BREAKOUT! — WAITING RETEST", color: "#c9b845", step: 1 },
-  RETEST_ACTIVE: { label: "⚡ RETEST ACTIVE — GET READY", color: "#d4b83a", step: 2 },
-  CONFIRMED:     { label: "RETEST HELD — TRADE LIVE", color: "#00b868", step: 3 },
-  TP_HIT:        { label: "✓ TAKE PROFIT HIT", color: "#00b868", step: 4 },
-  SL_HIT:        { label: "✗ STOP LOSS HIT", color: "#cc3a3a", step: 4 },
-  INVALIDATED:   { label: "✗ SETUP INVALIDATED — TRAP", color: "#cc3a3a", step: 4 },
+  HUNTING:       { label: "HUNTING BREAKOUT", color: "#6f9a7e", step: 0 },
+  AWAIT_RETEST:  { label: "BREAKOUT — WAITING RETEST", color: "#c9b845", step: 1 },
+  RETEST_ACTIVE: { label: "⚡ RETEST ACTIVE", color: "#d4b83a", step: 2 },
+  CONFIRMED:     { label: "POSITION OPEN", color: "#00b868", step: 3 },
+  TP_HIT:        { label: "TAKE PROFIT HIT", color: "#00b868", step: 4 },
+  SL_HIT:        { label: "STOP LOSS HIT", color: "#cc3a3a", step: 4 },
+  CLOSED:        { label: "CLOSED MANUALLY", color: "#b89b28", step: 4 },
+  INVALIDATED:   { label: "SETUP INVALIDATED", color: "#cc3a3a", step: 4 },
 };
 
 const STEPS = ["HUNT", "BREAK", "RETEST", "LIVE", "DONE"];
@@ -33,6 +34,29 @@ function probLabel(p: number) {
   if (p >= 70) return "HIGH";
   if (p >= 45) return "MEDIUM";
   return "LOW";
+}
+
+// ── Circular probability gauge ───────────────────────────────────────────────
+function ProbRing({ value }: { value: number }) {
+  const c = probColor(value);
+  const R = 30;
+  const CIRC = 2 * Math.PI * R;
+  return (
+    <div className="relative w-[76px] h-[76px] shrink-0">
+      <svg width="76" height="76" viewBox="0 0 76 76" className="-rotate-90">
+        <circle cx="38" cy="38" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <circle
+          cx="38" cy="38" r={R} fill="none"
+          stroke={c} strokeWidth="6" strokeLinecap="round"
+          strokeDasharray={`${(value / 100) * CIRC} ${CIRC}`}
+          style={{ transition: "stroke-dasharray 0.6s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-lg font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
+      </div>
+    </div>
+  );
 }
 
 function Clock({ is24h }: { is24h: boolean }) {
@@ -86,81 +110,193 @@ function Clock({ is24h }: { is24h: boolean }) {
   );
 }
 
-// Live opportunity tracker — the heart of the panel once a setup exists
-function OpportunityTracker({ opp, price }: { opp: Opportunity; price: number | null }) {
-  const meta = PHASE_META[opp.phase];
-  const isTerminal = opp.phase === "TP_HIT" || opp.phase === "SL_HIT" || opp.phase === "INVALIDATED";
-  const isWin = opp.phase === "TP_HIT";
-  const dirColor = opp.direction === "long" ? "#00b868" : "#cc3a3a";
+function SectionHeader({ label, right }: { label: string; right?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mt-1">
+      <span className="text-[11px] font-black tracking-[0.25em] shrink-0" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>{label}</span>
+      <div className="flex-1 h-px" style={{ background: "rgba(184,155,40,0.15)" }} />
+      {right}
+    </div>
+  );
+}
 
+// ── The Trade card — everything about the position in one place ──────────────
+function TradeCard({
+  opp, price, bot, setup, lots, onTakeTrade, onSkipTrade, onCloseTrade,
+}: {
+  opp: Opportunity;
+  price: number | null;
+  bot: boolean;
+  setup: NonNullable<AnalysisResult["tradeSetup"]> | null;
+  lots: number;
+  onTakeTrade: () => void;
+  onSkipTrade: () => void;
+  onCloseTrade: () => void;
+}) {
+  const meta = PHASE_META[opp.phase];
+  const isTerminal = ["TP_HIT", "SL_HIT", "CLOSED", "INVALIDATED"].includes(opp.phase);
+  const dirColor = opp.direction === "long" ? "#00b868" : "#cc3a3a";
   const dist = price !== null ? Math.abs(price - opp.level) : null;
-  const pnl = price !== null && (opp.phase === "CONFIRMED") ? livePnl(opp, price) : null;
+
+  const pnl = (() => {
+    if (opp.phase === "CONFIRMED" && price !== null) return livePnl(opp, price);
+    if (opp.phase === "CLOSED" && opp.exitPrice != null) return livePnl(opp, opp.exitPrice);
+    if (opp.phase === "TP_HIT") return livePnl(opp, opp.tp);
+    if (opp.phase === "SL_HIT") return -ACCOUNT.riskPerTrade;
+    return null;
+  })();
 
   let statusLine = "";
-  if (price !== null) {
-    switch (opp.phase) {
-      case "HUNTING":
-        statusLine = `Waiting for price to break ${opp.level.toFixed(2)} — ${dist!.toFixed(2)} pts away`;
-        break;
-      case "AWAIT_RETEST":
-        statusLine = `Level broke! Waiting for price to come back to ${opp.level.toFixed(2)} — ${dist!.toFixed(2)} pts away`;
-        break;
-      case "RETEST_ACTIVE":
-        statusLine = `Price is AT the level right now. Watch the candle — if it holds, that's your entry.`;
-        break;
-      case "CONFIRMED":
-        statusLine = `Retest held. Tracking the move → TP ${opp.tp.toFixed(2)} / SL ${opp.sl.toFixed(2)}`;
-        break;
-      case "TP_HIT":
-        statusLine = `Target reached at ${opp.tp.toFixed(2)}. That's how it's done.`;
-        break;
-      case "SL_HIT":
-        statusLine = `Stopped at ${opp.sl.toFixed(2)}. −$${ACCOUNT.riskPerTrade} — controlled loss, next.`;
-        break;
-      case "INVALIDATED":
-        statusLine = `Price pushed back through the level — trap avoided. Run a new analysis.`;
-        break;
-    }
+  switch (opp.phase) {
+    case "HUNTING":
+      statusLine = dist !== null ? `Waiting for the break of ${opp.level.toFixed(2)} · ${dist.toFixed(2)} pts away` : `Waiting for the break of ${opp.level.toFixed(2)}`;
+      break;
+    case "AWAIT_RETEST":
+      statusLine = dist !== null ? `Level broke — waiting for the retest · ${dist.toFixed(2)} pts away` : "Level broke — waiting for the retest";
+      break;
+    case "RETEST_ACTIVE":
+      statusLine = bot ? "Price at the level — bot enters if the candle holds" : "Price at the level — your call. Take it or skip it.";
+      break;
+    case "CONFIRMED":
+      statusLine = `${bot ? "Bot entered" : "You're in"} @ ${opp.entry.toFixed(2)} · targeting ${opp.tp.toFixed(2)}`;
+      break;
+    case "TP_HIT":
+      statusLine = `Target hit at ${opp.tp.toFixed(2)}. That's how it's done.`;
+      break;
+    case "SL_HIT":
+      statusLine = `Stopped at ${opp.sl.toFixed(2)} — controlled loss, on to the next.`;
+      break;
+    case "CLOSED":
+      statusLine = `Closed at ${opp.exitPrice?.toFixed(2)} by your call.`;
+      break;
+    case "INVALIDATED":
+      statusLine = "Price pushed back through the level — trap avoided.";
+      break;
   }
 
   return (
-    <div className="rounded-lg overflow-hidden" style={{ border: `2px solid ${meta.color}66`, background: "var(--bg-card)" }}>
-      {/* Phase header */}
-      <div className="flex items-center justify-between px-4 py-2.5" style={{ background: `${meta.color}14` }}>
-        <span className="font-black text-sm tracking-wider" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
-          {meta.label}
-        </span>
-        <span className="flex items-center gap-2 text-xs font-bold" style={{ color: dirColor }}>
-          {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse inline-block" style={{ background: meta.color }} />}
-          {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} @ {opp.level.toFixed(2)}
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{
+        border: `1px solid ${meta.color}55`,
+        background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-card)`,
+        boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33` : "none",
+      }}
+    >
+      {/* Header: phase + direction pill */}
+      <div className="flex items-center justify-between px-4 pt-3">
+        <div className="flex items-center gap-2">
+          {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: meta.color }} />}
+          <span className="font-black text-sm tracking-wider" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
+            {meta.label}
+          </span>
+        </div>
+        <span
+          className="px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider"
+          style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
+        >
+          {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {lots} LOTS
         </span>
       </div>
 
-      {/* Step pipeline */}
+      {/* Pipeline */}
       <div className="flex items-center gap-1 px-4 pt-3">
         {STEPS.map((s, i) => {
           const active = i === meta.step;
           const done = i < meta.step;
-          const failColor = isTerminal && !isWin && i === 4;
-          const c = failColor ? "#cc3a3a" : active || done ? meta.color : "rgba(255,255,255,0.12)";
+          const isFailEnd = isTerminal && (opp.phase === "SL_HIT" || opp.phase === "INVALIDATED") && i === 4;
+          const c = isFailEnd ? "#cc3a3a" : active || done ? meta.color : "rgba(255,255,255,0.1)";
           return (
             <div key={s} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full h-1 rounded-full" style={{ background: c, opacity: done ? 0.5 : 1 }} />
-              <span className="text-[10px] font-bold tracking-wider" style={{ color: active ? c : "var(--text-muted)" }}>{s}</span>
+              <div className="w-full h-[3px] rounded-full" style={{ background: c, opacity: done ? 0.45 : 1 }} />
+              <span className="text-[9px] font-bold tracking-widest" style={{ color: active ? c : "var(--text-muted)" }}>{s}</span>
             </div>
           );
         })}
       </div>
 
-      {/* Live status */}
-      <div className="px-4 py-2.5 flex items-center justify-between gap-3">
-        <p className="text-[13px]" style={{ color: "#d5e8db" }}>{statusLine || "Waiting for live data..."}</p>
+      {/* Status + P/L */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+        <p className="text-[13px] leading-snug" style={{ color: "#d5e8db" }}>{statusLine}</p>
         {pnl !== null && (
-          <div className="text-xl font-black shrink-0" style={{ color: pnl >= 0 ? "#00b868" : "#cc3a3a", fontFamily: "var(--font-display)" }}>
-            {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
+          <div className="text-right shrink-0">
+            <div className="text-2xl font-black leading-none" style={{ color: pnl >= 0 ? "#00b868" : "#cc3a3a", fontFamily: "var(--font-display)" }}>
+              {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
+            </div>
+            <div className="text-[10px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
+              {opp.phase === "CONFIRMED" ? "LIVE P/L" : "RESULT"}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Entry / SL / TP strip */}
+      {setup && (
+        <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="px-4 py-2.5">
+            <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c9b845" }}>ENTRY</div>
+            <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{setup.entryPrice.toFixed(2)}</div>
+          </div>
+          <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#cc3a3a" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
+            <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{setup.stopLoss.toFixed(2)}</div>
+          </div>
+          <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#00b868" }}>TARGET · +${setup.rewardAmount}</div>
+            <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{setup.takeProfit.toFixed(2)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Contextual actions */}
+      {!bot && (opp.phase === "RETEST_ACTIVE" || opp.phase === "AWAIT_RETEST") && (
+        <div className="grid grid-cols-2 gap-2 px-4 pb-3 pt-1">
+          <button
+            onClick={onTakeTrade}
+            className="py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            style={{
+              background: opp.phase === "RETEST_ACTIVE" ? "#00b868" : "rgba(0,184,104,0.1)",
+              color: opp.phase === "RETEST_ACTIVE" ? "#030b06" : "#00b868",
+              border: "1px solid rgba(0,184,104,0.45)",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            ✓ TAKE TRADE
+          </button>
+          <button
+            onClick={onSkipTrade}
+            className="py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            style={{
+              background: "rgba(204,58,58,0.08)",
+              color: "#d64848",
+              border: "1px solid rgba(204,58,58,0.35)",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            ✕ SKIP SETUP
+          </button>
+        </div>
+      )}
+
+      {opp.phase === "CONFIRMED" && (
+        <div className="px-4 pb-3 pt-1">
+          <button
+            onClick={onCloseTrade}
+            className="w-full py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            style={{
+              background: "rgba(204,58,58,0.1)",
+              color: "#d64848",
+              border: "1px solid rgba(204,58,58,0.4)",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            ⏻ CLOSE POSITION {price !== null && pnl !== null ? `@ ${price.toFixed(2)} (${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)})` : ""}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -171,9 +307,17 @@ interface Props {
   onAnalysis: (result: AnalysisResult, candles5m: RawCandle[], candles1m: RawCandle[]) => void;
   opportunity: Opportunity | null;
   livePrice: number | null;
+  botMode: boolean;
+  onToggleBot: () => void;
+  onTakeTrade: () => void;
+  onSkipTrade: () => void;
+  onCloseTrade: () => void;
 }
 
-export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, livePrice }: Props) {
+export default function BobbyPanel({
+  market, analysis, onAnalysis, opportunity, livePrice,
+  botMode, onToggleBot, onTakeTrade, onSkipTrade, onCloseTrade,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const result = analysis; // analysis state lives in Dashboard (persisted across reloads)
@@ -206,13 +350,11 @@ export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, 
     }
   }, [market, onAnalysis]);
 
-  // Clear errors when market changes — analysis only runs on button press
   useEffect(() => {
     setError("");
   }, [market]);
 
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
-  const pc = result ? probColor(result.probability) : "#6b7280";
   const hasOpp = !!opportunity;
   const lots = lotsFor(market);
 
@@ -228,12 +370,20 @@ export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, 
         <Clock is24h={market.is24h} />
       </div>
 
-      {/* Account strip */}
-      <div className="flex items-center gap-4 px-5 py-2 text-xs font-semibold" style={{ borderBottom: "1px solid var(--gold-border)", color: "var(--text-secondary)" }}>
-        <span>ACCOUNT <span style={{ color: "#eeeef8" }}>${ACCOUNT.balance.toLocaleString()}</span></span>
-        <span>RISK <span style={{ color: "#cc3a3a" }}>${ACCOUNT.riskPerTrade}/trade</span></span>
-        <span>SL <span style={{ color: "#eeeef8" }}>{market.slLabel}</span></span>
-        <span>SIZE <span style={{ color: "#eeeef8" }}>{lots} lots</span></span>
+      {/* Account chips */}
+      <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+        {[
+          ["ACCOUNT", `$${ACCOUNT.balance.toLocaleString()}`, "#e8f5ec"],
+          ["RISK", `$${ACCOUNT.riskPerTrade}/trade`, "#cc3a3a"],
+          ["SL", market.slLabel, "#e8f5ec"],
+          ["SIZE", `${lots} lots`, "#e8f5ec"],
+        ].map(([k, v, c]) => (
+          <span key={k} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <span style={{ color: "var(--text-muted)" }}>{k}</span>
+            <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
+          </span>
+        ))}
       </div>
 
       {/* Price strip + action button */}
@@ -260,7 +410,7 @@ export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, 
         <button
           onClick={analyze}
           disabled={loading}
-          className="px-6 py-2.5 rounded font-black text-sm tracking-widest transition-all duration-150 shrink-0"
+          className="px-6 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150 shrink-0"
           style={{
             background: loading ? "rgba(184,155,40,0.08)" : hasOpp ? "transparent" : "#b89b28",
             color: loading ? "#b89b28" : hasOpp ? "#b89b28" : "#030b06",
@@ -275,7 +425,7 @@ export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, 
 
       {/* Error */}
       {error && (
-        <div className="mx-5 mt-4 p-3 rounded text-sm" style={{ background: "rgba(204,58,58,0.1)", border: "1px solid rgba(204,58,58,0.35)", color: "#d64848" }}>
+        <div className="mx-5 mt-4 p-3 rounded-lg text-sm" style={{ background: "rgba(204,58,58,0.1)", border: "1px solid rgba(204,58,58,0.35)", color: "#d64848" }}>
           {error}
         </div>
       )}
@@ -283,37 +433,65 @@ export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, 
       {result && sig && (
         <div className="p-4 flex flex-col gap-3">
 
-          {/* Live opportunity tracker — always on top when it exists */}
-          {opportunity && <OpportunityTracker opp={opportunity} price={livePrice} />}
+          {/* ═══ THE TRADE ═══ */}
+          <SectionHeader
+            label="THE TRADE"
+            right={
+              <button
+                onClick={onToggleBot}
+                className="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wider transition-all duration-150"
+                style={{
+                  background: botMode ? "rgba(0,184,104,0.12)" : "rgba(255,255,255,0.04)",
+                  color: botMode ? "#00b868" : "var(--text-secondary)",
+                  border: `1px solid ${botMode ? "rgba(0,184,104,0.4)" : "rgba(255,255,255,0.12)"}`,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: botMode ? "#00b868" : "#6b7280" }} />
+                {botMode ? "TRADE BOT: ON" : "TRADE BOT: OFF — MANUAL"}
+              </button>
+            }
+          />
 
-          {/* Signal + Probability side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg p-3 flex flex-col items-center justify-center" style={{ background: sig.bg, border: `2px solid ${sig.border}` }}>
+          {opportunity ? (
+            <TradeCard
+              opp={opportunity}
+              price={livePrice}
+              bot={botMode}
+              setup={result.tradeSetup}
+              lots={lots}
+              onTakeTrade={onTakeTrade}
+              onSkipTrade={onSkipTrade}
+              onCloseTrade={onCloseTrade}
+            />
+          ) : (
+            <div className="rounded-xl px-4 py-3 text-[13px]" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
+              No tradeable setup right now — run a new analysis when the market moves.
+            </div>
+          )}
+
+          {/* ═══ THE ANALYSIS ═══ */}
+          <SectionHeader label="THE ANALYSIS" />
+
+          {/* Signal + probability gauge */}
+          <div className="rounded-xl flex items-center gap-4 px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <ProbRing value={result.probability} />
+            <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-black" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.icon}</span>
                 <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
-            </div>
-
-            <div className="rounded-lg px-3 py-2.5" style={{ background: "var(--bg-card)", border: `1px solid ${pc}44` }}>
-              <div className="flex items-baseline justify-between">
-                <span className="text-[10px] font-bold tracking-widest" style={{ color: "var(--text-secondary)" }}>PROBABILITY</span>
-                <span className="text-[10px] font-black" style={{ color: pc }}>{probLabel(result.probability)}</span>
-              </div>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-3xl font-black leading-none" style={{ color: pc, fontFamily: "var(--font-display)" }}>
-                  {result.probability}%
-                </span>
-                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${result.probability}%`, background: pc }} />
-                </div>
+              <div className="text-xs mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
+                {probLabel(result.probability)} PROBABILITY · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors aligned
+                {result.penalties.length > 0 && ` · ${result.penalties.length} ${result.penalties.length === 1 ? "penalty" : "penalties"}`}
               </div>
             </div>
           </div>
 
-          {/* Warnings — the context that changes your decision */}
+          {/* Warnings */}
           {result.warnings.length > 0 ? (
-            <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(204,58,58,0.35)" }}>
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(204,58,58,0.35)" }}>
               <div className="px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(204,58,58,0.1)", color: "#d64848" }}>
                 ⚠ WARNINGS — READ BEFORE ENTERING
               </div>
@@ -333,63 +511,48 @@ export default function BobbyPanel({ market, analysis, onAnalysis, opportunity, 
               </div>
             </div>
           ) : (
-            <div className="rounded-lg px-3 py-2 text-[13px] font-semibold" style={{ background: "rgba(0,184,104,0.06)", border: "1px solid rgba(0,184,104,0.25)", color: "#00b868" }}>
+            <div className="rounded-xl px-3 py-2 text-[13px] font-semibold" style={{ background: "rgba(0,184,104,0.06)", border: "1px solid rgba(0,184,104,0.25)", color: "#00b868" }}>
               ✓ No red flags — clean conditions for this setup
             </div>
           )}
 
-          {/* Trade setup: 3-column grid */}
-          {result.tradeSetup && (
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg px-2 py-2 text-center" style={{ background: "var(--bg-card)", border: "1px solid rgba(201,184,69,0.3)" }}>
-                <div className="text-[10px] font-bold tracking-widest" style={{ color: "#c9b845" }}>ENTRY</div>
-                <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{result.tradeSetup.entryPrice.toFixed(2)}</div>
-                <div className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
-                  {result.tradeSetup.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {lots} lots
-                </div>
-              </div>
-              <div className="rounded-lg px-2 py-2 text-center" style={{ background: "var(--bg-card)", border: "1px solid rgba(194,48,48,0.3)" }}>
-                <div className="text-[10px] font-bold tracking-widest" style={{ color: "#cc3a3a" }}>STOP LOSS</div>
-                <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{result.tradeSetup.stopLoss.toFixed(2)}</div>
-                <div className="text-[11px] font-bold" style={{ color: "#cc3a3a" }}>−${ACCOUNT.riskPerTrade}</div>
-              </div>
-              <div className="rounded-lg px-2 py-2 text-center" style={{ background: "var(--bg-card)", border: "1px solid rgba(0,184,104,0.3)" }}>
-                <div className="text-[10px] font-bold tracking-widest" style={{ color: "#00b868" }}>TAKE PROFIT</div>
-                <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{result.tradeSetup.takeProfit.toFixed(2)}</div>
-                <div className="text-[11px] font-bold" style={{ color: "#00b868" }}>+${result.tradeSetup.rewardAmount} · R:R {result.tradeSetup.rrRatio}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Probability factors */}
-          <div className="rounded-lg px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="text-[10px] font-bold tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>SCORE FACTORS</div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+          {/* Score factors with mini bars */}
+          <div className="rounded-xl px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="text-[10px] font-bold tracking-widest mb-2.5" style={{ color: "var(--text-secondary)" }}>SCORE BREAKDOWN</div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
               {result.probFactors.map((f, i) => {
-                const full = f.points === f.max;
-                const zero = f.points === 0;
+                const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
+                const c = pct === 100 ? "#00b868" : pct === 0 ? "#cc3a3a" : "#b89b28";
                 return (
-                  <div key={i} className="flex items-center justify-between text-[13px]">
-                    <span style={{ color: "#c2d8ca" }}>{f.label}</span>
-                    <span className="font-bold shrink-0 ml-2" style={{ color: full ? "#00b868" : zero ? "#cc3a3a" : "#b89b28", fontFamily: "var(--font-display)" }}>
-                      {f.points}/{f.max}
-                    </span>
+                  <div key={i}>
+                    <div className="flex items-center justify-between text-[12px] mb-1">
+                      <span style={{ color: "#c2d8ca" }}>{f.label}</span>
+                      <span className="font-bold" style={{ color: c, fontFamily: "var(--font-display)" }}>{f.points}/{f.max}</span>
+                    </div>
+                    <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c }} />
+                    </div>
                   </div>
                 );
               })}
               {result.penalties.map((p, i) => (
-                <div key={`p${i}`} className="flex items-center justify-between text-[13px]">
-                  <span style={{ color: "#c2d8ca" }}>⚠ {p.label}</span>
-                  <span className="font-bold shrink-0 ml-2" style={{ color: "#cc3a3a", fontFamily: "var(--font-display)" }}>
-                    {p.points}
-                  </span>
+                <div key={`p${i}`}>
+                  <div className="flex items-center justify-between text-[12px] mb-1">
+                    <span style={{ color: "#c2d8ca" }}>⚠ {p.label}</span>
+                    <span className="font-bold" style={{ color: "#cc3a3a", fontFamily: "var(--font-display)" }}>{p.points}</span>
+                  </div>
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(204,58,58,0.25)" }}>
+                    <div className="h-full rounded-full" style={{ width: "100%", background: "rgba(204,58,58,0.5)" }} />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Bobby's message */}
-          <div className="rounded-lg px-4 py-3" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
+          {/* ═══ BOBBY'S TAKE ═══ */}
+          <SectionHeader label="BOBBY'S TAKE" />
+
+          <div className="rounded-xl px-4 py-3" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
             <p className="text-[13px] leading-relaxed" style={{ color: "#d5e8db" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
               <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
