@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "./analysis";
+import type { AnalysisResult, Level } from "./analysis";
 
 // Live-tracked trade opportunity, advanced tick by tick:
 // HUNTING → AWAIT_RETEST → RETEST_ACTIVE → CONFIRMED → TP_HIT / SL_HIT
@@ -22,12 +22,14 @@ export interface Opportunity {
   sl: number;
   tp: number;
   slPoints: number;
+  cost: number;        // round-trip broker cost (spread) in dollars
   startedAt: number;
   updatedAt: number;
+  fillPrice?: number;  // actual market price when the trade was entered
   exitPrice?: number;  // set when the position is closed manually
 }
 
-export function createOpportunity(a: AnalysisResult, slPoints: number): Opportunity | null {
+export function createOpportunity(a: AnalysisResult, slPoints: number, cost: number): Opportunity | null {
   if (!a.tradeSetup) return null;
   const now = Date.now();
   return {
@@ -39,15 +41,32 @@ export function createOpportunity(a: AnalysisResult, slPoints: number): Opportun
     sl: a.tradeSetup.stopLoss,
     tp: a.tradeSetup.takeProfit,
     slPoints,
+    cost,
     startedAt: now,
     updatedAt: now,
   };
 }
 
+// TP: next opposite level at least 1.5R away, else fixed 2R
+function computeTp(direction: "long" | "short", entry: number, slPoints: number, levels: Level[]): number {
+  if (direction === "long") {
+    const next = levels
+      .filter(l => l.type === "resistance" && l.price >= entry + slPoints * 1.5)
+      .sort((a, b) => a.price - b.price)[0];
+    return next?.price ?? entry + slPoints * 2;
+  }
+  const next = levels
+    .filter(l => l.type === "support" && l.price <= entry - slPoints * 1.5)
+    .sort((a, b) => b.price - a.price)[0];
+  return next?.price ?? entry - slPoints * 2;
+}
+
 // autoTrade = Trade Bot ON: entries are taken automatically when the retest
 // holds. With the bot OFF, RETEST_ACTIVE waits for the user to take the trade
 // manually (takeTrade) — if price leaves the zone untaken, we re-arm the retest.
-export function advanceOpportunity(o: Opportunity, price: number, autoTrade = true): Opportunity {
+// `levels` enables dynamic re-anchoring: if price runs away from a broken level
+// without retesting, the opportunity jumps to the nearest freshly-broken level.
+export function advanceOpportunity(o: Opportunity, price: number, autoTrade = true, levels: Level[] = []): Opportunity {
   const now = Date.now();
   const dirUp = o.direction === "long";
   const beyond = dirUp ? price > o.level : price < o.level;  // past the level in trade direction
@@ -62,17 +81,39 @@ export function advanceOpportunity(o: Opportunity, price: number, autoTrade = tr
       if (beyond && !inZone) return { ...o, phase: "AWAIT_RETEST", updatedAt: now };
       return { ...o, updatedAt: now };
 
-    case "AWAIT_RETEST":
+    case "AWAIT_RETEST": {
       if (failed) return { ...o, phase: "INVALIDATED", updatedAt: now };
       if (inZone) return { ...o, phase: "RETEST_ACTIVE", updatedAt: now };
+
+      // Re-anchor: price ran more than 1 SL past the broken level without
+      // retesting — that retest is likely gone. The live trade is at the
+      // nearest level price broke on its way. Jump the opportunity there.
+      const runDist = dirUp ? price - o.level : o.level - price;
+      if (runDist > o.slPoints && levels.length > 0) {
+        const crossed = levels
+          .map(l => l.price)
+          .filter(p => (dirUp ? p > o.level && p < price : p < o.level && p > price));
+        if (crossed.length > 0) {
+          const newLevel = dirUp ? Math.max(...crossed) : Math.min(...crossed);
+          return {
+            ...o,
+            level: newLevel,
+            entry: newLevel,
+            sl: dirUp ? newLevel - o.slPoints : newLevel + o.slPoints,
+            tp: computeTp(o.direction, newLevel, o.slPoints, levels),
+            updatedAt: now,
+          };
+        }
+      }
       return { ...o, updatedAt: now };
+    }
 
     case "RETEST_ACTIVE":
       if (failed) return { ...o, phase: "INVALIDATED", updatedAt: now };
       // Retest held: price bounced off the level and cleared the zone again
       if (beyond && !inZone) {
         return autoTrade
-          ? { ...o, phase: "CONFIRMED", updatedAt: now }   // bot takes the trade
+          ? { ...o, phase: "CONFIRMED", fillPrice: price, updatedAt: now } // bot enters at market
           : { ...o, phase: "AWAIT_RETEST", updatedAt: now }; // untaken — wait for next touch
       }
       return { ...o, updatedAt: now };
@@ -91,13 +132,29 @@ export function advanceOpportunity(o: Opportunity, price: number, autoTrade = tr
 }
 
 // Manual mode actions
-export function takeTrade(o: Opportunity): Opportunity {
+export function takeTrade(o: Opportunity, price: number): Opportunity {
   if (o.phase !== "RETEST_ACTIVE" && o.phase !== "AWAIT_RETEST") return o;
-  return { ...o, phase: "CONFIRMED", updatedAt: Date.now() };
+  return { ...o, phase: "CONFIRMED", fillPrice: price, updatedAt: Date.now() };
 }
 
 export function skipTrade(o: Opportunity): Opportunity {
   return { ...o, phase: "INVALIDATED", updatedAt: Date.now() };
+}
+
+// Market entry: open the position at the CURRENT price, re-basing SL and TP
+// from it (same lot sizing — SL distance is unchanged)
+export function enterAtMarket(o: Opportunity, price: number, levels: Level[] = []): Opportunity {
+  if (o.phase === "CONFIRMED" || o.phase === "TP_HIT" || o.phase === "SL_HIT" || o.phase === "CLOSED" || o.phase === "INVALIDATED") return o;
+  const dirUp = o.direction === "long";
+  return {
+    ...o,
+    phase: "CONFIRMED",
+    entry: price,
+    fillPrice: price,
+    sl: dirUp ? price - o.slPoints : price + o.slPoints,
+    tp: computeTp(o.direction, price, o.slPoints, levels),
+    updatedAt: Date.now(),
+  };
 }
 
 // Close an open position at the current market price
@@ -106,9 +163,11 @@ export function closeTrade(o: Opportunity, price: number): Opportunity {
   return { ...o, phase: "CLOSED", exitPrice: price, updatedAt: Date.now() };
 }
 
-// Live P/L in dollars assuming entry at the level with the account's risk sizing
+// Live P/L in dollars from the ACTUAL fill price, minus broker cost (spread).
+// A fresh position correctly starts slightly negative — you pay the spread.
 export function livePnl(o: Opportunity, price: number): number {
   const perPoint = 100 / o.slPoints;
-  const diff = o.direction === "long" ? price - o.entry : o.entry - price;
-  return diff * perPoint;
+  const base = o.fillPrice ?? o.entry;
+  const diff = o.direction === "long" ? price - base : base - price;
+  return diff * perPoint - (o.cost ?? 0);
 }

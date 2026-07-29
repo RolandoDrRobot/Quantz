@@ -15,6 +15,8 @@ export const MARKETS = {
     slPoints: 40,
     slLabel: "40 pts",
     contractSize: 1,
+    spreadPoints: 2.0,
+    yahooTickFallback: true,
     color: "#00b868",
   },
   dowjones: {
@@ -27,6 +29,8 @@ export const MARKETS = {
     slPoints: 40,
     slLabel: "40 pts",
     contractSize: 1,
+    spreadPoints: 2.5,
+    yahooTickFallback: true,
     color: "#3a72c9",
   },
   gold: {
@@ -39,19 +43,12 @@ export const MARKETS = {
     slPoints: 4,
     slLabel: "40 pips ($4.00)",
     contractSize: 100,
+    spreadPoints: 0.15,
+    // Candles come from Twelve Data (spot). Yahoo's GC=F is futures and trades
+    // ~$5-8 off spot — its tick fallback would corrupt the chart and trigger
+    // false retests, so live data is WebSocket-only for this market.
+    yahooTickFallback: false,
     color: "#c9a838",
-  },
-  sp500: {
-    symbol: "^GSPC",
-    tdSymbol: "SPX",
-    label: "S&P 500",
-    short: "US500",
-    description: "S&P 500 · 7:30 AM CR Open",
-    is24h: false,
-    slPoints: 40,
-    slLabel: "40 pts",
-    contractSize: 1,
-    color: "#8468c9",
   },
 } as const;
 
@@ -61,4 +58,11 @@ export type Market = (typeof MARKETS)[MarketKey];
 // Lot size so that hitting the SL loses exactly the risk amount
 export function lotsFor(market: Market): number {
   return ACCOUNT.riskPerTrade / (market.slPoints * market.contractSize);
+}
+
+// Estimated Exness round-trip cost in dollars (spread crossed at entry),
+// scaled by the position size implied by the fixed risk
+export function tradeCostFor(market: Market): number {
+  const perPoint = ACCOUNT.riskPerTrade / market.slPoints;
+  return parseFloat((market.spreadPoints * perPoint).toFixed(2));
 }

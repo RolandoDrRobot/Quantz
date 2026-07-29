@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { FiBarChart2, FiZap, FiTrendingUp } from "react-icons/fi";
 import AxeChart from "./AxeChart";
 import BobbyPanel from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
-import type { AnalysisResult } from "../lib/analysis";
+import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
-import { createOpportunity, advanceOpportunity, takeTrade, skipTrade, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
+import RecordsModal from "./RecordsModal";
+import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
+import { addRecord } from "../lib/records";
+import { ACCOUNT, tradeCostFor } from "../lib/markets";
 
-const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "sp500"];
+const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold"];
 
 const STORAGE_MARKET = "axe-market";
 const storageKey = (symbol: string) => `axe-analysis-${symbol}`;
@@ -30,6 +34,7 @@ export default function Dashboard() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [botMode, setBotMode] = useState(true);
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
@@ -38,6 +43,36 @@ export default function Dashboard() {
   symbolRef.current = cfg.symbol;
   const botModeRef = useRef(botMode);
   botModeRef.current = botMode;
+  const marketShortRef = useRef<string>(cfg.short);
+  marketShortRef.current = cfg.short;
+  const livePriceRef = useRef<number | null>(null);
+  livePriceRef.current = livePrice;
+
+  // The opportunity lives in a ref (single source of truth for transitions) and
+  // is mirrored to state for rendering. All side effects (records, sounds,
+  // persistence) run OUTSIDE React state updaters — updaters can be invoked
+  // twice in dev, which double-fired them (e.g. trades recorded twice).
+  const opportunityRef = useRef<Opportunity | null>(null);
+  const updateOpportunity = useCallback((next: Opportunity | null) => {
+    opportunityRef.current = next;
+    setOpportunity(next);
+  }, []);
+
+  // Every resolved trade (TP, SL or manual close) lands in the records
+  const recordTrade = useCallback((opp: Opportunity, outcome: "TP" | "SL" | "MANUAL", exit: number) => {
+    const pnl = livePnl(opp, exit);
+    addRecord({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      time: Date.now(),
+      market: marketShortRef.current,
+      direction: opp.direction,
+      entry: opp.entry,
+      exit,
+      outcome,
+      pnl,
+      rMultiple: parseFloat((pnl / ACCOUNT.riskPerTrade).toFixed(2)),
+    });
+  }, []);
 
   // Restore last selected market + bot mode on mount
   useEffect(() => {
@@ -53,7 +88,7 @@ export default function Dashboard() {
   useEffect(() => {
     setChartCandles([]);
     setAnalysis(null);
-    setOpportunity(null);
+    updateOpportunity(null);
     setLivePrice(null);
     setChartLoading(true);
     let cancelled = false;
@@ -73,7 +108,7 @@ export default function Dashboard() {
             const saved = JSON.parse(raw);
             if (saved.analysis && Date.now() - (saved.savedAt ?? 0) < MAX_AGE_MS) {
               setAnalysis(saved.analysis);
-              setOpportunity(saved.opportunity ?? null);
+              updateOpportunity(saved.opportunity ?? null);
             }
           }
         } catch { /* corrupt entry — ignore */ }
@@ -82,78 +117,112 @@ export default function Dashboard() {
       .finally(() => { if (!cancelled) setChartLoading(false); });
 
     return () => { cancelled = true; };
-  }, [cfg.symbol]);
+  }, [cfg.symbol, updateOpportunity]);
 
   // Called only when Ask Bobby / New Analysis is pressed
   const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
     setChartCandles(c1m.length >= 10 ? c1m : c5m.slice(-500));
     setAnalysis(result);
-    const opp = createOpportunity(result, MARKETS[market].slPoints);
-    setOpportunity(opp);
+    const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
+    updateOpportunity(opp);
     saveState(MARKETS[market].symbol, result, opp);
-  }, [market]);
+  }, [market, updateOpportunity]);
 
-  // Every live tick advances the opportunity state machine
+  // Every live tick advances the opportunity state machine.
+  // Transitions run against the ref (synchronous, exactly once per tick),
+  // and the state mirror only updates on a phase change to avoid re-rendering
+  // the whole panel on every tick.
   const handleTick = useCallback((price: number) => {
     setLivePrice(price);
-    setOpportunity(prev => {
-      if (!prev) return prev;
-      const next = advanceOpportunity(prev, price, botModeRef.current);
-      if (next.phase !== prev.phase) {
-        if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") playBreakoutSound();
-        else if (next.phase === "RETEST_ACTIVE") playRetestSound();
-        else if (next.phase === "TP_HIT") playResolvedSound(true);
-        else if (next.phase === "SL_HIT") playResolvedSound(false);
-        saveState(symbolRef.current, analysisRef.current, next);
-      }
-      return next;
-    });
-  }, []);
+    livePriceRef.current = price;
+
+    const prev = opportunityRef.current;
+    if (!prev) return;
+    const next = advanceOpportunity(prev, price, botModeRef.current, analysisRef.current?.levels ?? []);
+    opportunityRef.current = next;
+
+    const levelChanged = next.level !== prev.level; // dynamic re-anchor to a closer broken level
+    if (next.phase !== prev.phase || levelChanged) {
+      setOpportunity(next);
+      if (levelChanged) playBreakoutSound();
+      else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") playBreakoutSound();
+      else if (next.phase === "RETEST_ACTIVE") playRetestSound();
+      else if (next.phase === "TP_HIT") { playResolvedSound(true); recordTrade(next, "TP", next.tp); }
+      else if (next.phase === "SL_HIT") { playResolvedSound(false); recordTrade(next, "SL", next.sl); }
+      saveState(symbolRef.current, analysisRef.current, next);
+    }
+  }, [recordTrade]);
 
   const handleMarketChange = useCallback((key: MarketKey) => {
     setMarket(key);
     try { localStorage.setItem(STORAGE_MARKET, key); } catch { /* ignore */ }
   }, []);
 
+  // Chart lines follow the LIVE opportunity (which can re-anchor to new levels),
+  // falling back to the static analysis when no opportunity exists
+  const chartSetup: TradeSetup | null = useMemo(() => {
+    if (!opportunity) return analysis?.tradeSetup ?? null;
+    const tpPoints = Math.abs(opportunity.tp - opportunity.entry);
+    const rrRatio = parseFloat((tpPoints / opportunity.slPoints).toFixed(2));
+    return {
+      direction: opportunity.direction,
+      entryPrice: opportunity.entry,
+      stopLoss: opportunity.sl,
+      takeProfit: opportunity.tp,
+      slPoints: opportunity.slPoints,
+      tpPoints,
+      rrRatio,
+      rewardAmount: Math.round(100 * rrRatio),
+    };
+  }, [opportunity, analysis]);
+
+  const chartBreakout: BreakoutEvent | null = useMemo(() => {
+    if (!opportunity) return analysis?.breakout ?? null;
+    if (opportunity.phase !== "AWAIT_RETEST" && opportunity.phase !== "RETEST_ACTIVE") return null;
+    return {
+      level: opportunity.level,
+      direction: opportunity.direction,
+      breakoutTime: opportunity.updatedAt,
+      strength: analysis?.breakout?.strength ?? 1,
+      retestZone: opportunity.retestZone,
+    };
+  }, [opportunity, analysis]);
+
   const handleToggleBot = useCallback(() => {
-    setBotMode(v => {
-      try { localStorage.setItem("axe-bot-mode", String(!v)); } catch { /* ignore */ }
-      return !v;
-    });
+    const next = !botModeRef.current;
+    try { localStorage.setItem("axe-bot-mode", String(next)); } catch { /* ignore */ }
+    setBotMode(next);
   }, []);
 
   const handleTakeTrade = useCallback(() => {
-    setOpportunity(prev => {
-      if (!prev) return prev;
-      const next = takeTrade(prev);
-      saveState(symbolRef.current, analysisRef.current, next);
-      return next;
-    });
-  }, []);
+    const prev = opportunityRef.current;
+    if (!prev || livePriceRef.current === null) return;
+    const next = takeTrade(prev, livePriceRef.current);
+    if (next === prev) return;
+    updateOpportunity(next);
+    saveState(symbolRef.current, analysisRef.current, next);
+  }, [updateOpportunity]);
 
-  const handleSkipTrade = useCallback(() => {
-    setOpportunity(prev => {
-      if (!prev) return prev;
-      const next = skipTrade(prev);
-      saveState(symbolRef.current, analysisRef.current, next);
-      return next;
-    });
-  }, []);
-
-  const livePriceRef = useRef<number | null>(null);
-  livePriceRef.current = livePrice;
+  const handleMarketEntry = useCallback(() => {
+    const prev = opportunityRef.current;
+    if (!prev || livePriceRef.current === null) return;
+    const next = enterAtMarket(prev, livePriceRef.current, analysisRef.current?.levels ?? []);
+    if (next === prev) return;
+    updateOpportunity(next);
+    saveState(symbolRef.current, analysisRef.current, next);
+  }, [updateOpportunity]);
 
   const handleCloseTrade = useCallback(() => {
-    setOpportunity(prev => {
-      if (!prev || livePriceRef.current === null) return prev;
-      const next = closeTrade(prev, livePriceRef.current);
-      if (next.phase === "CLOSED") {
-        playResolvedSound(livePnl(next, livePriceRef.current) >= 0);
-        saveState(symbolRef.current, analysisRef.current, next);
-      }
-      return next;
-    });
-  }, []);
+    const prev = opportunityRef.current;
+    if (!prev || livePriceRef.current === null) return;
+    const exit = livePriceRef.current;
+    const next = closeTrade(prev, exit);
+    if (next === prev || next.phase !== "CLOSED") return;
+    updateOpportunity(next);
+    playResolvedSound(livePnl(next, exit) >= 0);
+    recordTrade(next, "MANUAL", exit);
+    saveState(symbolRef.current, analysisRef.current, next);
+  }, [recordTrade, updateOpportunity]);
 
   return (
     <>
@@ -180,7 +249,22 @@ export default function Dashboard() {
           );
         })}
         <span className="ml-2 text-[10px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
+        <button
+          onClick={() => setRecordsOpen(true)}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
+          style={{
+            background: "rgba(184,155,40,0.08)",
+            color: "var(--gold)",
+            border: "1px solid rgba(184,155,40,0.3)",
+            cursor: "pointer",
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <FiBarChart2 size={13} /> RECORDS
+        </button>
       </div>
+
+      <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} />
 
       {/* Main */}
       <div className="flex flex-1 overflow-hidden">
@@ -192,11 +276,12 @@ export default function Dashboard() {
                 candles={chartCandles}
                 levels={analysis?.levels ?? []}
                 ma20={analysis?.trend.ma20 ?? 0}
-                tradeSetup={analysis?.tradeSetup ?? null}
-                breakout={analysis?.breakout ?? null}
+                tradeSetup={chartSetup}
+                breakout={chartBreakout}
                 accentColor={cfg.color}
                 symbol={cfg.symbol}
                 tdSymbol={cfg.tdSymbol}
+                yahooTickFallback={cfg.yahooTickFallback}
                 onTick={handleTick}
               />
               {/* Retest alert overlay */}
@@ -210,8 +295,8 @@ export default function Dashboard() {
                     boxShadow: `0 0 24px ${opportunity.direction === "long" ? "rgba(201,184,69,0.4)" : "rgba(214,72,72,0.4)"}`,
                   }}
                 >
-                  <div className="font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c9b845" : "#d64848" }}>
-                    ⚡ RETEST ACTIVE — {opportunity.level.toFixed(2)}
+                  <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c9b845" : "#d64848" }}>
+                    <FiZap size={18} /> RETEST ACTIVE — {opportunity.level.toFixed(2)}
                   </div>
                   <div className="text-sm mt-0.5" style={{ color: "#c2d8ca" }}>
                     {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
@@ -228,7 +313,7 @@ export default function Dashboard() {
                 </>
               ) : (
                 <>
-                  <div className="text-5xl opacity-10">📈</div>
+                  <FiTrendingUp size={48} className="opacity-10" style={{ color: "var(--text-muted)" }} />
                   <p className="text-sm" style={{ color: "var(--text-muted)" }}>Failed to load {cfg.label}</p>
                 </>
               )}
@@ -247,7 +332,7 @@ export default function Dashboard() {
             botMode={botMode}
             onToggleBot={handleToggleBot}
             onTakeTrade={handleTakeTrade}
-            onSkipTrade={handleSkipTrade}
+            onMarketEntry={handleMarketEntry}
             onCloseTrade={handleCloseTrade}
           />
         </aside>

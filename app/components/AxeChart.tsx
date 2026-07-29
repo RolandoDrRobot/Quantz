@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { FiHelpCircle, FiX } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { Level, TradeSetup, BreakoutEvent } from "../lib/analysis";
 
@@ -41,6 +42,7 @@ interface Props {
   accentColor?: string;
   symbol: string;
   tdSymbol: string;
+  yahooTickFallback?: boolean;
   onTick?: (price: number) => void;
 }
 
@@ -55,7 +57,7 @@ const LEGEND = [
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#b89b28", symbol, tdSymbol, onTick }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#b89b28", symbol, tdSymbol, yahooTickFallback = true, onTick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -261,15 +263,11 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
 
   // ── Live data ────────────────────────────────────────────────────────────
-  // Primary: Twelve Data WebSocket (real-time streaming ticks).
-  // Fallback: Yahoo polling every 1 s if the WS delivers nothing in 15 s.
+  // Twelve Data WebSocket for all assets (indices, commodities, 24/5 real-time)
   useEffect(() => {
     if (!symbol) return;
 
     let disposed = false;
-    let pollId: ReturnType<typeof setInterval> | null = null;
-
-    // In-progress 1m candle built from streaming ticks
     let cur: { time: number; open: number; high: number; low: number; close: number } | null = null;
 
     const applyTick = (price: number, tsSec: number) => {
@@ -282,37 +280,15 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         cur.low = Math.min(cur.low, price);
         cur.close = price;
       }
-      try { seriesRef.current.update({ ...cur }); } catch { /* out-of-order tick */ }
+      try { seriesRef.current.update({ ...cur }); } catch { /* skip */ }
       setLivePrice(price);
       onTickRef.current?.(price);
     };
 
-    // ── Yahoo polling (fallback) ────────────────────────────────────────
-    const startPolling = () => {
-      if (disposed || pollId) return;
-      const tick = async () => {
-        if (!seriesRef.current) return;
-        try {
-          const res = await fetch(`/api/tick?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" });
-          if (!res.ok) return;
-          const data = await res.json();
-          if (!data.candle) return;
-          try { seriesRef.current.update({ ...data.candle }); } catch { /* skip */ }
-          cur = null; // yahoo owns the candle now
-          setLivePrice(data.currentPrice);
-          onTickRef.current?.(data.currentPrice);
-        } catch { /* skip */ }
-      };
-      tick();
-      pollId = setInterval(tick, 1000);
-    };
-
-    // ── Twelve Data WebSocket ───────────────────────────────────────────
     let ws: WebSocket | null = null;
     let closed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatId: ReturnType<typeof setInterval> | null = null;
-    let gotData = false;
 
     if (TD_API_KEY && tdSymbol) {
       const connect = () => {
@@ -329,34 +305,27 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           try {
             const msg = JSON.parse(ev.data);
             if (msg.event === "price" && typeof msg.price === "number") {
-              gotData = true;
-              if (pollId) { clearInterval(pollId); pollId = null; } // WS took over
               applyTick(msg.price, msg.timestamp ?? Math.floor(Date.now() / 1000));
             }
-          } catch { /* skip malformed */ }
+          } catch { /* skip */ }
         };
         ws.onclose = () => {
-          if (heartbeatId) { clearInterval(heartbeatId); heartbeatId = null; }
+          if (heartbeatId) clearInterval(heartbeatId);
           if (!closed) reconnectTimer = setTimeout(connect, 3000);
         };
         ws.onerror = () => { ws?.close(); };
       };
       connect();
-
-      // If the WS gives nothing in 15 s (symbol not in plan, market closed), poll Yahoo
-      setTimeout(() => { if (!gotData && !disposed) startPolling(); }, 15000);
-    } else {
-      startPolling();
     }
 
     return () => {
       disposed = true;
       closed = true;
-      if (pollId) clearInterval(pollId);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (heartbeatId) clearInterval(heartbeatId);
       ws?.close();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, tdSymbol]);
 
   return (
@@ -379,10 +348,10 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {/* Legend toggle */}
       <button
         onClick={() => setShowLegend(v => !v)}
-        className="absolute top-3 right-3 px-3 py-1.5 rounded text-xs font-bold tracking-wider"
+        className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold tracking-wider"
         style={{ background: "rgba(3,11,6,0.92)", border: "1px solid rgba(184,155,40,0.2)", color: "#b89b28", cursor: "pointer" }}
       >
-        {showLegend ? "✕ LEGEND" : "? LEGEND"}
+        {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEGEND
       </button>
 
       {/* Legend panel */}

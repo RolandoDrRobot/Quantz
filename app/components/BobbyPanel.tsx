@@ -1,21 +1,26 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { IconType } from "react-icons";
+import {
+  FiTrendingUp, FiTrendingDown, FiPauseCircle, FiCheck, FiX, FiPower,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight,
+} from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
-import { ACCOUNT, lotsFor, type Market } from "../lib/markets";
+import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 
-const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; icon: string }> = {
-  GO_LONG:  { label: "GO LONG",  color: "#00b868", bg: "rgba(0,184,104,0.07)",   border: "rgba(0,184,104,0.35)",   icon: "▲" },
-  GO_SHORT: { label: "GO SHORT", color: "#cc3a3a", bg: "rgba(204,58,58,0.07)",   border: "rgba(204,58,58,0.35)",   icon: "▼" },
-  WAIT:     { label: "WAIT",     color: "#b89b28", bg: "rgba(184,155,40,0.06)",  border: "rgba(184,155,40,0.3)",   icon: "◆" },
+const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
+  GO_LONG:  { label: "GO LONG",  color: "#00b868", bg: "rgba(0,184,104,0.07)",   border: "rgba(0,184,104,0.35)",   Icon: FiTrendingUp },
+  GO_SHORT: { label: "GO SHORT", color: "#cc3a3a", bg: "rgba(204,58,58,0.07)",   border: "rgba(204,58,58,0.35)",   Icon: FiTrendingDown },
+  WAIT:     { label: "WAIT",     color: "#b89b28", bg: "rgba(184,155,40,0.06)",  border: "rgba(184,155,40,0.3)",   Icon: FiPauseCircle },
 };
 
 const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
   HUNTING:       { label: "HUNTING BREAKOUT", color: "#6f9a7e", step: 0 },
   AWAIT_RETEST:  { label: "BREAKOUT — WAITING RETEST", color: "#c9b845", step: 1 },
-  RETEST_ACTIVE: { label: "⚡ RETEST ACTIVE", color: "#d4b83a", step: 2 },
+  RETEST_ACTIVE: { label: "RETEST ACTIVE", color: "#d4b83a", step: 2 },
   CONFIRMED:     { label: "POSITION OPEN", color: "#00b868", step: 3 },
   TP_HIT:        { label: "TAKE PROFIT HIT", color: "#00b868", step: 4 },
   SL_HIT:        { label: "STOP LOSS HIT", color: "#cc3a3a", step: 4 },
@@ -88,9 +93,9 @@ function Clock({ is24h }: { is24h: boolean }) {
       } else if (totalMin < openMin - 30) {
         setStatusLabel(`Pre-market — opens in ${openMin - totalMin}min`); setStatusColor("#f59e0b");
       } else if (totalMin < openMin) {
-        setStatusLabel(`⚡ OPENS IN ${openMin - totalMin}MIN — MARK YOUR LEVELS`); setStatusColor("#b89b28");
+        setStatusLabel(`OPENS IN ${openMin - totalMin}MIN — MARK YOUR LEVELS`); setStatusColor("#b89b28");
       } else if (totalMin < openMin + 30) {
-        setStatusLabel(`🔥 SETUP WINDOW — ${30 - (totalMin - openMin)}min left`); setStatusColor("#00b868");
+        setStatusLabel(`SETUP WINDOW — ${30 - (totalMin - openMin)}min left`); setStatusColor("#00b868");
       } else if (totalMin < 16 * 60) {
         setStatusLabel("Open — window closed"); setStatusColor("#6b7280");
       } else {
@@ -122,17 +127,18 @@ function SectionHeader({ label, right }: { label: string; right?: React.ReactNod
 
 // ── The Trade card — everything about the position in one place ──────────────
 function TradeCard({
-  opp, price, bot, setup, lots, onTakeTrade, onSkipTrade, onCloseTrade,
+  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade,
 }: {
   opp: Opportunity;
   price: number | null;
   bot: boolean;
-  setup: NonNullable<AnalysisResult["tradeSetup"]> | null;
   lots: number;
   onTakeTrade: () => void;
-  onSkipTrade: () => void;
+  onMarketEntry: () => void;
   onCloseTrade: () => void;
 }) {
+  // Values come from the LIVE opportunity — it can re-anchor to closer levels
+  const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * 100);
   const meta = PHASE_META[opp.phase];
   const isTerminal = ["TP_HIT", "SL_HIT", "CLOSED", "INVALIDATED"].includes(opp.phase);
   const dirColor = opp.direction === "long" ? "#00b868" : "#cc3a3a";
@@ -142,7 +148,7 @@ function TradeCard({
     if (opp.phase === "CONFIRMED" && price !== null) return livePnl(opp, price);
     if (opp.phase === "CLOSED" && opp.exitPrice != null) return livePnl(opp, opp.exitPrice);
     if (opp.phase === "TP_HIT") return livePnl(opp, opp.tp);
-    if (opp.phase === "SL_HIT") return -ACCOUNT.riskPerTrade;
+    if (opp.phase === "SL_HIT") return livePnl(opp, opp.sl);
     return null;
   })();
 
@@ -158,7 +164,7 @@ function TradeCard({
       statusLine = bot ? "Price at the level — bot enters if the candle holds" : "Price at the level — your call. Take it or skip it.";
       break;
     case "CONFIRMED":
-      statusLine = `${bot ? "Bot entered" : "You're in"} @ ${opp.entry.toFixed(2)} · targeting ${opp.tp.toFixed(2)}`;
+      statusLine = `${bot ? "Bot entered" : "You're in"} @ ${(opp.fillPrice ?? opp.entry).toFixed(2)} · targeting ${opp.tp.toFixed(2)} · cost $${(opp.cost ?? 0).toFixed(2)}`;
       break;
     case "TP_HIT":
       statusLine = `Target hit at ${opp.tp.toFixed(2)}. That's how it's done.`;
@@ -192,10 +198,11 @@ function TradeCard({
           </span>
         </div>
         <span
-          className="px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider"
+          className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider"
           style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
         >
-          {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {lots} LOTS
+          {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
+          {opp.direction === "long" ? "LONG" : "SHORT"} · {lots} LOTS
         </span>
       </div>
 
@@ -230,30 +237,28 @@ function TradeCard({
         )}
       </div>
 
-      {/* Entry / SL / TP strip */}
-      {setup && (
-        <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="px-4 py-2.5">
-            <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c9b845" }}>ENTRY</div>
-            <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{setup.entryPrice.toFixed(2)}</div>
-          </div>
-          <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#cc3a3a" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
-            <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{setup.stopLoss.toFixed(2)}</div>
-          </div>
-          <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#00b868" }}>TARGET · +${setup.rewardAmount}</div>
-            <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{setup.takeProfit.toFixed(2)}</div>
-          </div>
+      {/* Entry / SL / TP strip — live values from the opportunity */}
+      <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-4 py-2.5">
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c9b845" }}>ENTRY</div>
+          <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
-      )}
+        <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#cc3a3a" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
+          <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
+        </div>
+        <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#00b868" }}>TARGET · +${reward}</div>
+          <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
+        </div>
+      </div>
 
       {/* Contextual actions */}
       {!bot && (opp.phase === "RETEST_ACTIVE" || opp.phase === "AWAIT_RETEST") && (
         <div className="grid grid-cols-2 gap-2 px-4 pb-3 pt-1">
           <button
             onClick={onTakeTrade}
-            className="py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
             style={{
               background: opp.phase === "RETEST_ACTIVE" ? "#00b868" : "rgba(0,184,104,0.1)",
               color: opp.phase === "RETEST_ACTIVE" ? "#030b06" : "#00b868",
@@ -262,20 +267,21 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            ✓ TAKE TRADE
+            <FiCheck size={16} /> TAKE TRADE
           </button>
           <button
-            onClick={onSkipTrade}
-            className="py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            onClick={onMarketEntry}
+            disabled={price === null}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
             style={{
-              background: "rgba(204,58,58,0.08)",
-              color: "#d64848",
-              border: "1px solid rgba(204,58,58,0.35)",
-              cursor: "pointer",
+              background: "rgba(184,155,40,0.1)",
+              color: "#c9b845",
+              border: "1px solid rgba(184,155,40,0.45)",
+              cursor: price === null ? "not-allowed" : "pointer",
               fontFamily: "var(--font-display)",
             }}
           >
-            ✕ SKIP SETUP
+            <FiZap size={15} /> {price !== null ? `MARKET @ ${price.toFixed(2)}` : "MARKET ENTRY"}
           </button>
         </div>
       )}
@@ -284,7 +290,7 @@ function TradeCard({
         <div className="px-4 pb-3 pt-1">
           <button
             onClick={onCloseTrade}
-            className="w-full py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
             style={{
               background: "rgba(204,58,58,0.1)",
               color: "#d64848",
@@ -293,7 +299,7 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            ⏻ CLOSE POSITION {price !== null && pnl !== null ? `@ ${price.toFixed(2)} (${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)})` : ""}
+            <FiPower size={15} /> CLOSE POSITION {price !== null && pnl !== null ? `@ ${price.toFixed(2)} (${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)})` : ""}
           </button>
         </div>
       )}
@@ -310,13 +316,13 @@ interface Props {
   botMode: boolean;
   onToggleBot: () => void;
   onTakeTrade: () => void;
-  onSkipTrade: () => void;
+  onMarketEntry: () => void;
   onCloseTrade: () => void;
 }
 
 export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
-  botMode, onToggleBot, onTakeTrade, onSkipTrade, onCloseTrade,
+  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -377,6 +383,7 @@ export default function BobbyPanel({
           ["RISK", `$${ACCOUNT.riskPerTrade}/trade`, "#cc3a3a"],
           ["SL", market.slLabel, "#e8f5ec"],
           ["SIZE", `${lots} lots`, "#e8f5ec"],
+          ["SPREAD COST", `~$${tradeCostFor(market).toFixed(2)}`, "#c68428"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -398,8 +405,9 @@ export default function BobbyPanel({
                 <span className="font-bold text-base" style={{ color: result.priceChange >= 0 ? "#00b868" : "#cc3a3a" }}>
                   {result.priceChange >= 0 ? "+" : ""}{result.priceChangePct.toFixed(2)}%
                 </span>
-                <span className="text-xs font-semibold" style={{ color: result.trend.direction === "bullish" ? "#00b868" : result.trend.direction === "bearish" ? "#cc3a3a" : "var(--text-secondary)" }}>
-                  {result.trend.direction === "bullish" ? "▲ BULLISH" : result.trend.direction === "bearish" ? "▼ BEARISH" : "→ NEUTRAL"}
+                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: result.trend.direction === "bullish" ? "#00b868" : result.trend.direction === "bearish" ? "#cc3a3a" : "var(--text-secondary)" }}>
+                  {result.trend.direction === "bullish" ? <FiArrowUpRight size={14} /> : result.trend.direction === "bearish" ? <FiArrowDownRight size={14} /> : null}
+                  {result.trend.direction === "bullish" ? "BULLISH" : result.trend.direction === "bearish" ? "BEARISH" : "NEUTRAL"}
                 </span>
               </>
             )}
@@ -419,7 +427,10 @@ export default function BobbyPanel({
             fontFamily: "var(--font-display)",
           }}
         >
-          {loading ? "LOADING..." : hasOpp ? "↻ NEW ANALYSIS" : "ASK BOBBY"}
+          <span className="flex items-center gap-2">
+            {loading ? <FiRefreshCw size={15} className="animate-spin" /> : hasOpp ? <FiRefreshCw size={15} /> : <FiZap size={15} />}
+            {loading ? "LOADING..." : hasOpp ? "NEW ANALYSIS" : "ASK BOBBY"}
+          </span>
         </button>
       </div>
 
@@ -448,7 +459,7 @@ export default function BobbyPanel({
                   fontFamily: "var(--font-display)",
                 }}
               >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: botMode ? "#00b868" : "#6b7280" }} />
+                <FiCpu size={13} />
                 {botMode ? "TRADE BOT: ON" : "TRADE BOT: OFF — MANUAL"}
               </button>
             }
@@ -459,10 +470,9 @@ export default function BobbyPanel({
               opp={opportunity}
               price={livePrice}
               bot={botMode}
-              setup={result.tradeSetup}
               lots={lots}
               onTakeTrade={onTakeTrade}
-              onSkipTrade={onSkipTrade}
+              onMarketEntry={onMarketEntry}
               onCloseTrade={onCloseTrade}
             />
           ) : (
@@ -479,7 +489,7 @@ export default function BobbyPanel({
             <ProbRing value={result.probability} />
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.icon}</span>
+                <sig.Icon size={24} color={sig.color} />
                 <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
               <div className="text-xs mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
@@ -492,8 +502,8 @@ export default function BobbyPanel({
           {/* Warnings */}
           {result.warnings.length > 0 ? (
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(204,58,58,0.35)" }}>
-              <div className="px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(204,58,58,0.1)", color: "#d64848" }}>
-                ⚠ WARNINGS — READ BEFORE ENTERING
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(204,58,58,0.1)", color: "#d64848" }}>
+                <FiAlertTriangle size={12} /> WARNINGS — READ BEFORE ENTERING
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
@@ -511,8 +521,8 @@ export default function BobbyPanel({
               </div>
             </div>
           ) : (
-            <div className="rounded-xl px-3 py-2 text-[13px] font-semibold" style={{ background: "rgba(0,184,104,0.06)", border: "1px solid rgba(0,184,104,0.25)", color: "#00b868" }}>
-              ✓ No red flags — clean conditions for this setup
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold" style={{ background: "rgba(0,184,104,0.06)", border: "1px solid rgba(0,184,104,0.25)", color: "#00b868" }}>
+              <FiCheck size={15} /> No red flags — clean conditions for this setup
             </div>
           )}
 
@@ -538,7 +548,7 @@ export default function BobbyPanel({
               {result.penalties.map((p, i) => (
                 <div key={`p${i}`}>
                   <div className="flex items-center justify-between text-[12px] mb-1">
-                    <span style={{ color: "#c2d8ca" }}>⚠ {p.label}</span>
+                    <span className="flex items-center gap-1" style={{ color: "#c2d8ca" }}><FiAlertTriangle size={11} color="#cc3a3a" /> {p.label}</span>
                     <span className="font-bold" style={{ color: "#cc3a3a", fontFamily: "var(--font-display)" }}>{p.points}</span>
                   </div>
                   <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(204,58,58,0.25)" }}>
@@ -567,7 +577,7 @@ export default function BobbyPanel({
       {/* Empty state */}
       {!result && !loading && !error && (
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }}>
-          <div className="text-5xl mb-4 opacity-15">⚡</div>
+          <FiZap size={48} className="mb-4 opacity-15" />
           <p className="text-base">Press <strong style={{ color: "var(--gold)" }}>Ask Bobby</strong> to analyze {market.label}.</p>
           <p className="text-sm mt-2 opacity-70">Signal, probability, levels and live trade tracking.</p>
         </div>
