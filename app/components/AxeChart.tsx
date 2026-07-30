@@ -62,99 +62,127 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   const chartRef  = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const seriesRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const maSeriesRef   = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const priceLinesRef = useRef<any[]>([]);
+  const prevCandlesRef = useRef<RawCandle[]>([]);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
 
-  // ── Main chart init ──────────────────────────────────────────────────────
+  // ── Single effect: rebuilds chart only when candles change; overlays always ─
   useEffect(() => {
     if (!containerRef.current || candles.length === 0) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let chart: any = null;
+    const needRebuild = candles !== prevCandlesRef.current || !chartRef.current;
 
-    async function init() {
+    async function run() {
       const LW = await import("lightweight-charts");
 
-      if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
+      // ── Rebuild chart + candle series only when candles actually changed ──
+      if (needRebuild) {
+        prevCandlesRef.current = candles;
+        if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
+        priceLinesRef.current = [];
+        maSeriesRef.current = null;
+        seriesRef.current = null;
 
-      const el = containerRef.current!;
-      chart = LW.createChart(el, {
-        width:  el.clientWidth,
-        height: el.clientHeight,
-        layout: {
-          background: { type: LW.ColorType.Solid, color: P.bg },
-          textColor: P.text,
-          fontSize: 12,
-        },
-        grid: {
-          vertLines: { color: P.grid },
-          horzLines: { color: P.grid },
-        },
-        crosshair: {
-          mode: LW.CrosshairMode.Normal,
-          vertLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
-          horzLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
-        },
-        rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.1 } },
-        timeScale: {
-          borderColor: P.grid,
-          timeVisible: true,
-          secondsVisible: false,
-          tickMarkFormatter: (time: number) =>
-            new Date(time * 1000).toLocaleTimeString("en-US", {
-              timeZone: "America/Costa_Rica",
-              hour: "2-digit", minute: "2-digit", hour12: true,
-            }),
-        },
-      });
-      chartRef.current = chart;
-
-      // Candles
-      seriesRef.current = null;
-      const cs = chart.addSeries(LW.CandlestickSeries, {
-        upColor:        P.upBody,
-        downColor:      P.downBody,
-        borderUpColor:  P.upBorder,
-        borderDownColor:P.downBorder,
-        wickUpColor:    P.upWick,
-        wickDownColor:  P.downWick,
-      });
-
-      const seen = new Set<number>();
-      const clean = candles
-        .filter(c => { if (seen.has(c.time)) return false; seen.add(c.time); return true; })
-        .sort((a, b) => a.time - b.time)
-        .map(c => ({ time: c.time as number, open: c.open, high: c.high, low: c.low, close: c.close }));
-
-      cs.setData(clean);
-      seriesRef.current = cs;
-
-      // MA20
-      if (ma20 > 0 && clean.length >= 20) {
-        const maSeries = chart.addSeries(LW.LineSeries, {
-          color: accentColor + "55",
-          lineWidth: 1,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
+        const el = containerRef.current!;
+        chart = LW.createChart(el, {
+          width:  el.clientWidth,
+          height: el.clientHeight,
+          layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: 12 },
+          grid: { vertLines: { color: P.grid }, horzLines: { color: P.grid } },
+          crosshair: {
+            mode: LW.CrosshairMode.Normal,
+            vertLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
+            horzLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
+          },
+          rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.1 } },
+          timeScale: {
+            borderColor: P.grid,
+            timeVisible: true,
+            secondsVisible: false,
+            tickMarkFormatter: (time: number) =>
+              new Date(time * 1000).toLocaleTimeString("en-US", {
+                timeZone: "America/Costa_Rica",
+                hour: "2-digit", minute: "2-digit", hour12: true,
+              }),
+          },
         });
-        const maData: { time: number; value: number }[] = [];
-        for (let i = 19; i < clean.length; i++) {
-          const avg = clean.slice(i - 19, i + 1).reduce((s, c) => s + c.close, 0) / 20;
-          maData.push({ time: clean[i].time, value: avg });
+        chartRef.current = chart;
+
+        const cs = chart.addSeries(LW.CandlestickSeries, {
+          upColor: P.upBody, downColor: P.downBody,
+          borderUpColor: P.upBorder, borderDownColor: P.downBorder,
+          wickUpColor: P.upWick, wickDownColor: P.downWick,
+        });
+        const seen = new Set<number>();
+        const clean = candles
+          .filter(c => { if (seen.has(c.time)) return false; seen.add(c.time); return true; })
+          .sort((a, b) => a.time - b.time)
+          .map(c => ({ time: c.time as number, open: c.open, high: c.high, low: c.low, close: c.close }));
+        cs.setData(clean);
+        seriesRef.current = cs;
+
+        const barsToShow = 240;
+        if (clean.length > barsToShow) {
+          chart.timeScale().setVisibleLogicalRange({ from: clean.length - barsToShow, to: clean.length + 8 });
+        } else {
+          chart.timeScale().fitContent();
         }
-        maSeries.setData(maData);
+
+        const ro = new ResizeObserver(() => {
+          if (el && chartRef.current) chartRef.current.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+        });
+        ro.observe(el);
       }
 
-      // ── Levels & setup — deduplicated so labels never stack ──────────
-      const currentPrice = clean[clean.length - 1]?.close ?? 0;
-      const eps = currentPrice * 0.0006; // prices closer than this are "the same line"
+      // ── Always: refresh analysis overlay (price lines + MA) ───────────────
+      const cs = seriesRef.current;
+      const activeChart = chartRef.current;
+      if (!cs || !activeChart) return;
+
+      priceLinesRef.current.forEach(pl => { try { cs.removePriceLine(pl); } catch { /* ignore */ } });
+      priceLinesRef.current = [];
+      if (maSeriesRef.current) { try { activeChart.removeSeries(maSeriesRef.current); } catch { /* ignore */ } maSeriesRef.current = null; }
+
+      if (ma20 > 0 && seriesRef.current) {
+        // Compute MA from the current series data length via candles prop
+        const seen2 = new Set<number>();
+        const clean2 = candles
+          .filter(c => { if (seen2.has(c.time)) return false; seen2.add(c.time); return true; })
+          .sort((a, b) => a.time - b.time)
+          .map(c => ({ time: c.time as number, close: c.close }));
+        if (clean2.length >= 20) {
+          const maSeries = activeChart.addSeries(LW.LineSeries, {
+            color: accentColor + "55", lineWidth: 1,
+            priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+          });
+          const maData: { time: number; value: number }[] = [];
+          for (let i = 19; i < clean2.length; i++) {
+            const avg = clean2.slice(i - 19, i + 1).reduce((s, c) => s + c.close, 0) / 20;
+            maData.push({ time: clean2[i].time, value: avg });
+          }
+          maSeries.setData(maData);
+          maSeriesRef.current = maSeries;
+        }
+      }
+
+      const addLine = (opts: object) => { priceLinesRef.current.push(cs.createPriceLine(opts)); };
+
+      const seen3 = new Set<number>();
+      const cleanPrices = candles
+        .filter(c => { if (seen3.has(c.time)) return false; seen3.add(c.time); return true; })
+        .sort((a, b) => a.time - b.time);
+      const currentPrice = cleanPrices[cleanPrices.length - 1]?.close ?? 0;
+      const eps = currentPrice * 0.0006;
       const near = (a: number, b: number) => Math.abs(a - b) < eps;
 
       const entryIsBrokenLevel = !!(tradeSetup && breakout && near(tradeSetup.entryPrice, breakout.level));
-
-      // Prices already covered by setup/breakout lines — S/R there would be a duplicate
       const taken: number[] = [];
       if (tradeSetup) taken.push(tradeSetup.entryPrice, tradeSetup.stopLoss, tradeSetup.takeProfit);
       if (breakout) taken.push(breakout.level);
@@ -166,98 +194,35 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         .filter(l => l.type === "support" && l.price < currentPrice && !taken.some(p => near(p, l.price)))
         .sort((a, b) => b.strength - a.strength)[0];
 
-      if (topR) {
-        cs.createPriceLine({
-          price: topR.price,
-          color: P.resistance,
-          lineWidth: 2,
-          lineStyle: LW.LineStyle.Solid,
-          axisLabelVisible: true,
-          title: `Resistencia  (${topR.strength}x)`,
-        });
-      }
-      if (topS) {
-        cs.createPriceLine({
-          price: topS.price,
-          color: P.support,
-          lineWidth: 2,
-          lineStyle: LW.LineStyle.Solid,
-          axisLabelVisible: true,
-          title: `Soporte  (${topS.strength}x)`,
-        });
-      }
+      if (topR) addLine({ price: topR.price, color: P.resistance, lineWidth: 1, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "R" });
+      if (topS) addLine({ price: topS.price, color: P.support,    lineWidth: 1, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "S" });
 
-      // ── Trade setup ───────────────────────────────────────────────────
       if (tradeSetup) {
-        cs.createPriceLine({
-          price: tradeSetup.entryPrice,
-          color: P.entry,
-          lineWidth: 3,
-          lineStyle: LW.LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: entryIsBrokenLevel
-            ? `Entrada ${tradeSetup.direction === "long" ? "▲ largo" : "▼ corto"} · nivel roto — espera retest`
-            : `Entrada  ${tradeSetup.direction === "long" ? "▲ largo" : "▼ corto"}`,
-        });
-        cs.createPriceLine({
-          price: tradeSetup.stopLoss,
-          color: P.sl,
-          lineWidth: 3,
-          lineStyle: LW.LineStyle.Solid,
-          axisLabelVisible: true,
-          title: `Stop loss  −$100`,
-        });
-        cs.createPriceLine({
-          price: tradeSetup.takeProfit,
-          color: P.tp,
-          lineWidth: 3,
-          lineStyle: LW.LineStyle.Solid,
-          axisLabelVisible: true,
-          title: `Take profit  +$${tradeSetup.rewardAmount}  (${tradeSetup.rrRatio}R)`,
-        });
+        addLine({ price: tradeSetup.entryPrice, color: P.entry, lineWidth: 2, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: tradeSetup.direction === "long" ? "E▲" : "E▼" });
+        addLine({ price: tradeSetup.stopLoss,   color: P.sl,    lineWidth: 2, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "SL" });
+        addLine({ price: tradeSetup.takeProfit, color: P.tp,    lineWidth: 2, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "TP" });
       }
 
-      // ── Breakout level (own line only if the entry doesn't already mark it) ──
       if (breakout) {
         const bColor = breakout.direction === "long" ? "rgba(201,184,69,0.7)" : "rgba(214,72,72,0.7)";
         const bZone  = breakout.direction === "long" ? "rgba(201,184,69,0.25)" : "rgba(214,72,72,0.25)";
-        if (!entryIsBrokenLevel) {
-          cs.createPriceLine({
-            price: breakout.level,
-            color: bColor,
-            lineWidth: 2,
-            lineStyle: LW.LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: `▶ Nivel roto  (${breakout.direction === "long" ? "largo" : "corto"})  — espera retest`,
-          });
-        }
-        // Retest zone boundaries (subtle dotted lines, no labels)
-        cs.createPriceLine({ price: breakout.level + breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
-        cs.createPriceLine({ price: breakout.level - breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
+        if (!entryIsBrokenLevel) addLine({ price: breakout.level, color: bColor, lineWidth: 2, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: breakout.direction === "long" ? "B▲" : "B▼" });
+        addLine({ price: breakout.level + breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
+        addLine({ price: breakout.level - breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
       }
-
-      // Show last 4 hours of candles (240 bars for 1m, less for 5m)
-      const barsToShow = 240;
-      if (clean.length > barsToShow) {
-        chart.timeScale().setVisibleLogicalRange({ from: clean.length - barsToShow, to: clean.length + 8 });
-      } else {
-        chart.timeScale().fitContent();
-      }
-
-      const ro = new ResizeObserver(() => {
-        if (el && chart) chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-      });
-      ro.observe(el);
-      return () => ro.disconnect();
     }
 
     let cleanup: (() => void) | undefined;
-    init().then(fn => { cleanup = fn; });
+    run().then(fn => { cleanup = fn as (() => void) | undefined; });
 
     return () => {
       cleanup?.();
-      seriesRef.current = null;
-      if (chart) { chart.remove(); chartRef.current = null; }
+      if (needRebuild) {
+        seriesRef.current = null;
+        maSeriesRef.current = null;
+        priceLinesRef.current = [];
+        if (chart) { chart.remove(); chartRef.current = null; }
+      }
     };
   }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
 

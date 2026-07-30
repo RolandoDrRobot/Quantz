@@ -341,11 +341,25 @@ export default function BobbyPanel({
   return (
     <div className="flex flex-col" style={{ background: "var(--bg-panel)" }}>
 
-      {/* Header: title + clock */}
+      {/* Header: analyze button + clock */}
       <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)" }}>
-        <div>
-          <div className="font-black text-base tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>TAYLOR</div>
-        </div>
+        <button
+          onClick={analyze}
+          disabled={loading}
+          className="px-4 py-1.5 rounded-lg font-black text-xs tracking-widest transition-all duration-150"
+          style={{
+            background: "transparent",
+            color: "#00b868",
+            border: "1px solid rgba(0,184,104,0.5)",
+            cursor: loading ? "not-allowed" : "pointer",
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span className="flex items-center gap-2">
+            {loading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiRefreshCw size={13} />}
+            {loading ? "CARGANDO..." : "NUEVO ANÁLISIS"}
+          </span>
+        </button>
         <Clock is24h={market.is24h} />
       </div>
 
@@ -363,27 +377,6 @@ export default function BobbyPanel({
             <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
           </span>
         ))}
-      </div>
-
-      {/* Price strip + action button */}
-      <div className="flex justify-end px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)", background: "var(--bg-elevated)" }}>
-        <button
-          onClick={analyze}
-          disabled={loading}
-          className="px-6 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
-          style={{
-            background: loading ? "rgba(0,184,104,0.08)" : hasOpp ? "transparent" : "#00b868",
-            color: loading ? "#00b868" : hasOpp ? "#00b868" : "#010503",
-            border: "1px solid rgba(0,184,104,0.5)",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          <span className="flex items-center gap-2">
-            {loading ? <FiRefreshCw size={15} className="animate-spin" /> : hasOpp ? <FiRefreshCw size={15} /> : <FiZap size={15} />}
-            {loading ? "CARGANDO..." : hasOpp ? "NUEVO ANÁLISIS" : "PREGUNTA A TAYLOR"}
-          </span>
-        </button>
       </div>
 
       {/* Error */}
