@@ -372,7 +372,7 @@ export default function Dashboard() {
             onCloseTrade={handleCloseTrade}
           />
           <div
-            className="px-4 pb-6 pt-2"
+            className="px-4 pt-2 pb-20"
             style={{ borderTop: "1px solid var(--gold-border)" }}
           >
             <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>
