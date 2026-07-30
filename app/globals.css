@@ -25,8 +25,8 @@
   --text-muted:     #35543f;
 
   /* ── Fonts ──────────────────────────────────────────────────── */
-  --font-display: "Anta", sans-serif;
-  --font-body:    "Anta", sans-serif;
+  --font-display: var(--font-anta), sans-serif;
+  --font-body:    var(--font-anta), sans-serif;
 }
 
 html, body {

@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Anta } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+
+const anta = Anta({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-anta",
+});
 
 export const metadata: Metadata = {
   title: "Quantz",
@@ -31,10 +39,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className="h-full" suppressHydrationWarning>
-      <head>
-        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');` }} />
-      </head>
+    <html lang="es" className={`h-full ${anta.variable}`} suppressHydrationWarning>
       <body className="h-full flex flex-col antialiased">
         {children}
         <Toaster
