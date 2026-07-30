@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight, FiX, FiCpu } from "react-icons/fi";
+import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight, FiCpu } from "react-icons/fi";
 import AxeChart from "./AxeChart";
 import BobbyPanel from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
@@ -399,23 +399,6 @@ export default function Dashboard() {
             background: "var(--bg-panel)",
           }}
         >
-          {/* Header del sheet */}
-          <div
-            className="shrink-0 flex items-center justify-between px-5 py-4"
-            style={{ borderBottom: "1px solid var(--gold-border)" }}
-          >
-            <span className="font-black tracking-[0.25em] text-base" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>
-              TAYLOR
-            </span>
-            <button
-              onClick={() => setTaylorOpen(false)}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)", cursor: "pointer" }}
-            >
-              <FiX size={20} />
-            </button>
-          </div>
-
           {/* Contenido scrollable */}
           <div className="flex-1 overflow-y-auto pb-8">
             <BobbyPanel
@@ -429,6 +412,7 @@ export default function Dashboard() {
               onTakeTrade={handleTakeTrade}
               onMarketEntry={handleMarketEntry}
               onCloseTrade={handleCloseTrade}
+              onClose={() => setTaylorOpen(false)}
             />
           </div>
         </div>

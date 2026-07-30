@@ -67,6 +67,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const priceLinesRef = useRef<any[]>([]);
   const prevCandlesRef = useRef<RawCandle[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const roRef = useRef<any>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const onTickRef = useRef(onTick);
@@ -135,10 +137,11 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           chart.timeScale().fitContent();
         }
 
-        const ro = new ResizeObserver(() => {
+        if (roRef.current) roRef.current.disconnect();
+        roRef.current = new ResizeObserver(() => {
           if (el && chartRef.current) chartRef.current.applyOptions({ width: el.clientWidth, height: el.clientHeight });
         });
-        ro.observe(el);
+        roRef.current.observe(el);
       }
 
       // ── Always: refresh analysis overlay (price lines + MA) ───────────────
@@ -218,6 +221,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     return () => {
       cleanup?.();
       if (needRebuild) {
+        roRef.current?.disconnect();
+        roRef.current = null;
         seriesRef.current = null;
         maSeriesRef.current = null;
         priceLinesRef.current = [];

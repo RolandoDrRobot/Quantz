@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
-  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -292,11 +292,12 @@ interface Props {
   onTakeTrade: () => void;
   onMarketEntry: () => void;
   onCloseTrade: () => void;
+  onClose?: () => void;
 }
 
 export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
-  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade,
+  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onClose,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -360,7 +361,14 @@ export default function BobbyPanel({
             {loading ? "CARGANDO..." : "NUEVO ANÁLISIS"}
           </span>
         </button>
-        <Clock is24h={market.is24h} />
+        <div className="flex items-center gap-3">
+          <Clock is24h={market.is24h} />
+          {onClose && (
+            <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
+              <FiX size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Account chips — only market-variable values */}

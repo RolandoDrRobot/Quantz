@@ -44,7 +44,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
   return (
     <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6" style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
       <div
-        className="w-full lg:max-w-4xl h-[92dvh] lg:max-h-[90vh] lg:h-auto rounded-t-3xl lg:rounded-2xl overflow-hidden flex flex-col"
+        className="w-full lg:max-w-4xl h-[92dvh] lg:h-[88vh] rounded-t-3xl lg:rounded-2xl overflow-hidden flex flex-col"
         style={{ background: "var(--bg-panel)", border: "1px solid var(--gold-border)", boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -76,7 +76,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
           </div>
         </div>
 
-        <div className="overflow-y-auto p-6 flex flex-col gap-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-5">
           {records.length === 0 ? (
             <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
               <FiBarChart2 size={48} className="mb-4 opacity-15" />
