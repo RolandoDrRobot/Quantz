@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight, FiX, FiCpu } from "react-icons/fi";
 import AxeChart from "./AxeChart";
 import BobbyPanel from "./BobbyPanel";
-import WendyPanel from "./WendyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
@@ -37,6 +36,7 @@ export default function Dashboard() {
   const [chartLoading, setChartLoading] = useState(false);
   const [botMode, setBotMode] = useState(true);
   const [recordsOpen, setRecordsOpen] = useState(false);
+  const [taylorOpen, setTaylorOpen] = useState(false);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
@@ -273,20 +273,21 @@ export default function Dashboard() {
       <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MOBILE LAYOUT  (< lg)
+          MOBILE LAYOUT  (< lg) — chart a pantalla completa
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col lg:hidden" style={{ height: "100dvh" }}>
+      <div className="lg:hidden relative overflow-hidden" style={{ height: "100dvh" }}>
 
-        {/* ── Mobile header ── */}
+        {/* ── Chart — cubre toda la pantalla ── */}
+        <div className="absolute inset-0">
+          {chartBlock}
+        </div>
+
+        {/* ── Overlay superior: mercados + historial ── */}
         <div
-          className="shrink-0 px-4 pt-3 pb-2"
-          style={{
-            background: "var(--bg-elevated)",
-            borderBottom: "1px solid var(--gold-border)",
-          }}
+          className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-3 pt-safe pt-3 pb-4"
+          style={{ background: "linear-gradient(to bottom, rgba(1,5,3,0.88) 60%, transparent 100%)" }}
         >
-          {/* Market tabs */}
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex gap-1.5 flex-1">
             {MARKET_KEYS.map(key => {
               const m = MARKETS[key];
               const active = key === market;
@@ -294,12 +295,11 @@ export default function Dashboard() {
                 <button
                   key={key}
                   onClick={() => handleMarketChange(key)}
-                  className="flex-1 py-2 rounded-xl text-xs font-black tracking-wider transition-all duration-200"
+                  className="flex-1 py-1.5 rounded-lg text-xs font-black tracking-wider transition-all duration-200"
                   style={{
-                    background: active ? m.color + "20" : "rgba(255,255,255,0.03)",
-                    color: active ? m.color : "var(--text-muted)",
-                    border: `1px solid ${active ? m.color + "55" : "rgba(255,255,255,0.06)"}`,
-                    boxShadow: active ? `0 0 12px ${m.color}25` : "none",
+                    background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
+                    color: active ? "var(--gold)" : "var(--text-muted)",
+                    border: `1px solid ${active ? "var(--gold-border)" : "rgba(255,255,255,0.08)"}`,
                     fontFamily: "var(--font-display)",
                     cursor: "pointer",
                   }}
@@ -309,15 +309,34 @@ export default function Dashboard() {
               );
             })}
           </div>
+          <button
+            onClick={() => setRecordsOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              color: "var(--text-secondary)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            <FiBarChart2 size={13} />
+          </button>
+        </div>
 
-          {/* Live price row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-2">
-              {displayPrice !== null ? (
-                <>
-                  <span className="text-2xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                    {displayPrice.toFixed(2)}
-                  </span>
+        {/* ── Overlay inferior: precio + botón Taylor ── */}
+        <div
+          className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-4 pb-8 pt-16"
+          style={{ background: "linear-gradient(to top, rgba(1,5,3,0.92) 50%, transparent 100%)" }}
+        >
+          {/* Precio en vivo */}
+          <div>
+            {displayPrice !== null ? (
+              <>
+                <div className="text-3xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                  {displayPrice.toFixed(2)}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
                   {analysis && (
                     <span className="text-sm font-bold" style={{ color: priceUp ? "#00b868" : "#e05252" }}>
                       {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
@@ -327,61 +346,72 @@ export default function Dashboard() {
                     <span className="flex items-center gap-0.5 text-xs font-semibold" style={{
                       color: trendDir === "bullish" ? "#00b868" : trendDir === "bearish" ? "#e05252" : "var(--text-muted)"
                     }}>
-                      {trendDir === "bullish" ? <FiArrowUpRight size={12} /> : trendDir === "bearish" ? <FiArrowDownRight size={12} /> : null}
+                      {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
                       {trendDir === "bullish" ? "ALCISTA" : trendDir === "bearish" ? "BAJISTA" : "NEUTRAL"}
                     </span>
                   )}
-                </>
-              ) : (
-                <span className="text-sm" style={{ color: "var(--text-muted)" }}>{cfg.label}</span>
-              )}
-            </div>
+                </div>
+              </>
+            ) : (
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}>{cfg.label}</span>
+            )}
+          </div>
+
+          {/* Botón Taylor */}
+          <button
+            onClick={() => setTaylorOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm tracking-widest transition-all duration-150 active:scale-95"
+            style={{
+              background: "var(--gold-dim)",
+              color: "var(--gold)",
+              border: "1px solid var(--gold-border)",
+              boxShadow: "0 0 20px rgba(184,155,40,0.25)",
+              fontFamily: "var(--font-display)",
+              cursor: "pointer",
+            }}
+          >
+            <FiCpu size={15} /> TAYLOR
+          </button>
+        </div>
+
+        {/* ── Taylor sheet — cubre pantalla completa ── */}
+        <div
+          className="absolute inset-0 z-50 flex flex-col transition-transform duration-300 ease-out"
+          style={{
+            transform: taylorOpen ? "translateY(0)" : "translateY(100%)",
+            background: "var(--bg-panel)",
+          }}
+        >
+          {/* Header del sheet */}
+          <div
+            className="shrink-0 flex items-center justify-between px-5 py-4"
+            style={{ borderBottom: "1px solid var(--gold-border)" }}
+          >
+            <span className="font-black tracking-[0.25em] text-base" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>
+              TAYLOR
+            </span>
             <button
-              onClick={() => setRecordsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
-              style={{
-                background: "rgba(0,184,104,0.08)",
-                color: "var(--gold)",
-                border: "1px solid rgba(0,184,104,0.3)",
-                cursor: "pointer",
-                fontFamily: "var(--font-display)",
-              }}
+              onClick={() => setTaylorOpen(false)}
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: "var(--text-secondary)", cursor: "pointer" }}
             >
-              <FiBarChart2 size={13} /> HISTORIAL
+              <FiX size={20} />
             </button>
           </div>
-        </div>
 
-        {/* ── Chart ── */}
-        <div className="shrink-0" style={{ height: "42dvh" }}>
-          {chartBlock}
-        </div>
-
-        {/* ── Panel content — Taylor + Bobby en scroll continuo ── */}
-        <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-panel)" }}>
-          <BobbyPanel
-            market={MARKETS[market]}
-            analysis={analysis}
-            onAnalysis={handleAnalysis}
-            opportunity={opportunity}
-            livePrice={livePrice}
-            botMode={botMode}
-            onToggleBot={handleToggleBot}
-            onTakeTrade={handleTakeTrade}
-            onMarketEntry={handleMarketEntry}
-            onCloseTrade={handleCloseTrade}
-          />
-          <div
-            className="px-4 pt-2 pb-20"
-            style={{ borderTop: "1px solid var(--gold-border)" }}
-          >
-            <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>
-              ANÁLISIS DE BOBBY
-            </p>
-            <WendyPanel
-              opportunity={opportunity}
+          {/* Contenido scrollable */}
+          <div className="flex-1 overflow-y-auto pb-8">
+            <BobbyPanel
+              market={MARKETS[market]}
               analysis={analysis}
+              onAnalysis={handleAnalysis}
+              opportunity={opportunity}
               livePrice={livePrice}
+              botMode={botMode}
+              onToggleBot={handleToggleBot}
+              onTakeTrade={handleTakeTrade}
+              onMarketEntry={handleMarketEntry}
+              onCloseTrade={handleCloseTrade}
             />
           </div>
         </div>
@@ -406,9 +436,9 @@ export default function Dashboard() {
                 onClick={() => handleMarketChange(key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
-                  background: active ? m.color + "18" : "transparent",
-                  color: active ? m.color : "var(--text-muted)",
-                  border: `1px solid ${active ? m.color + "55" : "transparent"}`,
+                  background: active ? "var(--gold-dim)" : "transparent",
+                  color: active ? "var(--gold)" : "var(--text-muted)",
+                  border: `1px solid ${active ? "var(--gold-border)" : "transparent"}`,
                   cursor: "pointer",
                   fontFamily: "var(--font-display)",
                 }}
@@ -458,19 +488,6 @@ export default function Dashboard() {
               onMarketEntry={handleMarketEntry}
               onCloseTrade={handleCloseTrade}
             />
-            <div
-              className="px-4 pb-6 pt-2"
-              style={{ borderTop: "1px solid var(--gold-border)" }}
-            >
-              <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>
-                ANÁLISIS DE BOBBY
-              </p>
-              <WendyPanel
-                opportunity={opportunity}
-                analysis={analysis}
-                livePrice={livePrice}
-              />
-            </div>
           </aside>
         </div>
       </div>
