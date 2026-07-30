@@ -12,20 +12,20 @@ import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
-  GO_LONG:  { label: "GO LONG",  color: "#00b868", bg: "rgba(0,184,104,0.07)",   border: "rgba(0,184,104,0.35)",   Icon: FiTrendingUp },
-  GO_SHORT: { label: "GO SHORT", color: "#cc3a3a", bg: "rgba(204,58,58,0.07)",   border: "rgba(204,58,58,0.35)",   Icon: FiTrendingDown },
-  WAIT:     { label: "WAIT",     color: "#b89b28", bg: "rgba(184,155,40,0.06)",  border: "rgba(184,155,40,0.3)",   Icon: FiPauseCircle },
+  GO_LONG:  { label: "LARGO",  color: "#00b868", bg: "rgba(0,184,104,0.07)",   border: "rgba(0,184,104,0.35)",   Icon: FiTrendingUp },
+  GO_SHORT: { label: "CORTO", color: "#cc3a3a", bg: "rgba(204,58,58,0.07)",   border: "rgba(204,58,58,0.35)",   Icon: FiTrendingDown },
+  WAIT:     { label: "ESPERA",     color: "#b89b28", bg: "rgba(184,155,40,0.06)",  border: "rgba(184,155,40,0.3)",   Icon: FiPauseCircle },
 };
 
 const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
-  HUNTING:       { label: "HUNTING BREAKOUT", color: "#6f9a7e", step: 0 },
-  AWAIT_RETEST:  { label: "BREAKOUT — WAITING RETEST", color: "#c9b845", step: 1 },
-  RETEST_ACTIVE: { label: "RETEST ACTIVE", color: "#d4b83a", step: 2 },
-  CONFIRMED:     { label: "POSITION OPEN", color: "#00b868", step: 3 },
-  TP_HIT:        { label: "TAKE PROFIT HIT", color: "#00b868", step: 4 },
-  SL_HIT:        { label: "STOP LOSS HIT", color: "#cc3a3a", step: 4 },
-  CLOSED:        { label: "CLOSED MANUALLY", color: "#b89b28", step: 4 },
-  INVALIDATED:   { label: "SETUP INVALIDATED", color: "#cc3a3a", step: 4 },
+  HUNTING:       { label: "BUSCANDO BREAKOUT", color: "#6f9a7e", step: 0 },
+  AWAIT_RETEST:  { label: "BREAKOUT — ESPERANDO RETEST", color: "#c9b845", step: 1 },
+  RETEST_ACTIVE: { label: "RETEST ACTIVO", color: "#d4b83a", step: 2 },
+  CONFIRMED:     { label: "POSICIÓN ABIERTA", color: "#00b868", step: 3 },
+  TP_HIT:        { label: "TAKE PROFIT", color: "#00b868", step: 4 },
+  SL_HIT:        { label: "STOP LOSS", color: "#cc3a3a", step: 4 },
+  CLOSED:        { label: "CERRADO MANUAL", color: "#b89b28", step: 4 },
+  INVALIDATED:   { label: "SETUP INVÁLIDO", color: "#cc3a3a", step: 4 },
 };
 
 const STEPS = ["HUNT", "BREAK", "RETEST", "LIVE", "DONE"];
@@ -36,9 +36,9 @@ function probColor(p: number) {
   return "#cc3a3a";
 }
 function probLabel(p: number) {
-  if (p >= 70) return "HIGH";
-  if (p >= 45) return "MEDIUM";
-  return "LOW";
+  if (p >= 70) return "ALTA";
+  if (p >= 45) return "MEDIA";
+  return "BAJA";
 }
 
 // ── Circular probability gauge ───────────────────────────────────────────────
@@ -78,7 +78,7 @@ function Clock({ is24h }: { is24h: boolean }) {
       }));
 
       if (is24h) {
-        setStatusLabel("24h Market — Open");
+        setStatusLabel("Mercado 24h — Abierto");
         setStatusColor("#00b868");
         return;
       }
@@ -89,17 +89,17 @@ function Clock({ is24h }: { is24h: boolean }) {
       const openMin = 9 * 60 + 30;
 
       if (day === 0 || day === 6) {
-        setStatusLabel("Weekend — Closed"); setStatusColor("#6b7280");
+        setStatusLabel("Fin de semana — Cerrado"); setStatusColor("#6b7280");
       } else if (totalMin < openMin - 30) {
-        setStatusLabel(`Pre-market — opens in ${openMin - totalMin}min`); setStatusColor("#f59e0b");
+        setStatusLabel(`Pre-market — abre en ${openMin - totalMin}min`); setStatusColor("#f59e0b");
       } else if (totalMin < openMin) {
-        setStatusLabel(`OPENS IN ${openMin - totalMin}MIN — MARK YOUR LEVELS`); setStatusColor("#b89b28");
+        setStatusLabel(`ABRE EN ${openMin - totalMin}MIN — MARCA TUS NIVELES`); setStatusColor("#b89b28");
       } else if (totalMin < openMin + 30) {
-        setStatusLabel(`SETUP WINDOW — ${30 - (totalMin - openMin)}min left`); setStatusColor("#00b868");
+        setStatusLabel(`VENTANA DE SETUP — ${30 - (totalMin - openMin)}min restantes`); setStatusColor("#00b868");
       } else if (totalMin < 16 * 60) {
-        setStatusLabel("Open — window closed"); setStatusColor("#6b7280");
+        setStatusLabel("Abierto — ventana cerrada"); setStatusColor("#6b7280");
       } else {
-        setStatusLabel("Market closed"); setStatusColor("#6b7280");
+        setStatusLabel("Mercado cerrado"); setStatusColor("#6b7280");
       }
     }
     update();
@@ -155,28 +155,28 @@ function TradeCard({
   let statusLine = "";
   switch (opp.phase) {
     case "HUNTING":
-      statusLine = dist !== null ? `Waiting for the break of ${opp.level.toFixed(2)} · ${dist.toFixed(2)} pts away` : `Waiting for the break of ${opp.level.toFixed(2)}`;
+      statusLine = dist !== null ? `Esperando break de ${opp.level.toFixed(2)} · ${dist.toFixed(2)} pts de distancia` : `Esperando break de ${opp.level.toFixed(2)}`;
       break;
     case "AWAIT_RETEST":
-      statusLine = dist !== null ? `Level broke — waiting for the retest · ${dist.toFixed(2)} pts away` : "Level broke — waiting for the retest";
+      statusLine = dist !== null ? `Level broke — esperando retest · ${dist.toFixed(2)} pts de distancia` : "Level broke — esperando retest";
       break;
     case "RETEST_ACTIVE":
-      statusLine = bot ? "Price at the level — bot enters if the candle holds" : "Price at the level — your call. Take it or skip it.";
+      statusLine = bot ? "Precio en el nivel — bot entra si la vela sostiene" : "Precio en el nivel — tu decisión. Tómalo o sáltalo.";
       break;
     case "CONFIRMED":
-      statusLine = `${bot ? "Bot entered" : "You're in"} @ ${(opp.fillPrice ?? opp.entry).toFixed(2)} · targeting ${opp.tp.toFixed(2)} · cost $${(opp.cost ?? 0).toFixed(2)}`;
+      statusLine = `${bot ? "Bot entró" : "Estás dentro"} @ ${(opp.fillPrice ?? opp.entry).toFixed(2)} · target ${opp.tp.toFixed(2)} · costo $${(opp.cost ?? 0).toFixed(2)}`;
       break;
     case "TP_HIT":
-      statusLine = `Target hit at ${opp.tp.toFixed(2)}. That's how it's done.`;
+      statusLine = `Target hit en ${opp.tp.toFixed(2)}. Así se hace.`;
       break;
     case "SL_HIT":
-      statusLine = `Stopped at ${opp.sl.toFixed(2)} — controlled loss, on to the next.`;
+      statusLine = `Stopped en ${opp.sl.toFixed(2)} — pérdida controlada, al siguiente.`;
       break;
     case "CLOSED":
-      statusLine = `Closed at ${opp.exitPrice?.toFixed(2)} by your call.`;
+      statusLine = `Cerrado en ${opp.exitPrice?.toFixed(2)} por tu decisión.`;
       break;
     case "INVALIDATED":
-      statusLine = "Price pushed back through the level — trap avoided.";
+      statusLine = "Precio regresó — trampa evitada.";
       break;
   }
 
@@ -202,7 +202,7 @@ function TradeCard({
           style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
         >
           {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
-          {opp.direction === "long" ? "LONG" : "SHORT"} · {lots} LOTS
+          {opp.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · {lots} LOTES
         </span>
       </div>
 
@@ -231,7 +231,7 @@ function TradeCard({
               {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
             </div>
             <div className="text-[10px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
-              {opp.phase === "CONFIRMED" ? "LIVE P/L" : "RESULT"}
+              {opp.phase === "CONFIRMED" ? "P/L EN VIVO" : "RESULTADO"}
             </div>
           </div>
         )}
@@ -240,7 +240,7 @@ function TradeCard({
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-4 py-2.5">
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c9b845" }}>ENTRY</div>
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c9b845" }}>ENTRADA</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
         <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
@@ -267,7 +267,7 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            <FiCheck size={16} /> TAKE TRADE
+            <FiCheck size={16} /> TOMAR TRADE
           </button>
           <button
             onClick={onMarketEntry}
@@ -281,7 +281,7 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            <FiZap size={15} /> {price !== null ? `MARKET @ ${price.toFixed(2)}` : "MARKET ENTRY"}
+            <FiZap size={15} /> {price !== null ? `MERCADO @ ${price.toFixed(2)}` : "ENTRADA MERCADO"}
           </button>
         </div>
       )}
@@ -299,7 +299,7 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            <FiPower size={15} /> CLOSE POSITION {price !== null && pnl !== null ? `@ ${price.toFixed(2)} (${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)})` : ""}
+            <FiPower size={15} /> CERRAR POSICIÓN {price !== null && pnl !== null ? `@ ${price.toFixed(2)} (${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)})` : ""}
           </button>
         </div>
       )}
@@ -370,7 +370,7 @@ export default function BobbyPanel({
       {/* Header: title + clock */}
       <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <div>
-          <div className="font-black text-base tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>BOBBY&apos;S COUNCIL</div>
+          <div className="font-black text-base tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>CONSEJO DE BOBBY</div>
           <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{market.label}</div>
         </div>
         <Clock is24h={market.is24h} />
@@ -379,11 +379,11 @@ export default function BobbyPanel({
       {/* Account chips */}
       <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         {[
-          ["ACCOUNT", `$${ACCOUNT.balance.toLocaleString()}`, "#e8f5ec"],
-          ["RISK", `$${ACCOUNT.riskPerTrade}/trade`, "#cc3a3a"],
+          ["CUENTA", `$${ACCOUNT.balance.toLocaleString()}`, "#e8f5ec"],
+          ["RIESGO", `$${ACCOUNT.riskPerTrade}/trade`, "#cc3a3a"],
           ["SL", market.slLabel, "#e8f5ec"],
-          ["SIZE", `${lots} lots`, "#e8f5ec"],
-          ["SPREAD COST", `~$${tradeCostFor(market).toFixed(2)}`, "#c68428"],
+          ["TAMAÑO", `${lots} lotes`, "#e8f5ec"],
+          ["COSTO", `~$${tradeCostFor(market).toFixed(2)}`, "#c68428"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -407,13 +407,13 @@ export default function BobbyPanel({
                 </span>
                 <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: result.trend.direction === "bullish" ? "#00b868" : result.trend.direction === "bearish" ? "#cc3a3a" : "var(--text-secondary)" }}>
                   {result.trend.direction === "bullish" ? <FiArrowUpRight size={14} /> : result.trend.direction === "bearish" ? <FiArrowDownRight size={14} /> : null}
-                  {result.trend.direction === "bullish" ? "BULLISH" : result.trend.direction === "bearish" ? "BEARISH" : "NEUTRAL"}
+                  {result.trend.direction === "bullish" ? "▲ ALCISTA" : result.trend.direction === "bearish" ? "▼ BAJISTA" : "→ NEUTRAL"}
                 </span>
               </>
             )}
           </div>
         ) : (
-          <span className="text-sm" style={{ color: "var(--text-muted)" }}>No analysis yet</span>
+          <span className="text-sm" style={{ color: "var(--text-muted)" }}>Sin análisis</span>
         )}
         <button
           onClick={analyze}
@@ -429,7 +429,7 @@ export default function BobbyPanel({
         >
           <span className="flex items-center gap-2">
             {loading ? <FiRefreshCw size={15} className="animate-spin" /> : hasOpp ? <FiRefreshCw size={15} /> : <FiZap size={15} />}
-            {loading ? "LOADING..." : hasOpp ? "NEW ANALYSIS" : "ASK BOBBY"}
+            {loading ? "CARGANDO..." : hasOpp ? "NUEVO ANÁLISIS" : "PREGUNTA A BOBBY"}
           </span>
         </button>
       </div>
@@ -444,9 +444,9 @@ export default function BobbyPanel({
       {result && sig && (
         <div className="p-4 flex flex-col gap-3">
 
-          {/* ═══ THE TRADE ═══ */}
+          {/* ═══ EL TRADE ═══ */}
           <SectionHeader
-            label="THE TRADE"
+            label="EL TRADE"
             right={
               <button
                 onClick={onToggleBot}
@@ -460,7 +460,7 @@ export default function BobbyPanel({
                 }}
               >
                 <FiCpu size={13} />
-                {botMode ? "TRADE BOT: ON" : "TRADE BOT: OFF — MANUAL"}
+                {botMode ? "BOT: ACTIVADO" : "BOT: OFF — MANUAL"}
               </button>
             }
           />
@@ -477,12 +477,12 @@ export default function BobbyPanel({
             />
           ) : (
             <div className="rounded-xl px-4 py-3 text-[13px]" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
-              No tradeable setup right now — run a new analysis when the market moves.
+              Sin setup tradeable en este momento — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
 
-          {/* ═══ THE ANALYSIS ═══ */}
-          <SectionHeader label="THE ANALYSIS" />
+          {/* ═══ EL ANÁLISIS ═══ */}
+          <SectionHeader label="EL ANÁLISIS" />
 
           {/* Signal + probability gauge */}
           <div className="rounded-xl flex items-center gap-4 px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -493,8 +493,8 @@ export default function BobbyPanel({
                 <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
               <div className="text-xs mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
-                {probLabel(result.probability)} PROBABILITY · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors aligned
-                {result.penalties.length > 0 && ` · ${result.penalties.length} ${result.penalties.length === 1 ? "penalty" : "penalties"}`}
+                PROBABILIDAD {probLabel(result.probability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factores alineados
+                {result.penalties.length > 0 && ` · ${result.penalties.length} ${result.penalties.length === 1 ? "penalidad" : "penalidades"}`}
               </div>
             </div>
           </div>
@@ -503,7 +503,7 @@ export default function BobbyPanel({
           {result.warnings.length > 0 ? (
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(204,58,58,0.35)" }}>
               <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(204,58,58,0.1)", color: "#d64848" }}>
-                <FiAlertTriangle size={12} /> WARNINGS — READ BEFORE ENTERING
+                <FiAlertTriangle size={12} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
@@ -522,14 +522,14 @@ export default function BobbyPanel({
             </div>
           ) : (
             <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold" style={{ background: "rgba(0,184,104,0.06)", border: "1px solid rgba(0,184,104,0.25)", color: "#00b868" }}>
-              <FiCheck size={15} /> No red flags — clean conditions for this setup
+              <FiCheck size={15} /> Sin banderas — condiciones limpias para este setup
             </div>
           )}
 
           {/* Score factors with mini bars */}
           <div className="rounded-xl px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="text-[10px] font-bold tracking-widest mb-2.5" style={{ color: "var(--text-secondary)" }}>SCORE BREAKDOWN</div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+            <div className="text-[10px] font-bold tracking-widest mb-2.5" style={{ color: "var(--text-secondary)" }}>DESGLOSE DEL SCORE</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
                 const c = pct === 100 ? "#00b868" : pct === 0 ? "#cc3a3a" : "#b89b28";
@@ -559,14 +559,14 @@ export default function BobbyPanel({
             </div>
           </div>
 
-          {/* ═══ BOBBY'S TAKE ═══ */}
-          <SectionHeader label="BOBBY'S TAKE" />
+          {/* ═══ ANÁLISIS DE BOBBY ═══ */}
+          <SectionHeader label="ANÁLISIS DE BOBBY" />
 
           <div className="rounded-xl px-4 py-3" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
             <p className="text-[13px] leading-relaxed" style={{ color: "#d5e8db" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
               <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
+                Ventana de setup abre en {result.minutesToOpen} min — este es el bias pre-open.
               </div>
             )}
           </div>
@@ -578,8 +578,8 @@ export default function BobbyPanel({
       {!result && !loading && !error && (
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }}>
           <FiZap size={48} className="mb-4 opacity-15" />
-          <p className="text-base">Press <strong style={{ color: "var(--gold)" }}>Ask Bobby</strong> to analyze {market.label}.</p>
-          <p className="text-sm mt-2 opacity-70">Signal, probability, levels and live trade tracking.</p>
+          <p className="text-base">Presiona <strong style={{ color: "var(--gold)" }}>Pregunta a Bobby</strong> para analizar {market.label}.</p>
+          <p className="text-sm mt-2 opacity-70">Señal, probabilidad, niveles y tracking de trades en vivo.</p>
         </div>
       )}
     </div>

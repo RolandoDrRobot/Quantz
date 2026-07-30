@@ -47,12 +47,12 @@ interface Props {
 }
 
 const LEGEND = [
-  { color: P.upBorder,    label: "Bullish candle", style: "solid" },
-  { color: P.downBorder,  label: "Bearish candle", style: "solid" },
-  { color: "rgba(184,155,40,0.6)", label: "MA 20 (trend)", style: "solid" },
-  { color: P.resistance,  label: "Resistance",     style: "solid" },
-  { color: P.support,     label: "Support",        style: "solid" },
-  { color: P.entry,       label: "Entry",          style: "dashed" },
+  { color: P.upBorder,    label: "Vela alcista", style: "solid" },
+  { color: P.downBorder,  label: "Vela bajista", style: "solid" },
+  { color: "rgba(184,155,40,0.6)", label: "MA 20 (tendencia)", style: "solid" },
+  { color: P.resistance,  label: "Resistencia",     style: "solid" },
+  { color: P.support,     label: "Soporte",        style: "solid" },
+  { color: P.entry,       label: "Entrada",          style: "dashed" },
   { color: P.sl,          label: "Stop Loss",      style: "solid" },
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
@@ -351,7 +351,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold tracking-wider"
         style={{ background: "rgba(3,11,6,0.92)", border: "1px solid rgba(184,155,40,0.2)", color: "#b89b28", cursor: "pointer" }}
       >
-        {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEGEND
+        {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEYENDA
       </button>
 
       {/* Legend panel */}
@@ -360,7 +360,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           className="absolute top-12 right-3 rounded p-4 flex flex-col gap-3"
           style={{ background: "rgba(3,11,6,0.96)", border: "1px solid rgba(184,155,40,0.25)", minWidth: 210 }}
         >
-          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#b89b28" }}>WHAT EACH LINE MEANS</div>
+          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#b89b28" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
           {LEGEND.map((item, i) => (
             <div key={i} className="flex items-center gap-3">
               {/* Line preview */}
