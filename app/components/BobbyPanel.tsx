@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
-  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
