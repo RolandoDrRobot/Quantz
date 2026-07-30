@@ -16,9 +16,9 @@ const P = {
   upBody:    "#3dc85c",
   upBorder:  "#3dc85c",
   upWick:    "#3dc85c",
-  downBody:  "#394150",
-  downBorder:"#394150",
-  downWick:  "#394150",
+  downBody:  "#e05252",
+  downBorder:"#e05252",
+  downWick:  "#e05252",
 
   crosshair: "rgba(155,126,232,0.25)",
 
