@@ -1,30 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Backgrounds — deep forest greens ───────────────────────── */
-  --bg:           #030b06;
-  --bg-panel:     #05130a;
-  --bg-elevated:  #081c10;
-  --bg-card:      #0b2415;
+  /* ── Backgrounds — deep space ───────────────────────────── */
+  --bg:           #080d1a;
+  --bg-panel:     #0c1428;
+  --bg-elevated:  #101c38;
+  --bg-card:      #152244;
 
-  /* ── Gold ───────────────────────────────────────────────────── */
-  --gold:         #b89b28;
-  --gold-bright:  #d4b83a;
-  --gold-dim:     rgba(184,155,40,0.10);
-  --gold-border:  rgba(184,155,40,0.22);
+  /* ── Purple accent (space suit) ────────────────────────── */
+  --gold:         #9b7ee8;
+  --gold-bright:  #b49cff;
+  --gold-dim:     rgba(155,126,232,0.12);
+  --gold-border:  rgba(155,126,232,0.22);
 
-  /* ── Prices ─────────────────────────────────────────────────── */
-  --up:           #00b868;
-  --up-dim:       rgba(0,184,104,0.08);
-  --down:         #cc3a3a;
-  --down-dim:     rgba(204,58,58,0.08);
+  /* ── Alien green = bullish/up ───────────────────────────── */
+  --up:           #3dc85c;
+  --up-dim:       rgba(61,200,92,0.08);
 
-  /* ── Text ───────────────────────────────────────────────────── */
-  --text-primary:   #e8f5ec;
-  --text-secondary: #6f9a7e;
-  --text-muted:     #35543f;
+  /* ── Bearish/down ───────────────────────────────────────── */
+  --down:         #e05252;
+  --down-dim:     rgba(224,82,82,0.08);
 
-  /* ── Fonts ──────────────────────────────────────────────────── */
+  /* ── Text ───────────────────────────────────────────────── */
+  --text-primary:   #e4eaf8;
+  --text-secondary: #4a6080;
+  --text-muted:     #1a2840;
+
+  /* ── Fonts ──────────────────────────────────────────────── */
   --font-display: "Lexend Deca", sans-serif;
   --font-body:    "Lexend Deca", sans-serif;
 }
@@ -40,5 +42,5 @@ html, body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: rgba(184,155,40,0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(184,155,40,0.38); }
+::-webkit-scrollbar-thumb { background: rgba(155,126,232,0.18); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(155,126,232,0.38); }

@@ -12,27 +12,27 @@ import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
-  GO_LONG:  { label: "LARGO",  color: "#00b868", bg: "rgba(0,184,104,0.07)",   border: "rgba(0,184,104,0.35)",   Icon: FiTrendingUp },
-  GO_SHORT: { label: "CORTO", color: "#cc3a3a", bg: "rgba(204,58,58,0.07)",   border: "rgba(204,58,58,0.35)",   Icon: FiTrendingDown },
-  WAIT:     { label: "ESPERA",     color: "#b89b28", bg: "rgba(184,155,40,0.06)",  border: "rgba(184,155,40,0.3)",   Icon: FiPauseCircle },
+  GO_LONG:  { label: "LARGO",  color: "#3dc85c", bg: "rgba(61,200,92,0.07)",    border: "rgba(61,200,92,0.35)",    Icon: FiTrendingUp },
+  GO_SHORT: { label: "CORTO",  color: "#e05252", bg: "rgba(224,82,82,0.07)",    border: "rgba(224,82,82,0.35)",    Icon: FiTrendingDown },
+  WAIT:     { label: "ESPERA", color: "#9b7ee8", bg: "rgba(155,126,232,0.07)",  border: "rgba(155,126,232,0.30)",  Icon: FiPauseCircle },
 };
 
 const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
-  HUNTING:       { label: "BUSCANDO BREAKOUT", color: "#6f9a7e", step: 0 },
-  AWAIT_RETEST:  { label: "BREAKOUT — ESPERANDO RETEST", color: "#c9b845", step: 1 },
-  RETEST_ACTIVE: { label: "RETEST ACTIVO", color: "#d4b83a", step: 2 },
-  CONFIRMED:     { label: "POSICIÓN ABIERTA", color: "#00b868", step: 3 },
-  TP_HIT:        { label: "TAKE PROFIT", color: "#00b868", step: 4 },
-  SL_HIT:        { label: "STOP LOSS", color: "#cc3a3a", step: 4 },
-  CLOSED:        { label: "CERRADO MANUAL", color: "#b89b28", step: 4 },
-  INVALIDATED:   { label: "SETUP INVÁLIDO", color: "#cc3a3a", step: 4 },
+  HUNTING:       { label: "BUSCANDO BREAKOUT",          color: "#4a6080", step: 0 },
+  AWAIT_RETEST:  { label: "BREAKOUT — ESPERANDO RETEST", color: "#9b7ee8", step: 1 },
+  RETEST_ACTIVE: { label: "RETEST ACTIVO",              color: "#b49cff", step: 2 },
+  CONFIRMED:     { label: "POSICIÓN ABIERTA",           color: "#3dc85c", step: 3 },
+  TP_HIT:        { label: "TAKE PROFIT",                color: "#3dc85c", step: 4 },
+  SL_HIT:        { label: "STOP LOSS",                  color: "#e05252", step: 4 },
+  CLOSED:        { label: "CERRADO MANUAL",             color: "#9b7ee8", step: 4 },
+  INVALIDATED:   { label: "SETUP INVÁLIDO",             color: "#e05252", step: 4 },
 };
 
 
 function probColor(p: number) {
-  if (p >= 70) return "#00b868";
-  if (p >= 45) return "#b89b28";
-  return "#cc3a3a";
+  if (p >= 70) return "#3dc85c";
+  if (p >= 45) return "#9b7ee8";
+  return "#e05252";
 }
 function probLabel(p: number) {
   if (p >= 70) return "ALTA";
@@ -78,7 +78,7 @@ function Clock({ is24h }: { is24h: boolean }) {
 
       if (is24h) {
         setStatusLabel("Mercado 24h — Abierto");
-        setStatusColor("#00b868");
+        setStatusColor("#3dc85c");
         return;
       }
 
@@ -92,9 +92,9 @@ function Clock({ is24h }: { is24h: boolean }) {
       } else if (totalMin < openMin - 30) {
         setStatusLabel(`Pre-market — abre en ${openMin - totalMin}min`); setStatusColor("#f59e0b");
       } else if (totalMin < openMin) {
-        setStatusLabel(`ABRE EN ${openMin - totalMin}MIN — MARCA TUS NIVELES`); setStatusColor("#b89b28");
+        setStatusLabel(`ABRE EN ${openMin - totalMin}MIN — MARCA TUS NIVELES`); setStatusColor("#3dc85c");
       } else if (totalMin < openMin + 30) {
-        setStatusLabel(`VENTANA DE SETUP — ${30 - (totalMin - openMin)}min restantes`); setStatusColor("#00b868");
+        setStatusLabel(`VENTANA DE SETUP — ${30 - (totalMin - openMin)}min restantes`); setStatusColor("#3dc85c");
       } else if (totalMin < 16 * 60) {
         setStatusLabel("Abierto — ventana cerrada"); setStatusColor("#6b7280");
       } else {
@@ -131,7 +131,7 @@ function TradeCard({
   const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * 100);
   const meta = PHASE_META[opp.phase];
   const isTerminal = ["TP_HIT", "SL_HIT", "CLOSED", "INVALIDATED"].includes(opp.phase);
-  const dirColor = opp.direction === "long" ? "#00b868" : "#cc3a3a";
+  const dirColor = opp.direction === "long" ? "#3dc85c" : "#e05252";
   const dist = price !== null ? Math.abs(price - opp.level) : null;
 
   const pnl = (() => {
@@ -198,10 +198,10 @@ function TradeCard({
 
       {/* Status + P/L */}
       <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-        <p className="text-[13px] leading-snug" style={{ color: "#d5e8db" }}>{statusLine}</p>
+        <p className="text-[13px] leading-snug" style={{ color: "#c0d5ed" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
-            <div className="text-2xl font-black leading-none" style={{ color: pnl >= 0 ? "#00b868" : "#cc3a3a", fontFamily: "var(--font-display)" }}>
+            <div className="text-2xl font-black leading-none" style={{ color: pnl >= 0 ? "#3dc85c" : "#e05252", fontFamily: "var(--font-display)" }}>
               {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
             </div>
             <div className="text-[10px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
@@ -214,15 +214,15 @@ function TradeCard({
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-4 py-2.5">
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c9b845" }}>ENTRADA</div>
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#9b7ee8" }}>ENTRADA</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
         <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#cc3a3a" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#e05252" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
         </div>
         <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#00b868" }}>TARGET · +${reward}</div>
+          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#3dc85c" }}>TARGET · +${reward}</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
         </div>
       </div>
@@ -234,9 +234,9 @@ function TradeCard({
             onClick={onTakeTrade}
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
             style={{
-              background: opp.phase === "RETEST_ACTIVE" ? "#00b868" : "rgba(0,184,104,0.1)",
-              color: opp.phase === "RETEST_ACTIVE" ? "#030b06" : "#00b868",
-              border: "1px solid rgba(0,184,104,0.45)",
+              background: opp.phase === "RETEST_ACTIVE" ? "#3dc85c" : "rgba(61,200,92,0.1)",
+              color: opp.phase === "RETEST_ACTIVE" ? "#050816" : "#3dc85c",
+              border: "1px solid rgba(61,200,92,0.45)",
               cursor: "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -248,9 +248,9 @@ function TradeCard({
             disabled={price === null}
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
             style={{
-              background: "rgba(184,155,40,0.1)",
-              color: "#c9b845",
-              border: "1px solid rgba(184,155,40,0.45)",
+              background: "rgba(61,200,92,0.1)",
+              color: "#9b7ee8",
+              border: "1px solid rgba(61,200,92,0.45)",
               cursor: price === null ? "not-allowed" : "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -266,9 +266,9 @@ function TradeCard({
             onClick={onCloseTrade}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
             style={{
-              background: "rgba(204,58,58,0.1)",
-              color: "#d64848",
-              border: "1px solid rgba(204,58,58,0.4)",
+              background: "rgba(224,82,82,0.1)",
+              color: "#e86666",
+              border: "1px solid rgba(224,82,82,0.4)",
               cursor: "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -352,10 +352,10 @@ export default function BobbyPanel({
       {/* Account chips — only market-variable values */}
       <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         {[
-          ["SL", market.slLabel, "#e8f5ec"],
-          ["LOTES", `${lots}`, "#e8f5ec"],
-          ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#c68428"],
-          ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#cc3a3a"],
+          ["SL", market.slLabel, "#dde8f5"],
+          ["LOTES", `${lots}`, "#dde8f5"],
+          ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#8a6ed4"],
+          ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#e05252"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -374,10 +374,10 @@ export default function BobbyPanel({
             </span>
             {result && (
               <>
-                <span className="font-bold text-base" style={{ color: result.priceChange >= 0 ? "#00b868" : "#cc3a3a" }}>
+                <span className="font-bold text-base" style={{ color: result.priceChange >= 0 ? "#3dc85c" : "#e05252" }}>
                   {result.priceChange >= 0 ? "+" : ""}{result.priceChangePct.toFixed(2)}%
                 </span>
-                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: result.trend.direction === "bullish" ? "#00b868" : result.trend.direction === "bearish" ? "#cc3a3a" : "var(--text-secondary)" }}>
+                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: result.trend.direction === "bullish" ? "#3dc85c" : result.trend.direction === "bearish" ? "#e05252" : "var(--text-secondary)" }}>
                   {result.trend.direction === "bullish" ? <FiArrowUpRight size={14} /> : result.trend.direction === "bearish" ? <FiArrowDownRight size={14} /> : null}
                   {result.trend.direction === "bullish" ? "▲ ALCISTA" : result.trend.direction === "bearish" ? "▼ BAJISTA" : "→ NEUTRAL"}
                 </span>
@@ -392,9 +392,9 @@ export default function BobbyPanel({
           disabled={loading}
           className="px-6 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150 shrink-0"
           style={{
-            background: loading ? "rgba(184,155,40,0.08)" : hasOpp ? "transparent" : "#b89b28",
-            color: loading ? "#b89b28" : hasOpp ? "#b89b28" : "#030b06",
-            border: "1px solid rgba(184,155,40,0.5)",
+            background: loading ? "rgba(61,200,92,0.08)" : hasOpp ? "transparent" : "#3dc85c",
+            color: loading ? "#3dc85c" : hasOpp ? "#3dc85c" : "#050816",
+            border: "1px solid rgba(61,200,92,0.5)",
             cursor: loading ? "not-allowed" : "pointer",
             fontFamily: "var(--font-display)",
           }}
@@ -408,7 +408,7 @@ export default function BobbyPanel({
 
       {/* Error */}
       {error && (
-        <div className="mx-5 mt-4 p-3 rounded-lg text-sm" style={{ background: "rgba(204,58,58,0.1)", border: "1px solid rgba(204,58,58,0.35)", color: "#d64848" }}>
+        <div className="mx-5 mt-4 p-3 rounded-lg text-sm" style={{ background: "rgba(224,82,82,0.1)", border: "1px solid rgba(224,82,82,0.35)", color: "#e86666" }}>
           {error}
         </div>
       )}
@@ -422,9 +422,9 @@ export default function BobbyPanel({
               onClick={onToggleBot}
               className="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wider transition-all duration-150"
               style={{
-                background: botMode ? "rgba(0,184,104,0.12)" : "rgba(255,255,255,0.04)",
-                color: botMode ? "#00b868" : "var(--text-secondary)",
-                border: `1px solid ${botMode ? "rgba(0,184,104,0.4)" : "rgba(255,255,255,0.12)"}`,
+                background: botMode ? "rgba(61,200,92,0.12)" : "rgba(255,255,255,0.04)",
+                color: botMode ? "#3dc85c" : "var(--text-secondary)",
+                border: `1px solid ${botMode ? "rgba(61,200,92,0.4)" : "rgba(255,255,255,0.12)"}`,
                 cursor: "pointer",
                 fontFamily: "var(--font-display)",
               }}
@@ -467,17 +467,17 @@ export default function BobbyPanel({
 
           {/* Warnings — solo si existen */}
           {result.warnings.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(204,58,58,0.35)" }}>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(204,58,58,0.1)", color: "#d64848" }}>
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(224,82,82,0.35)" }}>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(224,82,82,0.1)", color: "#e86666" }}>
                 <FiAlertTriangle size={12} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
                   <div key={i} className="flex gap-2.5 px-3 py-1.5" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#cc3a3a" : "#c68428" }} />
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#e05252" : "#8a6ed4" }} />
                     <div className="text-[13px] leading-snug">
-                      <span className="font-bold" style={{ color: w.severity === "high" ? "#d64848" : "#c68428" }}>{w.title}: </span>
-                      <span style={{ color: "#b5ccbc" }}>{w.detail}</span>
+                      <span className="font-bold" style={{ color: w.severity === "high" ? "#e86666" : "#8a6ed4" }}>{w.title}: </span>
+                      <span style={{ color: "#9ab5d0" }}>{w.detail}</span>
                     </div>
                   </div>
                 ))}
@@ -490,11 +490,11 @@ export default function BobbyPanel({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
-                const c = pct === 100 ? "#00b868" : pct === 0 ? "#cc3a3a" : "#b89b28";
+                const c = pct === 100 ? "#3dc85c" : pct === 0 ? "#e05252" : "#3dc85c";
                 return (
                   <div key={i}>
                     <div className="flex items-center justify-between text-[12px] mb-1">
-                      <span style={{ color: "#c2d8ca" }}>{f.label}</span>
+                      <span style={{ color: "#b0c8e8" }}>{f.label}</span>
                       <span className="font-bold" style={{ color: c, fontFamily: "var(--font-display)" }}>{f.points}/{f.max}</span>
                     </div>
                     <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
@@ -506,11 +506,11 @@ export default function BobbyPanel({
               {result.penalties.map((p, i) => (
                 <div key={`p${i}`}>
                   <div className="flex items-center justify-between text-[12px] mb-1">
-                    <span className="flex items-center gap-1" style={{ color: "#c2d8ca" }}><FiAlertTriangle size={11} color="#cc3a3a" /> {p.label}</span>
-                    <span className="font-bold" style={{ color: "#cc3a3a", fontFamily: "var(--font-display)" }}>{p.points}</span>
+                    <span className="flex items-center gap-1" style={{ color: "#b0c8e8" }}><FiAlertTriangle size={11} color="#e05252" /> {p.label}</span>
+                    <span className="font-bold" style={{ color: "#e05252", fontFamily: "var(--font-display)" }}>{p.points}</span>
                   </div>
-                  <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(204,58,58,0.25)" }}>
-                    <div className="h-full rounded-full" style={{ width: "100%", background: "rgba(204,58,58,0.5)" }} />
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(224,82,82,0.25)" }}>
+                    <div className="h-full rounded-full" style={{ width: "100%", background: "rgba(224,82,82,0.5)" }} />
                   </div>
                 </div>
               ))}
@@ -519,7 +519,7 @@ export default function BobbyPanel({
 
           <div className="rounded-xl px-4 py-3" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
             <div className="text-[10px] font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
-            <p className="text-[13px] leading-relaxed" style={{ color: "#d5e8db" }}>{result.message}</p>
+            <p className="text-[13px] leading-relaxed" style={{ color: "#c0d5ed" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
               <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                 Ventana de setup abre en {result.minutesToOpen} min — este es el bias pre-open.

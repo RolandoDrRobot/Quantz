@@ -31,14 +31,14 @@ function saveState(symbol: string, analysis: AnalysisResult | null, opportunity:
 function PhaseDot({ opportunity }: { opportunity: Opportunity | null }) {
   if (!opportunity) return null;
   const colors: Record<string, string> = {
-    HUNTING: "#6f9a7e",
-    AWAIT_RETEST: "#c9b845",
-    RETEST_ACTIVE: "#d4b83a",
-    CONFIRMED: "#00b868",
-    TP_HIT: "#00b868",
-    SL_HIT: "#cc3a3a",
-    CLOSED: "#b89b28",
-    INVALIDATED: "#cc3a3a",
+    HUNTING: "#4a6d8c",
+    AWAIT_RETEST: "#9b7ee8",
+    RETEST_ACTIVE: "#b49cff",
+    CONFIRMED: "#3dc85c",
+    TP_HIT: "#3dc85c",
+    SL_HIT: "#e05252",
+    CLOSED: "#3dc85c",
+    INVALIDATED: "#e05252",
   };
   const pulse = ["AWAIT_RETEST", "RETEST_ACTIVE", "CONFIRMED"].includes(opportunity.phase);
   return (
@@ -257,16 +257,16 @@ export default function Dashboard() {
               className="absolute left-3 right-3 rounded-xl p-3 z-10"
               style={{
                 top: "3.5rem",
-                background: "rgba(3,11,6,0.96)",
-                border: `2px solid ${opportunity.direction === "long" ? "#c9b845" : "#d64848"}`,
-                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(201,184,69,0.35)" : "rgba(214,72,72,0.35)"}`,
+                background: "rgba(5,8,22,0.96)",
+                border: `2px solid ${opportunity.direction === "long" ? "#9b7ee8" : "#e86666"}`,
+                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(61,200,92,0.35)" : "rgba(224,82,82,0.35)"}`,
                 backdropFilter: "blur(8px)",
               }}
             >
-              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#c9b845" : "#d64848", fontFamily: "var(--font-display)" }}>
+              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#9b7ee8" : "#e86666", fontFamily: "var(--font-display)" }}>
                 <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: "#c2d8ca" }}>
+              <div className="text-xs mt-0.5" style={{ color: "#b0c8e8" }}>
                 {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
               </div>
             </div>
@@ -341,13 +341,13 @@ export default function Dashboard() {
                     {displayPrice.toFixed(2)}
                   </span>
                   {analysis && (
-                    <span className="text-sm font-bold" style={{ color: priceUp ? "#00b868" : "#cc3a3a" }}>
+                    <span className="text-sm font-bold" style={{ color: priceUp ? "#3dc85c" : "#e05252" }}>
                       {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
                     </span>
                   )}
                   {trendDir && (
                     <span className="flex items-center gap-0.5 text-xs font-semibold" style={{
-                      color: trendDir === "bullish" ? "#00b868" : trendDir === "bearish" ? "#cc3a3a" : "var(--text-muted)"
+                      color: trendDir === "bullish" ? "#3dc85c" : trendDir === "bearish" ? "#e05252" : "var(--text-muted)"
                     }}>
                       {trendDir === "bullish" ? <FiArrowUpRight size={12} /> : trendDir === "bearish" ? <FiArrowDownRight size={12} /> : null}
                       {trendDir === "bullish" ? "ALCISTA" : trendDir === "bearish" ? "BAJISTA" : "NEUTRAL"}
@@ -362,9 +362,9 @@ export default function Dashboard() {
               onClick={() => setRecordsOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
               style={{
-                background: "rgba(184,155,40,0.08)",
+                background: "rgba(61,200,92,0.08)",
                 color: "var(--gold)",
-                border: "1px solid rgba(184,155,40,0.3)",
+                border: "1px solid rgba(61,200,92,0.3)",
                 cursor: "pointer",
                 fontFamily: "var(--font-display)",
               }}
@@ -389,9 +389,9 @@ export default function Dashboard() {
             onClick={() => setMobileTab("bobby")}
             className="relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all duration-200"
             style={{
-              background: mobileTab === "bobby" ? "rgba(184,155,40,0.15)" : "rgba(255,255,255,0.03)",
+              background: mobileTab === "bobby" ? "rgba(61,200,92,0.15)" : "rgba(255,255,255,0.03)",
               color: mobileTab === "bobby" ? "var(--gold)" : "var(--text-muted)",
-              border: `1px solid ${mobileTab === "bobby" ? "rgba(184,155,40,0.4)" : "rgba(255,255,255,0.06)"}`,
+              border: `1px solid ${mobileTab === "bobby" ? "rgba(61,200,92,0.4)" : "rgba(255,255,255,0.06)"}`,
               fontFamily: "var(--font-display)",
               cursor: "pointer",
             }}
@@ -406,7 +406,7 @@ export default function Dashboard() {
             className="relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all duration-200"
             style={{
               background: mobileTab === "wendy" ? "rgba(0,168,92,0.12)" : "rgba(255,255,255,0.03)",
-              color: mobileTab === "wendy" ? "#00b868" : "var(--text-muted)",
+              color: mobileTab === "wendy" ? "#3dc85c" : "var(--text-muted)",
               border: `1px solid ${mobileTab === "wendy" ? "rgba(0,168,92,0.35)" : "rgba(255,255,255,0.06)"}`,
               fontFamily: "var(--font-display)",
               cursor: "pointer",
@@ -479,9 +479,9 @@ export default function Dashboard() {
             onClick={() => setRecordsOpen(true)}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
-              background: "rgba(184,155,40,0.08)",
+              background: "rgba(61,200,92,0.08)",
               color: "var(--gold)",
-              border: "1px solid rgba(184,155,40,0.3)",
+              border: "1px solid rgba(61,200,92,0.3)",
               cursor: "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -501,7 +501,7 @@ export default function Dashboard() {
             {chartCandles.length > 0 && (
               <div
                 className="shrink-0 px-4 py-3 border-t"
-                style={{ borderColor: "rgba(184,155,40,0.2)", background: "var(--bg-elevated)" }}
+                style={{ borderColor: "rgba(61,200,92,0.2)", background: "var(--bg-elevated)" }}
               >
                 <WendyPanel
                   opportunity={opportunity}
@@ -515,7 +515,7 @@ export default function Dashboard() {
           {/* Bobby panel */}
           <aside
             className="shrink-0 overflow-y-auto"
-            style={{ width: "46%", borderLeft: "1px solid rgba(184,155,40,0.2)" }}
+            style={{ width: "46%", borderLeft: "1px solid rgba(61,200,92,0.2)" }}
           >
             <BobbyPanel
               market={MARKETS[market]}
