@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { FiBarChart2, FiZap, FiTrendingUp, FiCpu, FiShield, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import AxeChart from "./AxeChart";
 import BobbyPanel from "./BobbyPanel";
 import WendyPanel from "./WendyPanel";
@@ -27,27 +27,6 @@ function saveState(symbol: string, analysis: AnalysisResult | null, opportunity:
   } catch { /* storage unavailable */ }
 }
 
-// ─── Phase dot for mobile tab badge ─────────────────────────────────────────
-function PhaseDot({ opportunity }: { opportunity: Opportunity | null }) {
-  if (!opportunity) return null;
-  const colors: Record<string, string> = {
-    HUNTING: "#4a6d8c",
-    AWAIT_RETEST: "#9b7ee8",
-    RETEST_ACTIVE: "#b49cff",
-    CONFIRMED: "#3dc85c",
-    TP_HIT: "#3dc85c",
-    SL_HIT: "#e05252",
-    CLOSED: "#3dc85c",
-    INVALIDATED: "#e05252",
-  };
-  const pulse = ["AWAIT_RETEST", "RETEST_ACTIVE", "CONFIRMED"].includes(opportunity.phase);
-  return (
-    <span
-      className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-black ${pulse ? "animate-pulse" : ""}`}
-      style={{ background: colors[opportunity.phase] ?? "#6b7280" }}
-    />
-  );
-}
 
 export default function Dashboard() {
   const [market, setMarket] = useState<MarketKey>("nasdaq");
@@ -58,7 +37,6 @@ export default function Dashboard() {
   const [chartLoading, setChartLoading] = useState(false);
   const [botMode, setBotMode] = useState(true);
   const [recordsOpen, setRecordsOpen] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"bobby" | "wendy">("bobby");
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
@@ -257,16 +235,16 @@ export default function Dashboard() {
               className="absolute left-3 right-3 rounded-xl p-3 z-10"
               style={{
                 top: "3.5rem",
-                background: "rgba(5,8,22,0.96)",
-                border: `2px solid ${opportunity.direction === "long" ? "#9b7ee8" : "#e86666"}`,
-                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(61,200,92,0.35)" : "rgba(224,82,82,0.35)"}`,
+                background: "rgba(1,5,3,0.96)",
+                border: `2px solid ${opportunity.direction === "long" ? "#b89b28" : "#d64848"}`,
+                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(0,184,104,0.35)" : "rgba(204,58,58,0.35)"}`,
                 backdropFilter: "blur(8px)",
               }}
             >
-              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#9b7ee8" : "#e86666", fontFamily: "var(--font-display)" }}>
+              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#b89b28" : "#d64848", fontFamily: "var(--font-display)" }}>
                 <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: "#b0c8e8" }}>
+              <div className="text-xs mt-0.5" style={{ color: "#c2d8ca" }}>
                 {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
               </div>
             </div>
@@ -341,13 +319,13 @@ export default function Dashboard() {
                     {displayPrice.toFixed(2)}
                   </span>
                   {analysis && (
-                    <span className="text-sm font-bold" style={{ color: priceUp ? "#3dc85c" : "#e05252" }}>
+                    <span className="text-sm font-bold" style={{ color: priceUp ? "#00b868" : "#e05252" }}>
                       {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
                     </span>
                   )}
                   {trendDir && (
                     <span className="flex items-center gap-0.5 text-xs font-semibold" style={{
-                      color: trendDir === "bullish" ? "#3dc85c" : trendDir === "bearish" ? "#e05252" : "var(--text-muted)"
+                      color: trendDir === "bullish" ? "#00b868" : trendDir === "bearish" ? "#e05252" : "var(--text-muted)"
                     }}>
                       {trendDir === "bullish" ? <FiArrowUpRight size={12} /> : trendDir === "bearish" ? <FiArrowDownRight size={12} /> : null}
                       {trendDir === "bullish" ? "ALCISTA" : trendDir === "bearish" ? "BAJISTA" : "NEUTRAL"}
@@ -362,9 +340,9 @@ export default function Dashboard() {
               onClick={() => setRecordsOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
               style={{
-                background: "rgba(61,200,92,0.08)",
+                background: "rgba(0,184,104,0.08)",
                 color: "var(--gold)",
-                border: "1px solid rgba(61,200,92,0.3)",
+                border: "1px solid rgba(0,184,104,0.3)",
                 cursor: "pointer",
                 fontFamily: "var(--font-display)",
               }}
@@ -379,68 +357,33 @@ export default function Dashboard() {
           {chartBlock}
         </div>
 
-        {/* ── Tab strip ── */}
-        <div
-          className="shrink-0 flex gap-2 px-4 py-2"
-          style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)" }}
-        >
-          {/* Bobby tab */}
-          <button
-            onClick={() => setMobileTab("bobby")}
-            className="relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all duration-200"
-            style={{
-              background: mobileTab === "bobby" ? "rgba(61,200,92,0.15)" : "rgba(255,255,255,0.03)",
-              color: mobileTab === "bobby" ? "var(--gold)" : "var(--text-muted)",
-              border: `1px solid ${mobileTab === "bobby" ? "rgba(61,200,92,0.4)" : "rgba(255,255,255,0.06)"}`,
-              fontFamily: "var(--font-display)",
-              cursor: "pointer",
-            }}
-          >
-            <FiCpu size={14} /> TAYLOR
-            <PhaseDot opportunity={opportunity} />
-          </button>
-
-          {/* Wendy tab */}
-          <button
-            onClick={() => setMobileTab("wendy")}
-            className="relative flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all duration-200"
-            style={{
-              background: mobileTab === "wendy" ? "rgba(0,168,92,0.12)" : "rgba(255,255,255,0.03)",
-              color: mobileTab === "wendy" ? "#3dc85c" : "var(--text-muted)",
-              border: `1px solid ${mobileTab === "wendy" ? "rgba(0,168,92,0.35)" : "rgba(255,255,255,0.06)"}`,
-              fontFamily: "var(--font-display)",
-              cursor: "pointer",
-            }}
-          >
-            <FiShield size={14} /> BOBBY
-          </button>
-        </div>
-
-        {/* ── Panel content ── */}
+        {/* ── Panel content — Taylor + Bobby en scroll continuo ── */}
         <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-panel)" }}>
-          {mobileTab === "bobby" && (
-            <BobbyPanel
-              market={MARKETS[market]}
-              analysis={analysis}
-              onAnalysis={handleAnalysis}
+          <BobbyPanel
+            market={MARKETS[market]}
+            analysis={analysis}
+            onAnalysis={handleAnalysis}
+            opportunity={opportunity}
+            livePrice={livePrice}
+            botMode={botMode}
+            onToggleBot={handleToggleBot}
+            onTakeTrade={handleTakeTrade}
+            onMarketEntry={handleMarketEntry}
+            onCloseTrade={handleCloseTrade}
+          />
+          <div
+            className="px-4 pb-6 pt-2"
+            style={{ borderTop: "1px solid var(--gold-border)" }}
+          >
+            <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>
+              ANÁLISIS DE BOBBY
+            </p>
+            <WendyPanel
               opportunity={opportunity}
+              analysis={analysis}
               livePrice={livePrice}
-              botMode={botMode}
-              onToggleBot={handleToggleBot}
-              onTakeTrade={handleTakeTrade}
-              onMarketEntry={handleMarketEntry}
-              onCloseTrade={handleCloseTrade}
             />
-          )}
-          {mobileTab === "wendy" && (
-            <div className="p-4">
-              <WendyPanel
-                opportunity={opportunity}
-                analysis={analysis}
-                livePrice={livePrice}
-              />
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -479,9 +422,9 @@ export default function Dashboard() {
             onClick={() => setRecordsOpen(true)}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
-              background: "rgba(61,200,92,0.08)",
+              background: "rgba(0,184,104,0.08)",
               color: "var(--gold)",
-              border: "1px solid rgba(61,200,92,0.3)",
+              border: "1px solid rgba(0,184,104,0.3)",
               cursor: "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -493,29 +436,15 @@ export default function Dashboard() {
         {/* ── Main body ── */}
         <div className="flex flex-1 overflow-hidden">
 
-          {/* Chart + Wendy */}
-          <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex-1 relative">
-              {chartBlock}
-            </div>
-            {chartCandles.length > 0 && (
-              <div
-                className="shrink-0 px-4 py-3 border-t"
-                style={{ borderColor: "rgba(61,200,92,0.2)", background: "var(--bg-elevated)" }}
-              >
-                <WendyPanel
-                  opportunity={opportunity}
-                  analysis={analysis}
-                  livePrice={livePrice}
-                />
-              </div>
-            )}
+          {/* Chart — ocupa todo el alto */}
+          <div className="flex-1 min-w-0 relative">
+            {chartBlock}
           </div>
 
-          {/* Bobby panel */}
+          {/* Taylor + Bobby panel */}
           <aside
-            className="shrink-0 overflow-y-auto"
-            style={{ width: "46%", borderLeft: "1px solid rgba(61,200,92,0.2)" }}
+            className="shrink-0 overflow-y-auto flex flex-col"
+            style={{ width: "46%", borderLeft: "1px solid rgba(0,184,104,0.2)" }}
           >
             <BobbyPanel
               market={MARKETS[market]}
@@ -529,6 +458,19 @@ export default function Dashboard() {
               onMarketEntry={handleMarketEntry}
               onCloseTrade={handleCloseTrade}
             />
+            <div
+              className="px-4 pb-6 pt-2"
+              style={{ borderTop: "1px solid var(--gold-border)" }}
+            >
+              <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>
+                ANÁLISIS DE BOBBY
+              </p>
+              <WendyPanel
+                opportunity={opportunity}
+                analysis={analysis}
+                livePrice={livePrice}
+              />
+            </div>
           </aside>
         </div>
       </div>

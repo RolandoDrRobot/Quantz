@@ -9,7 +9,7 @@ export default function Home() {
           <span className="text-xs tracking-[0.2em] hidden sm:block" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>PRIVATE TRADING HUB</span>
         </div>
         <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: "#3dc85c" }}></span>
+          <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: "#00b868" }}></span>
           <span className="tracking-wider">EN VIVO</span>
         </div>
       </header>

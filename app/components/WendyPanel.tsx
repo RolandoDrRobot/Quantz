@@ -21,9 +21,9 @@ export default function WendyPanel({ opportunity, analysis, livePrice }: WendyPa
   }, [opportunity, livePrice]);
 
   const verdictColor = {
-    GREEN:  { bg: "rgba(61,200,92,0.10)",   border: "#3dc85c", text: "#3dc85c" },
-    YELLOW: { bg: "rgba(155,126,232,0.10)", border: "#9b7ee8", text: "#9b7ee8" },
-    RED:    { bg: "rgba(224,82,82,0.10)",   border: "#e05252", text: "#e05252" },
+    GREEN:  { bg: "rgba(0,184,104,0.10)",   border: "#00b868", text: "#00b868" },
+    YELLOW: { bg: "rgba(184,155,40,0.10)", border: "#b89b28", text: "#b89b28" },
+    RED:    { bg: "rgba(204,58,58,0.10)",   border: "#e05252", text: "#e05252" },
   };
 
   const verdictIcon = {
@@ -67,7 +67,7 @@ export default function WendyPanel({ opportunity, analysis, livePrice }: WendyPa
           <div
             key={i}
             className="text-xs leading-relaxed"
-            style={{ color: "#b0bcd8" }}
+            style={{ color: "#b5ccbc" }}
           >
             {insight}
           </div>
@@ -78,7 +78,7 @@ export default function WendyPanel({ opportunity, analysis, livePrice }: WendyPa
       <div
         className="text-xs italic border-t pt-3"
         style={{
-          color: "#7a90b8",
+          color: "#8aac99",
           borderColor: colors.border + "33",
         }}
       >

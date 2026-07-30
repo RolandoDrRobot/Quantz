@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080d1a",
+  themeColor: "#030b06",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className="h-full" suppressHydrationWarning>
       <head>
-        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap');` }} />
+        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Anta&display=swap');` }} />
       </head>
       <body className="h-full flex flex-col antialiased">
         {children}
