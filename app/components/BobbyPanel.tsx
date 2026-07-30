@@ -366,31 +366,11 @@ export default function BobbyPanel({
       </div>
 
       {/* Price strip + action button */}
-      <div className="flex items-center justify-between gap-4 px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)", background: "var(--bg-elevated)" }}>
-        {livePrice !== null || result ? (
-          <div className="flex items-baseline gap-3">
-            <span className="font-black text-2xl text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-              {(livePrice ?? result!.currentPrice).toFixed(2)}
-            </span>
-            {result && (
-              <>
-                <span className="font-bold text-base" style={{ color: result.priceChange >= 0 ? "#00b868" : "#e05252" }}>
-                  {result.priceChange >= 0 ? "+" : ""}{result.priceChangePct.toFixed(2)}%
-                </span>
-                <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: result.trend.direction === "bullish" ? "#00b868" : result.trend.direction === "bearish" ? "#e05252" : "var(--text-secondary)" }}>
-                  {result.trend.direction === "bullish" ? <FiArrowUpRight size={14} /> : result.trend.direction === "bearish" ? <FiArrowDownRight size={14} /> : null}
-                  {result.trend.direction === "bullish" ? "▲ ALCISTA" : result.trend.direction === "bearish" ? "▼ BAJISTA" : "→ NEUTRAL"}
-                </span>
-              </>
-            )}
-          </div>
-        ) : (
-          <span className="text-sm" style={{ color: "var(--text-muted)" }}>Sin análisis</span>
-        )}
+      <div className="flex justify-end px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)", background: "var(--bg-elevated)" }}>
         <button
           onClick={analyze}
           disabled={loading}
-          className="px-6 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150 shrink-0"
+          className="px-6 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
           style={{
             background: loading ? "rgba(0,184,104,0.08)" : hasOpp ? "transparent" : "#00b868",
             color: loading ? "#00b868" : hasOpp ? "#00b868" : "#010503",

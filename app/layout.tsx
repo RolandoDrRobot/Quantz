@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -36,6 +37,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="h-full flex flex-col antialiased">
         {children}
+        <Toaster
+          position="bottom-right"
+          expand={false}
+          visibleToasts={3}
+          toastOptions={{
+            style: {
+              background: "#05130a",
+              border: "1px solid rgba(184,155,40,0.22)",
+              color: "#c2d8ca",
+              fontSize: "11px",
+              fontFamily: "var(--font-display)",
+              letterSpacing: "0.04em",
+              padding: "8px 12px",
+              borderRadius: "8px",
+              minWidth: "0",
+              maxWidth: "260px",
+            },
+            duration: 3500,
+          }}
+        />
         <script dangerouslySetInnerHTML={{
           __html: `
             if ('serviceWorker' in navigator) {

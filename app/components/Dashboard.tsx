@@ -10,6 +10,7 @@ import { MARKETS, type MarketKey } from "../lib/markets";
 import RecordsModal from "./RecordsModal";
 import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
+import { toast } from "sonner";
 import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor } from "../lib/markets";
 
@@ -118,6 +119,8 @@ export default function Dashboard() {
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
     updateOpportunity(opp);
     saveState(MARKETS[market].symbol, result, opp);
+    const sig = result.signal === "GO_LONG" ? "▲ largo" : result.signal === "GO_SHORT" ? "▼ corto" : "espera";
+    toast(`taylor · ${sig} · ${result.probability}%`, { duration: 3000 });
   }, [market, updateOpportunity]);
 
   const handleTick = useCallback((price: number) => {
@@ -131,10 +134,24 @@ export default function Dashboard() {
     if (next.phase !== prev.phase || levelChanged) {
       setOpportunity(next);
       if (levelChanged) playBreakoutSound();
-      else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") playBreakoutSound();
-      else if (next.phase === "RETEST_ACTIVE") playRetestSound();
-      else if (next.phase === "TP_HIT") { playResolvedSound(true); recordTrade(next, "TP", next.tp); }
-      else if (next.phase === "SL_HIT") { playResolvedSound(false); recordTrade(next, "SL", next.sl); }
+      else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") {
+        playBreakoutSound();
+        toast(`breakout ${next.direction === "long" ? "▲" : "▼"} ${next.level.toFixed(2)} — espera retest`, { duration: 5000 });
+      }
+      else if (next.phase === "RETEST_ACTIVE") {
+        playRetestSound();
+        toast.warning(`retest activo · ${next.level.toFixed(2)}`, { duration: 6000 });
+      }
+      else if (next.phase === "TP_HIT") {
+        playResolvedSound(true);
+        recordTrade(next, "TP", next.tp);
+        toast.success(`tp · ${next.tp.toFixed(2)}`, { duration: 4000 });
+      }
+      else if (next.phase === "SL_HIT") {
+        playResolvedSound(false);
+        recordTrade(next, "SL", next.sl);
+        toast.error(`sl · ${next.sl.toFixed(2)}`, { duration: 4000 });
+      }
       saveState(symbolRef.current, analysisRef.current, next);
     }
   }, [recordTrade]);
