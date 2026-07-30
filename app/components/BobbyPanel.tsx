@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { IconType } from "react-icons";
 import {
-  FiTrendingUp, FiTrendingDown, FiPauseCircle, FiCheck, FiX, FiPower,
+  FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
@@ -28,7 +28,6 @@ const PHASE_META: Record<OppPhase, { label: string; color: string; step: number 
   INVALIDATED:   { label: "SETUP INVÁLIDO", color: "#cc3a3a", step: 4 },
 };
 
-const STEPS = ["HUNT", "BREAK", "RETEST", "LIVE", "DONE"];
 
 function probColor(p: number) {
   if (p >= 70) return "#00b868";
@@ -115,15 +114,6 @@ function Clock({ is24h }: { is24h: boolean }) {
   );
 }
 
-function SectionHeader({ label, right }: { label: string; right?: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 mt-1">
-      <span className="text-[11px] font-black tracking-[0.25em] shrink-0" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>{label}</span>
-      <div className="flex-1 h-px" style={{ background: "rgba(184,155,40,0.15)" }} />
-      {right}
-    </div>
-  );
-}
 
 // ── The Trade card — everything about the position in one place ──────────────
 function TradeCard({
@@ -164,7 +154,7 @@ function TradeCard({
       statusLine = bot ? "Precio en el nivel — bot entra si la vela sostiene" : "Precio en el nivel — tu decisión. Tómalo o sáltalo.";
       break;
     case "CONFIRMED":
-      statusLine = `${bot ? "Bot entró" : "Estás dentro"} @ ${(opp.fillPrice ?? opp.entry).toFixed(2)} · target ${opp.tp.toFixed(2)} · costo $${(opp.cost ?? 0).toFixed(2)}`;
+      statusLine = `${bot ? "Bot entró" : "Posición abierta"} · spread $${(opp.cost ?? 0).toFixed(2)}`;
       break;
     case "TP_HIT":
       statusLine = `Target hit en ${opp.tp.toFixed(2)}. Así se hace.`;
@@ -204,22 +194,6 @@ function TradeCard({
           {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
           {opp.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · {lots} LOTES
         </span>
-      </div>
-
-      {/* Pipeline */}
-      <div className="flex items-center gap-1 px-4 pt-3">
-        {STEPS.map((s, i) => {
-          const active = i === meta.step;
-          const done = i < meta.step;
-          const isFailEnd = isTerminal && (opp.phase === "SL_HIT" || opp.phase === "INVALIDATED") && i === 4;
-          const c = isFailEnd ? "#cc3a3a" : active || done ? meta.color : "rgba(255,255,255,0.1)";
-          return (
-            <div key={s} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full h-[3px] rounded-full" style={{ background: c, opacity: done ? 0.45 : 1 }} />
-              <span className="text-[9px] font-bold tracking-widest" style={{ color: active ? c : "var(--text-muted)" }}>{s}</span>
-            </div>
-          );
-        })}
       </div>
 
       {/* Status + P/L */}
@@ -370,20 +344,18 @@ export default function BobbyPanel({
       {/* Header: title + clock */}
       <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <div>
-          <div className="font-black text-base tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>CONSEJO DE BOBBY</div>
-          <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>{market.label}</div>
+          <div className="font-black text-base tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>CONSEJO DE TAYLOR</div>
         </div>
         <Clock is24h={market.is24h} />
       </div>
 
-      {/* Account chips */}
+      {/* Account chips — only market-variable values */}
       <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         {[
-          ["CUENTA", `$${ACCOUNT.balance.toLocaleString()}`, "#e8f5ec"],
-          ["RIESGO", `$${ACCOUNT.riskPerTrade}/trade`, "#cc3a3a"],
           ["SL", market.slLabel, "#e8f5ec"],
-          ["TAMAÑO", `${lots} lotes`, "#e8f5ec"],
-          ["COSTO", `~$${tradeCostFor(market).toFixed(2)}`, "#c68428"],
+          ["LOTES", `${lots}`, "#e8f5ec"],
+          ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#c68428"],
+          ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#cc3a3a"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -429,7 +401,7 @@ export default function BobbyPanel({
         >
           <span className="flex items-center gap-2">
             {loading ? <FiRefreshCw size={15} className="animate-spin" /> : hasOpp ? <FiRefreshCw size={15} /> : <FiZap size={15} />}
-            {loading ? "CARGANDO..." : hasOpp ? "NUEVO ANÁLISIS" : "PREGUNTA A BOBBY"}
+            {loading ? "CARGANDO..." : hasOpp ? "NUEVO ANÁLISIS" : "PREGUNTA A TAYLOR"}
           </span>
         </button>
       </div>
@@ -444,26 +416,23 @@ export default function BobbyPanel({
       {result && sig && (
         <div className="p-4 flex flex-col gap-3">
 
-          {/* ═══ EL TRADE ═══ */}
-          <SectionHeader
-            label="EL TRADE"
-            right={
-              <button
-                onClick={onToggleBot}
-                className="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wider transition-all duration-150"
-                style={{
-                  background: botMode ? "rgba(0,184,104,0.12)" : "rgba(255,255,255,0.04)",
-                  color: botMode ? "#00b868" : "var(--text-secondary)",
-                  border: `1px solid ${botMode ? "rgba(0,184,104,0.4)" : "rgba(255,255,255,0.12)"}`,
-                  cursor: "pointer",
-                  fontFamily: "var(--font-display)",
-                }}
-              >
-                <FiCpu size={13} />
-                {botMode ? "BOT: ACTIVADO" : "BOT: OFF — MANUAL"}
-              </button>
-            }
-          />
+          {/* Bot toggle */}
+          <div className="flex justify-end">
+            <button
+              onClick={onToggleBot}
+              className="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wider transition-all duration-150"
+              style={{
+                background: botMode ? "rgba(0,184,104,0.12)" : "rgba(255,255,255,0.04)",
+                color: botMode ? "#00b868" : "var(--text-secondary)",
+                border: `1px solid ${botMode ? "rgba(0,184,104,0.4)" : "rgba(255,255,255,0.12)"}`,
+                cursor: "pointer",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              <FiCpu size={13} />
+              {botMode ? "BOT: ACTIVADO" : "BOT: OFF — MANUAL"}
+            </button>
+          </div>
 
           {opportunity ? (
             <TradeCard
@@ -477,12 +446,9 @@ export default function BobbyPanel({
             />
           ) : (
             <div className="rounded-xl px-4 py-3 text-[13px]" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
-              Sin setup tradeable en este momento — analiza de nuevo cuando el mercado se mueva.
+              Sin setup tradeable — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
-
-          {/* ═══ EL ANÁLISIS ═══ */}
-          <SectionHeader label="EL ANÁLISIS" />
 
           {/* Signal + probability gauge */}
           <div className="rounded-xl flex items-center gap-4 px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -493,14 +459,14 @@ export default function BobbyPanel({
                 <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
               <div className="text-xs mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
-                PROBABILIDAD {probLabel(result.probability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factores alineados
-                {result.penalties.length > 0 && ` · ${result.penalties.length} ${result.penalties.length === 1 ? "penalidad" : "penalidades"}`}
+                {probLabel(result.probability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factores
+                {result.penalties.length > 0 && ` · ${result.penalties.length} penalidad${result.penalties.length > 1 ? "es" : ""}`}
               </div>
             </div>
           </div>
 
-          {/* Warnings */}
-          {result.warnings.length > 0 ? (
+          {/* Warnings — solo si existen */}
+          {result.warnings.length > 0 && (
             <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(204,58,58,0.35)" }}>
               <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(204,58,58,0.1)", color: "#d64848" }}>
                 <FiAlertTriangle size={12} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
@@ -508,10 +474,7 @@ export default function BobbyPanel({
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
                   <div key={i} className="flex gap-2.5 px-3 py-1.5" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
-                    <span
-                      className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: w.severity === "high" ? "#cc3a3a" : "#c68428" }}
-                    />
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#cc3a3a" : "#c68428" }} />
                     <div className="text-[13px] leading-snug">
                       <span className="font-bold" style={{ color: w.severity === "high" ? "#d64848" : "#c68428" }}>{w.title}: </span>
                       <span style={{ color: "#b5ccbc" }}>{w.detail}</span>
@@ -520,15 +483,10 @@ export default function BobbyPanel({
                 ))}
               </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold" style={{ background: "rgba(0,184,104,0.06)", border: "1px solid rgba(0,184,104,0.25)", color: "#00b868" }}>
-              <FiCheck size={15} /> Sin banderas — condiciones limpias para este setup
-            </div>
           )}
 
-          {/* Score factors with mini bars */}
+          {/* Score factors */}
           <div className="rounded-xl px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="text-[10px] font-bold tracking-widest mb-2.5" style={{ color: "var(--text-secondary)" }}>DESGLOSE DEL SCORE</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
@@ -559,10 +517,8 @@ export default function BobbyPanel({
             </div>
           </div>
 
-          {/* ═══ ANÁLISIS DE BOBBY ═══ */}
-          <SectionHeader label="ANÁLISIS DE BOBBY" />
-
           <div className="rounded-xl px-4 py-3" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
+            <div className="text-[10px] font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
             <p className="text-[13px] leading-relaxed" style={{ color: "#d5e8db" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
               <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
@@ -578,7 +534,7 @@ export default function BobbyPanel({
       {!result && !loading && !error && (
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }}>
           <FiZap size={48} className="mb-4 opacity-15" />
-          <p className="text-base">Presiona <strong style={{ color: "var(--gold)" }}>Pregunta a Bobby</strong> para analizar {market.label}.</p>
+          <p className="text-base">Presiona <strong style={{ color: "var(--gold)" }}>Pregunta a Taylor</strong> para analizar {market.label}.</p>
           <p className="text-sm mt-2 opacity-70">Señal, probabilidad, niveles y tracking de trades en vivo.</p>
         </div>
       )}

@@ -396,7 +396,7 @@ export default function Dashboard() {
               cursor: "pointer",
             }}
           >
-            <FiCpu size={14} /> BOBBY
+            <FiCpu size={14} /> TAYLOR
             <PhaseDot opportunity={opportunity} />
           </button>
 
@@ -412,7 +412,7 @@ export default function Dashboard() {
               cursor: "pointer",
             }}
           >
-            <FiShield size={14} /> WENDY
+            <FiShield size={14} /> BOBBY
           </button>
         </div>
 

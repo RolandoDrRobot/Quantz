@@ -86,7 +86,7 @@ export function analyzeEmotions(
   // ── Check 6: Probability mismatch ──────────────────────────────────
   if (analysis) {
     if (analysis.probability < 50 && opportunity?.phase !== "CONFIRMED") {
-      insights.push(`⚠️ Bobby dice <50% probabilidad. Si tomas esto, ignoras la señal.`);
+      insights.push(`⚠️ Taylor dice <50% probabilidad. Si tomas esto, ignoras la señal.`);
       riskLevel += 2;
     }
   }
@@ -111,7 +111,7 @@ export function analyzeEmotions(
   if (riskLevel <= 2) {
     verdict = "GREEN";
     title = "Mente clara, trade limpio.";
-    recommendation = "El setup está fresco y tradeas con lógica, no con miedo. Tómalo si Bobby está de acuerdo.";
+    recommendation = "El setup está fresco y tradeas con lógica, no con miedo. Tómalo si Taylor está de acuerdo.";
   } else if (riskLevel <= 5) {
     verdict = "YELLOW";
     title = "Cuidado: Señales emocionales.";

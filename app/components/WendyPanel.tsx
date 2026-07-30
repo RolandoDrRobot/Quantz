@@ -50,7 +50,7 @@ export default function WendyPanel({ opportunity, analysis, livePrice }: WendyPa
             className="font-bold text-sm tracking-wider"
             style={{ color: colors.text, fontFamily: "var(--font-display)" }}
           >
-            ANÁLISIS DE WENDY
+            ANÁLISIS DE BOBBY
           </div>
           <div
             className="text-xs mt-0.5"
