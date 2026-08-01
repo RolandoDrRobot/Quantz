@@ -73,6 +73,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   const [showLegend, setShowLegend] = useState(false);
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
+  const candlesRef = useRef(candles);
+  candlesRef.current = candles;
 
   // ── Single effect: rebuilds chart only when candles change; overlays always ─
   useEffect(() => {
@@ -238,10 +240,21 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
 
     let disposed = false;
     let cur: { time: number; open: number; high: number; low: number; close: number } | null = null;
+    let curInterval = 0;
 
     const applyTick = (price: number, tsSec: number) => {
       if (!seriesRef.current || !isFinite(price)) return;
-      const bucket = Math.floor(tsSec / 60) * 60;
+      // Match the bucket size to whatever interval the loaded candles actually
+      // use (1m or 5m) instead of assuming 1m — a mismatch here is what makes
+      // the live tick paint extra malformed bars between the real candles.
+      const cds = candlesRef.current;
+      let intervalSec = 60;
+      if (cds.length >= 2) {
+        const diff = cds[cds.length - 1].time - cds[cds.length - 2].time;
+        if (isFinite(diff) && diff > 0) intervalSec = diff;
+      }
+      if (intervalSec !== curInterval) { cur = null; curInterval = intervalSec; }
+      const bucket = Math.floor(tsSec / intervalSec) * intervalSec;
       if (!cur || cur.time !== bucket) {
         cur = { time: bucket, open: price, high: price, low: price, close: price };
       } else {

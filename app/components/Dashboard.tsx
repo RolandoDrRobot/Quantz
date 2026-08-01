@@ -27,6 +27,17 @@ function saveState(symbol: string, analysis: AnalysisResult | null, opportunity:
   } catch { /* storage unavailable */ }
 }
 
+// In a thin/quiet session the 1m range can be smaller than the market's own
+// SL distance — at that point 1m bars are just tick noise, not signal, so
+// fall back to 5m for a readable chart.
+function pickChartCandles(c1m: RawCandle[], c5m: RawCandle[], slPoints: number): RawCandle[] {
+  if (c1m.length < 10) return c5m.slice(-500);
+  const window = c1m.slice(-120);
+  const range = Math.max(...window.map(c => c.high)) - Math.min(...window.map(c => c.low));
+  if (range < slPoints * 0.5) return c5m.slice(-500);
+  return c1m;
+}
+
 
 export default function Dashboard() {
   const [market, setMarket] = useState<MarketKey>("nasdaq");
@@ -95,7 +106,7 @@ export default function Dashboard() {
         if (cancelled) return;
         const c1m: RawCandle[] = data.candles1m ?? [];
         const c5m: RawCandle[] = data.candles5m ?? [];
-        setChartCandles(c1m.length >= 10 ? c1m : c5m.slice(-500));
+        setChartCandles(pickChartCandles(c1m, c5m, cfg.slPoints));
         try {
           const raw = localStorage.getItem(storageKey(cfg.symbol));
           if (raw) {
@@ -114,7 +125,7 @@ export default function Dashboard() {
   }, [cfg.symbol, updateOpportunity]);
 
   const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
-    setChartCandles(c1m.length >= 10 ? c1m : c5m.slice(-500));
+    setChartCandles(pickChartCandles(c1m, c5m, MARKETS[market].slPoints));
     setAnalysis(result);
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
     updateOpportunity(opp);
