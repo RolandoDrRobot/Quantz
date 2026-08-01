@@ -16,7 +16,6 @@ export const MARKETS = {
     slLabel: "40 pts",
     contractSize: 1,
     spreadPoints: 2.0,
-    yahooTickFallback: true,
     color: "#00b868",
   },
   dowjones: {
@@ -30,7 +29,6 @@ export const MARKETS = {
     slLabel: "40 pts",
     contractSize: 1,
     spreadPoints: 2.5,
-    yahooTickFallback: true,
     color: "#3a72c9",
   },
   gold: {
@@ -44,10 +42,6 @@ export const MARKETS = {
     slLabel: "40 pips ($4.00)",
     contractSize: 100,
     spreadPoints: 0.15,
-    // Candles come from Twelve Data (spot). Yahoo's GC=F is futures and trades
-    // ~$5-8 off spot — its tick fallback would corrupt the chart and trigger
-    // false retests, so live data is WebSocket-only for this market.
-    yahooTickFallback: false,
     color: "#c9a838",
   },
 } as const;

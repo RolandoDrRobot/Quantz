@@ -137,10 +137,6 @@ export function takeTrade(o: Opportunity, price: number): Opportunity {
   return { ...o, phase: "CONFIRMED", fillPrice: price, updatedAt: Date.now() };
 }
 
-export function skipTrade(o: Opportunity): Opportunity {
-  return { ...o, phase: "INVALIDATED", updatedAt: Date.now() };
-}
-
 // Market entry: open the position at the CURRENT price, re-basing SL and TP
 // from it (same lot sizing — SL distance is unchanged)
 export function enterAtMarket(o: Opportunity, price: number, levels: Level[] = []): Opportunity {

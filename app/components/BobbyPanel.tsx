@@ -303,6 +303,14 @@ export default function BobbyPanel({
   const [error, setError] = useState("");
   const result = analysis; // analysis state lives in Dashboard (persisted across reloads)
 
+  // Clear a stale error from the previous market as soon as the market
+  // changes, without waiting for a post-render effect.
+  const [prevMarket, setPrevMarket] = useState(market);
+  if (market !== prevMarket) {
+    setPrevMarket(market);
+    setError("");
+  }
+
   const analyze = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -331,12 +339,7 @@ export default function BobbyPanel({
     }
   }, [market, onAnalysis]);
 
-  useEffect(() => {
-    setError("");
-  }, [market]);
-
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
-  const hasOpp = !!opportunity;
   const lots = lotsFor(market);
 
   return (

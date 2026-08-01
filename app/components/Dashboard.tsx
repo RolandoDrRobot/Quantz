@@ -52,15 +52,19 @@ export default function Dashboard() {
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
-  analysisRef.current = analysis;
   const symbolRef = useRef(cfg.symbol);
-  symbolRef.current = cfg.symbol;
   const botModeRef = useRef(botMode);
-  botModeRef.current = botMode;
   const marketShortRef = useRef<string>(cfg.short);
-  marketShortRef.current = cfg.short;
   const livePriceRef = useRef<number | null>(null);
-  livePriceRef.current = livePrice;
+
+  // Callbacks (handleTick, recordTrade, etc.) read these refs instead of
+  // closing over state, so they always see the latest value without being
+  // recreated every render — synced here rather than during render.
+  useEffect(() => { analysisRef.current = analysis; }, [analysis]);
+  useEffect(() => { symbolRef.current = cfg.symbol; }, [cfg.symbol]);
+  useEffect(() => { botModeRef.current = botMode; }, [botMode]);
+  useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
+  useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
 
   const opportunityRef = useRef<Opportunity | null>(null);
   const updateOpportunity = useCallback((next: Opportunity | null) => {
@@ -83,6 +87,11 @@ export default function Dashboard() {
     });
   }, []);
 
+  // Reading localStorage during the initial render (e.g. a useState
+  // initializer) would desync the static server-prerendered HTML from the
+  // client's first paint. Applying the saved value post-mount is what avoids
+  // that hydration mismatch, so this intentionally sets state from an effect.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_MARKET) as MarketKey | null;
@@ -91,7 +100,12 @@ export default function Dashboard() {
       if (bot !== null) setBotMode(bot === "true");
     } catch { /* storage unavailable */ }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Resets chart/analysis state whenever the selected market changes, then
+  // loads that market's data — the reset has to run as a side effect since it
+  // depends on cfg.symbol changing, not just on mount.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setChartCandles([]);
     setAnalysis(null);
@@ -122,7 +136,8 @@ export default function Dashboard() {
       .finally(() => { if (!cancelled) setChartLoading(false); });
 
     return () => { cancelled = true; };
-  }, [cfg.symbol, updateOpportunity]);
+  }, [cfg.symbol, cfg.slPoints, updateOpportunity]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
     setChartCandles(pickChartCandles(c1m, c5m, MARKETS[market].slPoints));
@@ -255,7 +270,6 @@ export default function Dashboard() {
             accentColor={cfg.color}
             symbol={cfg.symbol}
             tdSymbol={cfg.tdSymbol}
-            yahooTickFallback={cfg.yahooTickFallback}
             onTick={handleTick}
           />
           {opportunity?.phase === "RETEST_ACTIVE" && (

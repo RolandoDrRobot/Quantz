@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { FiTrash2, FiX, FiBarChart2, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../lib/records";
 
@@ -22,16 +22,16 @@ const OUTCOME_STYLE: Record<TradeRecord["outcome"], { label: string; color: stri
 };
 
 export default function RecordsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [records, setRecords] = useState<TradeRecord[]>([]);
-
-  useEffect(() => {
-    if (open) setRecords(loadRecords());
-  }, [open]);
+  // Bumped after a clear to force re-reading localStorage; otherwise records
+  // is just a plain derived read, refreshed each time the modal opens.
+  const [version, setVersion] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- version is a manual invalidation token, not read inside
+  const records = useMemo(() => (open ? loadRecords() : []), [open, version]);
 
   const handleClear = useCallback(() => {
     if (window.confirm("¿Eliminar TODOS los trades? No se puede deshacer.")) {
       clearRecords();
-      setRecords([]);
+      setVersion(v => v + 1);
     }
   }, []);
 

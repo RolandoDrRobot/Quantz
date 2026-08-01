@@ -41,7 +41,6 @@ interface Props {
   accentColor?: string;
   symbol: string;
   tdSymbol: string;
-  yahooTickFallback?: boolean;
   onTick?: (price: number) => void;
 }
 
@@ -56,7 +55,7 @@ const LEGEND = [
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#b89b28", symbol, tdSymbol, yahooTickFallback = true, onTick }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#b89b28", symbol, tdSymbol, onTick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -72,9 +71,9 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const onTickRef = useRef(onTick);
-  onTickRef.current = onTick;
   const candlesRef = useRef(candles);
-  candlesRef.current = candles;
+  useEffect(() => { onTickRef.current = onTick; }, [onTick]);
+  useEffect(() => { candlesRef.current = candles; }, [candles]);
 
   // ── Single effect: rebuilds chart only when candles change; overlays always ─
   useEffect(() => {
@@ -238,7 +237,6 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   useEffect(() => {
     if (!symbol) return;
 
-    let disposed = false;
     let cur: { time: number; open: number; high: number; low: number; close: number } | null = null;
     let curInterval = 0;
 
@@ -301,13 +299,11 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     }
 
     return () => {
-      disposed = true;
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (heartbeatId) clearInterval(heartbeatId);
       ws?.close();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, tdSymbol]);
 
   return (
