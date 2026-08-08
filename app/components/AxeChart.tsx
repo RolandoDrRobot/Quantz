@@ -41,7 +41,7 @@ interface Props {
   accentColor?: string;
   symbol: string;
   tdSymbol: string;
-  binanceSymbol?: string | null;
+  coinbaseProduct?: string | null;
   onTick?: (price: number) => void;
 }
 
@@ -57,7 +57,7 @@ const LEGEND = [
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#c23b30", symbol, tdSymbol, binanceSymbol, onTick }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#c23b30", symbol, tdSymbol, coinbaseProduct, onTick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -311,8 +311,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
 
   // ── Live data ────────────────────────────────────────────────────────────
-  // Binance's public trade stream for Bitcoin; Twelve Data's WS for
-  // everything else (indices, commodities, 24/5 real-time).
+  // Coinbase Exchange's public trade stream for Bitcoin/Ethereum; Twelve
+  // Data's WS for everything else (indices, commodities, 24/5 real-time).
   useEffect(() => {
     if (!symbol) return;
 
@@ -357,20 +357,24 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatId: ReturnType<typeof setInterval> | null = null;
 
-    if (binanceSymbol) {
-      // Binance's public trade stream — free, no key, no subscribe handshake
-      // or heartbeat needed (the browser answers WS ping frames natively).
-      const streamSymbol = binanceSymbol.toLowerCase();
+    if (coinbaseProduct) {
+      // Coinbase Exchange's public "matches" feed — free, no key. Needs an
+      // explicit subscribe message on open (unlike Binance's path-based
+      // stream), no heartbeat required.
       const connect = () => {
         if (closed) return;
-        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${streamSymbol}@trade`);
+        ws = new WebSocket("wss://ws-feed.exchange.coinbase.com");
+        ws.onopen = () => {
+          ws?.send(JSON.stringify({ type: "subscribe", product_ids: [coinbaseProduct], channels: ["matches"] }));
+        };
         ws.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
-            const price = parseFloat(msg.p);
+            if (msg.type !== "match" && msg.type !== "last_match") return;
+            const price = parseFloat(msg.price);
             if (isFinite(price)) {
-              const tsSec = typeof msg.T === "number" ? Math.floor(msg.T / 1000) : Math.floor(Date.now() / 1000);
-              applyTick(price, tsSec);
+              const tsSec = typeof msg.time === "string" ? Math.floor(Date.parse(msg.time) / 1000) : Math.floor(Date.now() / 1000);
+              applyTick(price, isFinite(tsSec) ? tsSec : Math.floor(Date.now() / 1000));
             }
           } catch { /* skip */ }
         };
@@ -412,7 +416,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       if (heartbeatId) clearInterval(heartbeatId);
       ws?.close();
     };
-  }, [symbol, tdSymbol, binanceSymbol]);
+  }, [symbol, tdSymbol, coinbaseProduct]);
 
   return (
     <div className="relative w-full h-full" style={{ background: P.bg }}>

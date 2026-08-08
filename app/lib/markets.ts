@@ -8,7 +8,7 @@ export const MARKETS = {
   nasdaq: {
     symbol: "^NDX",
     tdSymbol: "NDX",
-    binanceSymbol: null,
+    coinbaseProduct: null,
     label: "NASDAQ 100",
     short: "US100",
     description: "NASDAQ 100 · 7:30 AM CR Open",
@@ -22,7 +22,7 @@ export const MARKETS = {
   dowjones: {
     symbol: "^DJI",
     tdSymbol: "DJI",
-    binanceSymbol: null,
+    coinbaseProduct: null,
     label: "Dow Jones",
     short: "US30",
     description: "Dow Jones · 7:30 AM CR Open",
@@ -36,7 +36,7 @@ export const MARKETS = {
   gold: {
     symbol: "GC=F",
     tdSymbol: "XAU/USD",
-    binanceSymbol: null,
+    coinbaseProduct: null,
     label: "Gold",
     short: "XAUUSD",
     description: "Gold · 23h/day · Asian Session",
@@ -50,11 +50,11 @@ export const MARKETS = {
   bitcoin: {
     symbol: "BTC-USD",
     tdSymbol: "BTC/USD",
-    // Twelve Data's free tier never reports volume for crypto — Binance's
-    // public REST/WS API is free, needs no key, and gives real price +
-    // volume for both history and the live tick stream, so Bitcoin sources
-    // everything from Binance instead.
-    binanceSymbol: "BTCUSDT",
+    // Twelve Data's free tier never reports volume for crypto, and Binance
+    // blocks requests from US-based servers — Coinbase Exchange is US-
+    // compliant (doesn't block Vercel), free, needs no key, and gives real
+    // price + volume for both history and the live tick stream.
+    coinbaseProduct: "BTC-USD",
     label: "Bitcoin",
     short: "BTCUSD",
     description: "Bitcoin · 24/7",
@@ -68,7 +68,7 @@ export const MARKETS = {
   ethereum: {
     symbol: "ETH-USD",
     tdSymbol: "ETH/USD",
-    binanceSymbol: "ETHUSDT",
+    coinbaseProduct: "ETH-USD",
     label: "Ethereum",
     short: "ETHUSD",
     description: "Ethereum · 24/7",

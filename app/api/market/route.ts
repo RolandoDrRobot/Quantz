@@ -1,12 +1,5 @@
 import { NextResponse } from "next/server";
 
-// Binance blocks requests from US-based IPs (regulatory compliance) — this
-// route calls Binance for Bitcoin/Ethereum, so it can't run in Vercel's
-// default us-east region (iad1) or every crypto request 502s with "No data
-// returned" while Yahoo/Twelve Data-backed markets keep working fine. São
-// Paulo is the closest Vercel region to Costa Rica that Binance doesn't block.
-export const preferredRegion = "gru1";
-
 export interface RawCandle {
   time: number;
   open: number;
@@ -57,42 +50,45 @@ const TD_CANDLE_SOURCE = new Map<string, string>([
   ["GC=F", "XAU/USD"],
 ]);
 
-// Symbols sourced from Binance's public API instead — free, no key, and
-// (unlike Twelve Data's free tier) actually reports real trade volume.
-const BINANCE_SOURCE = new Map<string, string>([
-  ["BTC-USD", "BTCUSDT"],
-  ["ETH-USD", "ETHUSDT"],
+// Symbols sourced from Coinbase Exchange's public API instead — free, no
+// key, real trade volume, and (unlike Binance) Coinbase is a US-headquartered,
+// US-compliant exchange that doesn't block requests from US-based servers,
+// so this runs server-side with no region workaround needed.
+const COINBASE_SOURCE = new Map<string, string>([
+  ["BTC-USD", "BTC-USD"],
+  ["ETH-USD", "ETH-USD"],
 ]);
 
-// Binance caps each klines request at 1000 bars, so reaching the same
-// history depth as the Twelve Data path (5000x5m / 3000x1m) means paging
-// backwards with `endTime`. Binance's public rate limit is generous enough
-// that this is still fast — nothing like Twelve Data's 8-credits/minute cap.
-async function fetchBinanceCandles(symbol: string, interval: "1m" | "5m", totalWanted: number): Promise<RawCandle[]> {
-  const PAGE = 1000;
+// Coinbase caps each candles request at 300 bars, so reaching the target
+// depth means paging backwards with start/end. Public rate limit is
+// generous (~10 req/s) — this stays fast even across several pages.
+async function fetchCoinbaseCandles(product: string, granularitySec: number, totalWanted: number): Promise<RawCandle[]> {
+  const PAGE = 300;
   let out: RawCandle[] = [];
-  let endTime: number | undefined;
+  let endSec = Math.floor(Date.now() / 1000);
   try {
     while (out.length < totalWanted) {
-      const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${PAGE}`
-        + (endTime !== undefined ? `&endTime=${endTime}` : "");
-      const res = await fetch(url, { cache: "no-store" });
+      const startSec = endSec - PAGE * granularitySec;
+      const url = `https://api.exchange.coinbase.com/products/${encodeURIComponent(product)}/candles`
+        + `?granularity=${granularitySec}&start=${new Date(startSec * 1000).toISOString()}&end=${new Date(endSec * 1000).toISOString()}`;
+      const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "AxeCapital/1.0" } });
       if (!res.ok) break;
       const data: unknown = await res.json();
       if (!Array.isArray(data) || data.length === 0) break;
 
+      // Coinbase's candle tuple order is [time, low, high, open, close, volume]
+      // — different from every other source here (open, high, low, close).
       const batch: RawCandle[] = [];
       for (const k of data) {
-        if (!Array.isArray(k)) continue;
-        const time = Math.floor(Number(k[0]) / 1000);
-        const o = parseFloat(String(k[1])), h = parseFloat(String(k[2])), l = parseFloat(String(k[3])), c = parseFloat(String(k[4]));
-        const v = parseFloat(String(k[5]));
-        if (!isFinite(time) || !isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c)) continue;
-        batch.push({ time, open: o, high: h, low: l, close: c, volume: isFinite(v) ? v : 0 });
+        if (!Array.isArray(k) || k.length < 6) continue;
+        const time = Number(k[0]);
+        const low = Number(k[1]), high = Number(k[2]), open = Number(k[3]), close = Number(k[4]), volume = Number(k[5]);
+        if (!isFinite(time) || !isFinite(open) || !isFinite(high) || !isFinite(low) || !isFinite(close)) continue;
+        batch.push({ time, open, high, low, close, volume: isFinite(volume) ? volume : 0 });
       }
       out = [...batch, ...out]; // this page is older than everything already collected
-      if (data.length < PAGE) break; // hit the start of Binance's available history
-      endTime = Number((data[0] as unknown[])[0]) - 1;
+      if (data.length < PAGE) break; // hit the start of Coinbase's available history
+      endSec = startSec - 1;
     }
   } catch { /* return whatever pages succeeded before the failure */ }
   return out.length > totalWanted ? out.slice(out.length - totalWanted) : out;
@@ -184,17 +180,19 @@ export async function GET(request: Request) {
   let candles5m: RawCandle[];
   let candles1m: RawCandle[];
 
-  const binanceSource = BINANCE_SOURCE.get(symbol);
+  const coinbaseSource = COINBASE_SOURCE.get(symbol);
   const tdSource = TD_CANDLE_SOURCE.get(symbol);
-  if (binanceSource) {
-    // Same depth target as the Twelve Data path: ~17 days of 5m for
-    // analysis, ~2 days of 1m for the chart.
-    const [b5m, b1m] = await Promise.all([
-      fetchBinanceCandles(binanceSource, "5m", 5000),
-      fetchBinanceCandles(binanceSource, "1m", 3000),
+  if (coinbaseSource) {
+    // Coinbase pages at 300/request — 2000x5m (~7 days) and 1500x1m (~25h)
+    // comfortably covers every analysis window (findLevels/detectTrend/
+    // detectBreakout never look back further than 10h) without paging so
+    // deep that a "Nuevo Análisis" click feels slow.
+    const [cb5m, cb1m] = await Promise.all([
+      fetchCoinbaseCandles(coinbaseSource, 300, 2000),
+      fetchCoinbaseCandles(coinbaseSource, 60, 1500),
     ]);
-    candles5m = dedup(b5m);
-    candles1m = dedup(b1m);
+    candles5m = dedup(cb5m);
+    candles1m = dedup(cb1m);
   } else if (tdSource) {
     // Twelve Data: 5000 x 5min ≈ 17 days for analysis, 3000 x 1min ≈ 2 days for chart
     const [td5m, td1m] = await Promise.all([
