@@ -137,6 +137,43 @@ function dedup(candles: RawCandle[]): RawCandle[] {
   return out.sort((a, b) => a.time - b.time);
 }
 
+// Twelve Data's Gold (XAU/USD) spot feed occasionally prints a candle whose
+// high/low is 15-40x the surrounding bars' typical range — a bad tick from
+// their aggregation, not a real move. Left alone, one of these dominates the
+// chart's autoscale and squashes every other candle into a flat line ("las
+// velas se pintan mal"). Clamps the wick to the local neighborhood's range
+// instead of dropping the candle, so open/close stay chained to their
+// neighbors and no time gap opens up.
+function sanitizeCandles(candles: RawCandle[]): RawCandle[] {
+  const n = candles.length;
+  if (n < 10) return candles;
+  const WINDOW = 8;
+  const MAX_RATIO = 12;
+  const out: RawCandle[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const c = candles[i];
+    const lo = Math.max(0, i - WINDOW);
+    const hi = Math.min(n, i + WINDOW + 1);
+    const neighborRanges: number[] = [];
+    for (let j = lo; j < hi; j++) {
+      if (j === i) continue;
+      neighborRanges.push(candles[j].high - candles[j].low);
+    }
+    neighborRanges.sort((a, b) => a - b);
+    const medianRange = neighborRanges[Math.floor(neighborRanges.length / 2)] ?? 0;
+    const thisRange = c.high - c.low;
+    if (medianRange > 0 && thisRange > medianRange * MAX_RATIO) {
+      const bodyHigh = Math.max(c.open, c.close);
+      const bodyLow = Math.min(c.open, c.close);
+      const pad = medianRange * 1.5;
+      out[i] = { ...c, high: Math.min(c.high, bodyHigh + pad), low: Math.max(c.low, bodyLow - pad) };
+    } else {
+      out[i] = c;
+    }
+  }
+  return out;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get("symbol") || "^NDX";
@@ -164,8 +201,8 @@ export async function GET(request: Request) {
       fetchTDCandles(tdSource, "5min", 5000),
       fetchTDCandles(tdSource, "1min", 3000),
     ]);
-    candles5m = dedup(td5m);
-    candles1m = dedup(td1m);
+    candles5m = sanitizeCandles(dedup(td5m));
+    candles1m = sanitizeCandles(dedup(td1m));
   } else {
     // Yahoo: 5m (30 days, 4 chunks) + 1m (last 3 days)
     const [w1, w2, w3, w4, raw1m] = await Promise.all([

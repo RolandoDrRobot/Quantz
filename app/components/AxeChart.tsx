@@ -151,6 +151,29 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         cs.setData(clean);
         seriesRef.current = cs;
 
+        // During a genuinely flat/thin period (e.g. Gold pinned to a ~0.3pt
+        // range for 90 straight minutes in quiet Asian-session hours) the
+        // chart's autoscale zooms in so tight that ordinary tick noise looks
+        // like a chaotic zigzag dominating the whole view. Floor the visible
+        // range to 0.05% of price so quiet periods render as a calm, mostly
+        // flat band instead — this doesn't touch the underlying data, only
+        // how much vertical room the (unchanged) candles get to breathe in.
+        cs.applyOptions({
+          autoscaleInfoProvider: (original: () => { priceRange: { minValue: number; maxValue: number } } | null) => {
+            const res = original();
+            if (!res?.priceRange) return res;
+            const { minValue, maxValue } = res.priceRange;
+            const mid = (minValue + maxValue) / 2;
+            const minSpan = Math.abs(mid) * 0.0005;
+            const span = maxValue - minValue;
+            if (span < minSpan) {
+              const pad = (minSpan - span) / 2;
+              return { priceRange: { minValue: minValue - pad, maxValue: maxValue + pad } };
+            }
+            return res;
+          },
+        });
+
         // Twelve Data's forex/crypto feed (Gold, Bitcoin) never reports
         // volume — skip the histogram entirely rather than draw a flat,
         // meaningless zero pane for those instruments.
@@ -297,11 +320,19 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     let curInterval = 0;
 
     const applyTick = (price: number, tsSec: number) => {
-      if (!seriesRef.current || !isFinite(price)) return;
+      if (!seriesRef.current || !isFinite(price) || price <= 0) return;
+      const cds = candlesRef.current;
+
+      // Reject an implausible single-tick print (a bad value from the feed)
+      // before it can poison the currently-forming candle's wick — this is
+      // what makes one glitched tick paint a giant, chart-dominating spike
+      // right as you're watching it live.
+      const lastKnown = cur?.close ?? cds[cds.length - 1]?.close;
+      if (lastKnown && Math.abs(price - lastKnown) / lastKnown > 0.02) return;
+
       // Match the bucket size to whatever interval the loaded candles actually
       // use (1m or 5m) instead of assuming 1m — a mismatch here is what makes
       // the live tick paint extra malformed bars between the real candles.
-      const cds = candlesRef.current;
       let intervalSec = 60;
       if (cds.length >= 2) {
         const diff = cds[cds.length - 1].time - cds[cds.length - 2].time;
