@@ -71,7 +71,7 @@ function ProbRing({ value }: { value: number }) {
   );
 }
 
-function Clock({ is24h }: { is24h: boolean }) {
+export function Clock({ is24h }: { is24h: boolean }) {
   const [time, setTime] = useState("");
   const [statusLabel, setStatusLabel] = useState("");
   const [statusColor, setStatusColor] = useState("#6b7280");
@@ -404,7 +404,7 @@ export default function BobbyPanel({
   return (
     <div className="flex flex-col" style={{ background: "var(--bg-panel)" }}>
 
-      {/* Header: analyze button + clock */}
+      {/* Header: analyze button */}
       <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <button
           onClick={analyze}
@@ -423,14 +423,11 @@ export default function BobbyPanel({
             {loading ? "CARGANDO..." : "NUEVO ANÁLISIS"}
           </span>
         </button>
-        <div className="flex items-center gap-3">
-          <Clock is24h={market.is24h} />
-          {onClose && (
-            <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
-              <FiX size={18} />
-            </button>
-          )}
-        </div>
+        {onClose && (
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
+            <FiX size={18} />
+          </button>
+        )}
       </div>
 
       {/* Account chips — only market-variable values */}

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight, FiCpu } from "react-icons/fi";
 import AxeChart from "./AxeChart";
-import BobbyPanel, { PHASE_META } from "./BobbyPanel";
+import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
@@ -396,7 +396,10 @@ export default function Dashboard() {
             paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
           }}
         >
-          <span className="font-black text-lg tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>QUANTZ</span>
+          <div className="flex items-center justify-between">
+            <span className="font-black text-lg tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>QUANTZ</span>
+            <Clock is24h={cfg.is24h} />
+          </div>
           <div className="flex items-center gap-3">
             <div className="flex gap-2 flex-1">
               {MARKET_KEYS.map(key => {
@@ -524,6 +527,18 @@ export default function Dashboard() {
           DESKTOP LAYOUT  (>= lg)
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="hidden lg:flex lg:flex-col lg:flex-1 overflow-hidden">
+
+        {/* ── Header: título + reloj ── */}
+        <div
+          className="flex items-center justify-between px-7 py-4 shrink-0"
+          style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--gold-border)" }}
+        >
+          <div className="flex items-center gap-4">
+            <span className="font-black text-2xl tracking-[0.3em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>QUANTZ</span>
+            <span className="text-sm tracking-[0.2em] hidden sm:block" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>PRIVATE TRADING HUB</span>
+          </div>
+          <Clock is24h={cfg.is24h} />
+        </div>
 
         {/* ── Top bar ── */}
         <div
