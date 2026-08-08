@@ -128,7 +128,7 @@ export function Clock({ is24h }: { is24h: boolean }) {
 
 // ── The Trade card — everything about the position in one place ──────────────
 function TradeCard({
-  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checking,
+  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checking, onToggleBot,
 }: {
   opp: Opportunity;
   price: number | null;
@@ -139,6 +139,7 @@ function TradeCard({
   onCloseTrade: () => void;
   onCheckOpportunity: () => void;
   checking: boolean;
+  onToggleBot: () => void;
 }) {
   // Values come from the LIVE opportunity — it can re-anchor to closer levels
   const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * 100);
@@ -202,20 +203,35 @@ function TradeCard({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {!isTerminal && (
-            <button
-              onClick={onCheckOpportunity}
-              disabled={checking}
-              title="Verificar oportunidad actual"
-              className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                color: "var(--text-secondary)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                cursor: checking ? "not-allowed" : "pointer",
-              }}
-            >
-              <FiRefreshCw size={12} className={checking ? "animate-spin" : ""} />
-            </button>
+            <>
+              <button
+                onClick={onToggleBot}
+                title={bot ? "Bot: activado — click para desactivar" : "Bot: desactivado — click para activar"}
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
+                style={{
+                  background: bot ? "rgba(28,125,76,0.15)" : "var(--bg-elevated)",
+                  color: bot ? "#1c7d4c" : "var(--text-secondary)",
+                  border: `1px solid ${bot ? "rgba(28,125,76,0.4)" : "rgba(255,255,255,0.1)"}`,
+                  cursor: "pointer",
+                }}
+              >
+                <FiCpu size={12} />
+              </button>
+              <button
+                onClick={onCheckOpportunity}
+                disabled={checking}
+                title="Verificar oportunidad actual"
+                className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  cursor: checking ? "not-allowed" : "pointer",
+                }}
+              >
+                <FiRefreshCw size={12} className={checking ? "animate-spin" : ""} />
+              </button>
+            </>
           )}
           <span
             className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-black tracking-wider whitespace-nowrap"
@@ -456,24 +472,6 @@ export default function BobbyPanel({
       {result && sig && (
         <div className="p-6 flex flex-col gap-5">
 
-          {/* Bot toggle */}
-          <div className="flex justify-end">
-            <button
-              onClick={onToggleBot}
-              className="flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-black tracking-wider transition-all duration-150"
-              style={{
-                background: botMode ? "rgba(28,125,76,0.12)" : "var(--bg-elevated)",
-                color: botMode ? "#1c7d4c" : "var(--text-secondary)",
-                border: `1px solid ${botMode ? "rgba(28,125,76,0.4)" : "rgba(255,255,255,0.12)"}`,
-                cursor: "pointer",
-                fontFamily: "var(--font-display)",
-              }}
-            >
-              <FiCpu size={13} />
-              {botMode ? "BOT: ACTIVADO" : "BOT: OFF — MANUAL"}
-            </button>
-          </div>
-
           {opportunity ? (
             <TradeCard
               opp={opportunity}
@@ -485,6 +483,7 @@ export default function BobbyPanel({
               onCloseTrade={onCloseTrade}
               onCheckOpportunity={onCheckOpportunity}
               checking={checkingOpportunity}
+              onToggleBot={onToggleBot}
             />
           ) : (
             <div className="rounded-2xl px-5 py-4 text-base" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
