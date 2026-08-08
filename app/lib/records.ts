@@ -12,6 +12,8 @@ export interface TradeRecord {
   outcome: "TP" | "SL" | "MANUAL";
   pnl: number;                     // dollars
   rMultiple: number;               // pnl / risk
+  probability?: number;            // Taylor's score when the opportunity was created —
+                                    // optional so old records without it still load fine
 }
 
 const KEY = "axe-trade-records";
@@ -29,7 +31,8 @@ function isTradeRecord(v: unknown): v is TradeRecord {
     typeof r.exit === "number" &&
     (r.outcome === "TP" || r.outcome === "SL" || r.outcome === "MANUAL") &&
     typeof r.pnl === "number" &&
-    typeof r.rMultiple === "number"
+    typeof r.rMultiple === "number" &&
+    (r.probability === undefined || typeof r.probability === "number")
   );
 }
 
@@ -59,6 +62,14 @@ export function addRecord(r: TradeRecord) {
 
 export function clearRecords() {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}
+
+// "Today" in Costa Rica local time, matching how trade times are displayed
+// everywhere else in the app (RecordsModal, JournalModal) — a trade at
+// 11pm CR shouldn't count against tomorrow's UTC-day limit.
+export function getTodayRecords(records: TradeRecord[]): TradeRecord[] {
+  const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Costa_Rica" });
+  return records.filter(r => new Date(r.time).toLocaleDateString("en-US", { timeZone: "America/Costa_Rica" }) === todayStr);
 }
 
 export interface TradeStats {

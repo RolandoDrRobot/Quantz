@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { FiX, FiRefreshCw, FiExternalLink } from "react-icons/fi";
 import { LuNewspaper } from "react-icons/lu";
@@ -79,22 +79,40 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
 
+  // Lets an in-flight fetch detect the user has since switched markets and
+  // bail instead of applying a wrong-market response — every other fetch in
+  // the app guards this way already (BobbyPanel's analyze(), Dashboard's
+  // market-load effect), this one was missing it.
+  const marketRef = useRef(market);
+  useEffect(() => { marketRef.current = market; }, [market]);
+
   const load = useCallback(async (refresh: boolean) => {
+    const requestMarket = market;
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/news?market=${market}${refresh ? "&refresh=1" : ""}`, { cache: "no-store" });
+      const res = await fetch(`/api/news?market=${requestMarket}${refresh ? "&refresh=1" : ""}`, { cache: "no-store" });
       const data = await res.json();
+      // Switched markets mid-flight — discard this response entirely,
+      // including `loaded`, so the market-reset effect's `loaded: false`
+      // still stands and the auto-load effect fires a fresh fetch for
+      // whatever market is now current instead of thinking it's done.
+      if (marketRef.current !== requestMarket) return;
       if (!res.ok) throw new Error(data.error ?? "Failed to load news");
       setArticles(data.articles ?? []);
       setVisibleCount(PAGE_SIZE);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load news");
-    } finally {
-      // Set on both success and failure — otherwise a failed fetch (e.g. a
-      // missing API key) leaves `loaded` false forever, and the auto-load
-      // effect below keeps re-triggering it on every render while open.
       setLoaded(true);
+    } catch (e: unknown) {
+      // Same staleness check here — otherwise an old market's failed
+      // request could paint an error message over the new market's screen.
+      if (marketRef.current === requestMarket) {
+        setError(e instanceof Error ? e.message : "Failed to load news");
+        setLoaded(true); // still — a failure must stop the auto-load retry loop
+      }
+    } finally {
+      // Always clear the spinner for this call, even if stale — otherwise a
+      // discarded response leaves `loading` stuck true and the auto-load
+      // effect for the new market can never fire (its guard requires !loading).
       setLoading(false);
     }
   }, [market]);

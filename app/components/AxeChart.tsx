@@ -46,6 +46,7 @@ interface Props {
   tdSymbol: string | null;
   coinbaseProduct?: string | null;
   onTick?: (price: number) => void;
+  stale?: boolean;
 }
 
 const LEGEND = [
@@ -60,7 +61,7 @@ const LEGEND = [
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#c23b30", symbol, tdSymbol, coinbaseProduct, onTick }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#c23b30", symbol, tdSymbol, coinbaseProduct, onTick, stale = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -449,21 +450,23 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     <div className="relative w-full h-full" style={{ background: P.bg }}>
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* Live price badge */}
+      {/* Live price badge — turns amber and stops pulsing when no tick source
+          (WS or poll) has reported a price in 20s+, so a dead feed is visible
+          instead of the chart just quietly going stale with no on-screen sign. */}
       <AnimatePresence>
         {livePrice !== null && (
           <motion.div
             className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-md"
-            style={{ background: "rgba(5,14,26,0.92)", border: "1px solid rgba(194,59,48,0.3)" }}
+            style={{ background: "rgba(5,14,26,0.92)", border: `1px solid ${stale ? "rgba(217,140,20,0.4)" : "rgba(194,59,48,0.3)"}` }}
             variants={popVariants}
             initial="hidden"
             animate="visible"
             exit="hidden"
             transition={TRANSITION_FAST}
           >
-            <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#c23b30" }} />
-            <span className="font-bold text-base tracking-wide" style={{ color: "#c23b30", fontFamily: "var(--font-display)" }}>
-              LIVE &nbsp;{fmtPrice(livePrice)}
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${stale ? "" : "animate-pulse"}`} style={{ background: stale ? "#d98c14" : "#c23b30" }} />
+            <span className="font-bold text-base tracking-wide" style={{ color: stale ? "#d98c14" : "#c23b30", fontFamily: "var(--font-display)" }}>
+              {stale ? "STALE" : "LIVE"} &nbsp;{fmtPrice(livePrice)}
             </span>
           </motion.div>
         )}

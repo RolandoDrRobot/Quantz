@@ -163,8 +163,14 @@ export async function GET(request: Request) {
       fetchCandles(symbol, "5m", now - 30 * DAY, now - 21 * DAY),
       fetchCandles(symbol, "1m", now - 3  * DAY, now),
     ]);
-    candles5m = sanitizeCandles(dedup([...w1, ...w2, ...w3, ...w4]));
-    candles1m = sanitizeCandles(dedup(raw1m));
+    // Only Gold ever needed this clamp — it was tuned for Twelve Data's old
+    // broken XAU/USD feed. Applying it to NASDAQ/Dow too risks silently
+    // clamping a genuinely large candle on a real high-volatility print
+    // (NFP, a Fed shock), right when the signal engine most needs the real
+    // range for level/breakout detection.
+    const isGold = symbol === "GC=F";
+    candles5m = isGold ? sanitizeCandles(dedup([...w1, ...w2, ...w3, ...w4])) : dedup([...w1, ...w2, ...w3, ...w4]);
+    candles1m = isGold ? sanitizeCandles(dedup(raw1m)) : dedup(raw1m);
   }
 
   if (candles5m.length === 0) {

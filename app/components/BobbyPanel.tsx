@@ -136,7 +136,7 @@ export function Clock({ is24h }: { is24h: boolean }) {
 
 // ── The Trade card — everything about the position in one place ──────────────
 function TradeCard({
-  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checking, onToggleBot,
+  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checking, onToggleBot, blockedReason,
 }: {
   opp: Opportunity;
   price: number | null;
@@ -148,6 +148,7 @@ function TradeCard({
   onCheckOpportunity: () => void;
   checking: boolean;
   onToggleBot: () => void;
+  blockedReason: string | null;
 }) {
   // Values come from the LIVE opportunity — it can re-anchor to closer levels
   const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * ACCOUNT.riskPerTrade);
@@ -284,6 +285,11 @@ function TradeCard({
 
       {/* Contextual actions */}
       {!bot && (opp.phase === "RETEST_ACTIVE" || opp.phase === "AWAIT_RETEST") && (
+        blockedReason ? (
+          <div className="mx-5 mb-4 mt-2 px-4 py-3 rounded-md text-sm" style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}>
+            {blockedReason}
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-3 px-5 pb-4 pt-2">
           <button
             onClick={onTakeTrade}
@@ -313,6 +319,7 @@ function TradeCard({
             <FiZap size={15} /> {price !== null ? `MARKET @ ${fmtPrice(price)}` : "MARKET ENTRY"}
           </button>
         </div>
+        )
       )}
 
       {opp.phase === "CONFIRMED" && (
@@ -349,12 +356,13 @@ interface Props {
   onCloseTrade: () => void;
   onCheckOpportunity: () => void;
   checkingOpportunity: boolean;
+  tradeBlockedReason: string | null;
   onClose?: () => void;
 }
 
 export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
-  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checkingOpportunity, onClose,
+  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checkingOpportunity, tradeBlockedReason, onClose,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -496,6 +504,7 @@ export default function BobbyPanel({
                   onCheckOpportunity={onCheckOpportunity}
                   checking={checkingOpportunity}
                   onToggleBot={onToggleBot}
+                  blockedReason={tradeBlockedReason}
                 />
               </motion.div>
             ) : (

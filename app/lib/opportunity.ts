@@ -17,13 +17,19 @@ export type OppPhase =
 export interface Opportunity {
   phase: OppPhase;
   direction: "long" | "short";
-  level: number;       // the level being broken / retested (= entry)
+  level: number;       // the level being broken / retested (= entry) — moves on re-anchor
+  anchorLevel: number; // the ORIGINAL breakout level, fixed for the opportunity's lifetime —
+                        // invalidation is judged against this, not a re-anchored `level`, so
+                        // catching up to a farther level doesn't tighten the failure tolerance
   retestZone: number;
   entry: number;
   sl: number;
   tp: number;
   slPoints: number;
   cost: number;        // round-trip broker cost (spread) in dollars
+  analysisProbability: number; // Taylor's score at creation — carried onto the
+                                // TradeRecord when this resolves, so scoring can
+                                // eventually be checked against real outcomes
   startedAt: number;
   updatedAt: number;
   fillPrice?: number;  // actual market price when the trade was entered
@@ -40,16 +46,19 @@ export function createOpportunity(a: AnalysisResult, slPoints: number, cost: num
   // anymore; the next "New Analysis" looks for a cleaner setup instead.
   if (a.breakout && a.signal === "WAIT") return null;
   const now = Date.now();
+  const startLevel = a.breakout?.level ?? a.tradeSetup.entryPrice;
   return {
     phase: a.breakout ? "AWAIT_RETEST" : "HUNTING",
     direction: a.tradeSetup.direction,
-    level: a.breakout?.level ?? a.tradeSetup.entryPrice,
+    level: startLevel,
+    anchorLevel: startLevel,
     retestZone: a.breakout?.retestZone ?? slPoints * 0.25,
     entry: a.tradeSetup.entryPrice,
     sl: a.tradeSetup.stopLoss,
     tp: a.tradeSetup.takeProfit,
     slPoints,
     cost,
+    analysisProbability: a.probability,
     startedAt: now,
     updatedAt: now,
   };
@@ -79,9 +88,13 @@ export function advanceOpportunity(o: Opportunity, price: number, autoTrade = tr
   const dirUp = o.direction === "long";
   const beyond = dirUp ? price > o.level : price < o.level;  // past the level in trade direction
   const inZone = Math.abs(price - o.level) < o.retestZone;
+  // Judged against the ORIGINAL breakout level, not the live (possibly
+  // re-anchored) one — otherwise catching up to a farther level after a
+  // strong run shrinks the pullback room needed to call the move failed,
+  // right when a bit of normal consolidation is most likely.
   const failed = dirUp
-    ? price < o.level - o.retestZone * 3
-    : price > o.level + o.retestZone * 3;
+    ? price < o.anchorLevel - o.retestZone * 3
+    : price > o.anchorLevel + o.retestZone * 3;
 
   switch (o.phase) {
     case "HUNTING":

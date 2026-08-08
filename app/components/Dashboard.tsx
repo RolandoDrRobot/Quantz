@@ -17,7 +17,7 @@ import type { NewsArticle } from "../lib/news";
 import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
-import { addRecord } from "../lib/records";
+import { addRecord, loadRecords, getTodayRecords } from "../lib/records";
 import { ACCOUNT, tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
@@ -69,7 +69,30 @@ function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (t
   );
 }
 
+// Tailwind's `lg:hidden` / `hidden lg:flex` only toggle CSS display — React
+// still mounts both layout trees regardless of viewport, which used to mean
+// two live AxeChart instances (two WebSocket connections, two chart engines
+// doing live-tick work) and two BobbyPanel instances running at all times,
+// one of them permanently invisible. This renders only the layout that's
+// actually showing. Returns null until the first effect runs (no `window`
+// during SSR), so there's one blank frame on load — a fair trade for not
+// running a full invisible second app in the background all session.
+function useIsDesktop(): boolean | null {
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)"); // matches Tailwind's `lg:` breakpoint
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  return isDesktop;
+}
+
 export default function Dashboard() {
+  const isDesktop = useIsDesktop();
   const [market, setMarket] = useState<MarketKey>("nasdaq");
   const [rawCandles1m, setRawCandles1m] = useState<RawCandle[]>([]);
   const [rawCandles5m, setRawCandles5m] = useState<RawCandle[]>([]);
@@ -87,6 +110,7 @@ export default function Dashboard() {
   const [taylorOpen, setTaylorOpen] = useState(false);
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
   const [recordsVersion, setRecordsVersion] = useState(0);
+  const [isStale, setIsStale] = useState(false);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
@@ -94,6 +118,20 @@ export default function Dashboard() {
   const botModeRef = useRef(botMode);
   const marketShortRef = useRef<string>(cfg.short);
   const livePriceRef = useRef<number | null>(null);
+  // Mirrors AxeChart's own "no WS source" check — a market with neither
+  // (currently only Gold) already runs its own 5s poll to this same
+  // /api/tick endpoint as its PRIMARY feed. Duplicating that from the
+  // safety-net poll below doubles the request rate for no added coverage.
+  const hasOwnTickPollRef = useRef(!cfg.coinbaseProduct && !cfg.tdSymbol);
+  // Every live price — WS tick, Gold's poll, the safety-net poll, a manual
+  // check — funnels through advancePrice(), so "time since the last call"
+  // is a single, source-agnostic staleness signal. Every poller in this app
+  // used to fail silently (a dead feed just stopped updating with zero
+  // on-screen sign); this is what turns that into something visible.
+  // 0, not Date.now() — the market-load effect below (which also runs on
+  // mount) sets the real value inside its own effect body; a literal here
+  // keeps this a pure render instead of an impure call on every re-render.
+  const lastTickAtRef = useRef(0);
 
   // Callbacks (handleTick, recordTrade, etc.) read these refs instead of
   // closing over state, so they always see the latest value without being
@@ -102,6 +140,7 @@ export default function Dashboard() {
   useEffect(() => { symbolRef.current = cfg.symbol; }, [cfg.symbol]);
   useEffect(() => { botModeRef.current = botMode; }, [botMode]);
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
+  useEffect(() => { hasOwnTickPollRef.current = !cfg.coinbaseProduct && !cfg.tdSymbol; }, [cfg.coinbaseProduct, cfg.tdSymbol]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
 
   // News ticker feed — scoped to the selected market, so switching markets
@@ -142,9 +181,29 @@ export default function Dashboard() {
       outcome,
       pnl,
       rMultiple: parseFloat((pnl / ACCOUNT.riskPerTrade).toFixed(2)),
+      probability: opp.analysisProbability,
     });
     setRecordsVersion(v => v + 1);
   }, []);
+
+  // Playbook rules #19 ("1-2 trades a day") and #24 ("stop after two losses")
+  // used to be honor-system checklist text only — nothing actually stopped a
+  // third trade or a third loss from happening. This enforces them: the bot
+  // won't auto-confirm a retest, and the manual entry buttons refuse, once
+  // either limit is hit for the day (Costa Rica local day).
+  const DAILY_TRADE_LIMIT = 2;
+  const DAILY_LOSS_LIMIT = 2;
+  const todayStats = useMemo(() => {
+    const today = getTodayRecords(loadRecords());
+    return { count: today.length, losses: today.filter(r => r.pnl < 0).length };
+  }, [recordsVersion]);
+  const dailyLimitReason = todayStats.count >= DAILY_TRADE_LIMIT
+    ? `Daily limit reached — ${todayStats.count} trades today. That's the plan, not a suggestion.`
+    : todayStats.losses >= DAILY_LOSS_LIMIT
+      ? `Daily stop reached — ${todayStats.losses} losses today. Protect the account, come back tomorrow.`
+      : null;
+  const dailyLimitReasonRef = useRef<string | null>(null);
+  useEffect(() => { dailyLimitReasonRef.current = dailyLimitReason; }, [dailyLimitReason]);
 
   // Reading localStorage during the initial render (e.g. a useState
   // initializer) would desync the static server-prerendered HTML from the
@@ -172,6 +231,8 @@ export default function Dashboard() {
     updateOpportunity(null);
     setLivePrice(null);
     setChartLoading(true);
+    lastTickAtRef.current = Date.now(); // don't flag stale mid-switch before the new feed connects
+    setIsStale(false);
     let cancelled = false;
 
     fetch(`/api/market?symbol=${encodeURIComponent(cfg.symbol)}`, { cache: "no-store" })
@@ -216,6 +277,7 @@ export default function Dashboard() {
   // announce is only set for the manual path, to report back even when
   // nothing changed (the WS path stays silent unless the phase moves).
   const advancePrice = useCallback((price: number, announce = false) => {
+    lastTickAtRef.current = Date.now();
     setLivePrice(price);
     livePriceRef.current = price;
     const prev = opportunityRef.current;
@@ -223,7 +285,7 @@ export default function Dashboard() {
       if (announce) toast(`Price updated · ${fmtPrice(price)}`, { duration: 2500 });
       return;
     }
-    const next = advanceOpportunity(prev, price, botModeRef.current, analysisRef.current?.levels ?? []);
+    const next = advanceOpportunity(prev, price, botModeRef.current && !dailyLimitReasonRef.current, analysisRef.current?.levels ?? []);
     opportunityRef.current = next;
     const levelChanged = next.level !== prev.level;
     const transitioned = next.phase !== prev.phase || levelChanged;
@@ -291,6 +353,7 @@ export default function Dashboard() {
   // never has to be pressed manually just to keep things moving.
   useEffect(() => {
     const id = setInterval(async () => {
+      if (hasOwnTickPollRef.current) return; // already covered by AxeChart's own poll
       const requestSymbol = symbolRef.current;
       try {
         const res = await fetch(`/api/tick?symbol=${encodeURIComponent(requestSymbol)}`, { cache: "no-store" });
@@ -304,6 +367,19 @@ export default function Dashboard() {
     }, 3000);
     return () => clearInterval(id);
   }, [advancePrice]);
+
+  // Surfaces the staleness that used to be invisible — every tick source can
+  // fail silently, so this is what tells the user their price feed actually
+  // died instead of letting the chart just quietly stop moving. 20s is a
+  // generous margin above the fastest normal cadence (crypto WS ~1s, the
+  // safety-net/Gold polls 3-5s) so a genuinely quiet moment doesn't false-fire.
+  const STALE_MS = 20000;
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIsStale(Date.now() - lastTickAtRef.current > STALE_MS);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleMarketChange = useCallback((key: MarketKey) => {
     setMarket(key);
@@ -350,6 +426,7 @@ export default function Dashboard() {
   }, [botMode]);
 
   const handleTakeTrade = useCallback(() => {
+    if (dailyLimitReasonRef.current) { toast.error(dailyLimitReasonRef.current); return; }
     const prev = opportunityRef.current;
     if (!prev || livePriceRef.current === null) return;
     const next = takeTrade(prev, livePriceRef.current);
@@ -359,6 +436,7 @@ export default function Dashboard() {
   }, [updateOpportunity]);
 
   const handleMarketEntry = useCallback(() => {
+    if (dailyLimitReasonRef.current) { toast.error(dailyLimitReasonRef.current); return; }
     const prev = opportunityRef.current;
     if (!prev || livePriceRef.current === null) return;
     const next = enterAtMarket(prev, livePriceRef.current, analysisRef.current?.levels ?? []);
@@ -442,6 +520,7 @@ export default function Dashboard() {
             tdSymbol={cfg.tdSymbol}
             coinbaseProduct={cfg.coinbaseProduct}
             onTick={handleTick}
+            stale={isStale}
           />
           <AnimatePresence>
             {opportunity?.phase === "RETEST_ACTIVE" && (
@@ -498,6 +577,7 @@ export default function Dashboard() {
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< lg) — chart a pantalla completa
       ════════════════════════════════════════════════════════════════════════ */}
+      {isDesktop === false && (
       <motion.div
         className="lg:hidden relative overflow-hidden"
         style={{ height: "100dvh" }}
@@ -750,15 +830,18 @@ export default function Dashboard() {
               onCloseTrade={handleCloseTrade}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
+              tradeBlockedReason={dailyLimitReason}
               onClose={() => setTaylorOpen(false)}
             />
           </div>
         </motion.div>
       </motion.div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
           DESKTOP LAYOUT  (>= lg)
       ════════════════════════════════════════════════════════════════════════ */}
+      {isDesktop === true && (
       <motion.div
         className="hidden lg:flex lg:flex-col lg:flex-1 overflow-hidden"
         initial={{ opacity: 0, y: 6 }}
@@ -904,10 +987,12 @@ export default function Dashboard() {
               onCloseTrade={handleCloseTrade}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
+              tradeBlockedReason={dailyLimitReason}
             />
           </aside>
         </div>
       </motion.div>
+      )}
     </>
   );
 }
