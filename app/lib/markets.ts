@@ -17,7 +17,7 @@ export const MARKETS = {
     slLabel: "20 pts",
     contractSize: 1,
     spreadPoints: 2.0,
-    color: "#1f9d5c",
+    color: "#1c7d4c",
   },
   dowjones: {
     symbol: "^DJI",

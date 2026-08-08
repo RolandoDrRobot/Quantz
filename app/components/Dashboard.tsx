@@ -325,16 +325,16 @@ export default function Dashboard() {
               className="absolute left-4 right-4 rounded-2xl p-4 z-10"
               style={{
                 top: "3.5rem",
-                background: "rgba(3,4,5,0.96)",
-                border: `2px solid ${opportunity.direction === "long" ? "#a8862f" : "#c24545"}`,
-                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(31,157,92,0.35)" : "rgba(194,69,69,0.35)"}`,
+                background: "rgba(5,14,26,0.96)",
+                border: `2px solid ${opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"}`,
+                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(28,125,76,0.35)" : "rgba(138,47,42,0.35)"}`,
                 backdropFilter: "blur(8px)",
               }}
             >
-              <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#a8862f" : "#c24545", fontFamily: "var(--font-display)" }}>
+              <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                 <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
               </div>
-              <div className="text-sm mt-0.5" style={{ color: "#9aa1ab" }}>
+              <div className="text-sm mt-0.5" style={{ color: "#8792a0" }}>
                 {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
               </div>
             </div>
@@ -372,59 +372,62 @@ export default function Dashboard() {
           {chartBlock}
         </div>
 
-        {/* ── Overlay superior: mercados + historial ── */}
+        {/* ── Overlay superior: título + mercados + historial ── */}
         <div
-          className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 pb-5"
+          className="absolute top-0 left-0 right-0 z-10 flex flex-col gap-2 px-4 pb-5"
           style={{
-            background: "linear-gradient(to bottom, rgba(3,4,5,0.88) 60%, transparent 100%)",
+            background: "linear-gradient(to bottom, rgba(5,14,26,0.88) 60%, transparent 100%)",
             // Clears the notch/Dynamic Island on iOS PWA installs — "pt-safe"
             // isn't a real Tailwind utility in this project, it resolved to
             // nothing, so the safe-area inset was never actually applied.
-            paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
           }}
         >
-          <div className="flex gap-2 flex-1">
-            {MARKET_KEYS.map(key => {
-              const m = MARKETS[key];
-              const active = key === market;
-              return (
-                <button
-                  key={key}
-                  onClick={() => handleMarketChange(key)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-black tracking-wider transition-all duration-200"
-                  style={{
-                    background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
-                    color: active ? "var(--gold)" : "var(--text-muted)",
-                    border: `1px solid ${active ? "var(--gold-border)" : "rgba(255,255,255,0.08)"}`,
-                    fontFamily: "var(--font-display)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {m.short}
-                </button>
-              );
-            })}
+          <span className="font-black text-lg tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>QUANTZ</span>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-2 flex-1">
+              {MARKET_KEYS.map(key => {
+                const m = MARKETS[key];
+                const active = key === market;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleMarketChange(key)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-black tracking-wider transition-all duration-200"
+                    style={{
+                      background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
+                      color: active ? "var(--text-primary)" : "var(--text-muted)",
+                      border: `1px solid ${active ? "var(--gold-border)" : "rgba(255,255,255,0.08)"}`,
+                      fontFamily: "var(--font-display)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {m.short}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setRecordsOpen(true)}
+              className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-bold"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-primary)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                cursor: "pointer",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              <FiBarChart2 size={13} />
+            </button>
           </div>
-          <button
-            onClick={() => setRecordsOpen(true)}
-            className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-bold"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              color: "var(--text-secondary)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <FiBarChart2 size={13} />
-          </button>
         </div>
 
         {/* ── Overlay inferior: precio + botón Taylor ── */}
         <div
           className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-5 pt-16"
           style={{
-            background: "linear-gradient(to top, rgba(3,4,5,0.92) 50%, transparent 100%)",
+            background: "linear-gradient(to top, rgba(5,14,26,0.92) 50%, transparent 100%)",
             // Clears the home-indicator gesture bar on notched iOS devices.
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.25rem)",
           }}
@@ -438,13 +441,13 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {analysis && (
-                    <span className="text-base font-bold" style={{ color: priceUp ? "#1f9d5c" : "#c24545" }}>
+                    <span className="text-base font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
                       {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
                     </span>
                   )}
                   {trendDir && (
                     <span className="flex items-center gap-0.5 text-sm font-semibold" style={{
-                      color: trendDir === "bullish" ? "#1f9d5c" : trendDir === "bearish" ? "#c24545" : "var(--text-muted)"
+                      color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)"
                     }}>
                       {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
                       {trendDir === "bullish" ? "ALCISTA" : trendDir === "bearish" ? "BAJISTA" : "NEUTRAL"}
@@ -465,7 +468,7 @@ export default function Dashboard() {
               background: "var(--gold-dim)",
               color: "var(--gold)",
               border: "1px solid var(--gold-border)",
-              boxShadow: "0 0 20px rgba(168,134,47,0.25)",
+              boxShadow: "0 0 20px rgba(194,59,48,0.25)",
               fontFamily: "var(--font-display)",
               cursor: "pointer",
             }}
@@ -524,7 +527,7 @@ export default function Dashboard() {
                 className="px-4 py-2 rounded-xl text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
                   background: active ? "var(--gold-dim)" : "transparent",
-                  color: active ? "var(--gold)" : "var(--text-muted)",
+                  color: active ? "var(--text-primary)" : "var(--text-muted)",
                   border: `1px solid ${active ? "var(--gold-border)" : "transparent"}`,
                   cursor: "pointer",
                   fontFamily: "var(--font-display)",
@@ -539,9 +542,9 @@ export default function Dashboard() {
             onClick={() => setRecordsOpen(true)}
             className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
-              background: "rgba(31,157,92,0.08)",
-              color: "var(--gold)",
-              border: "1px solid rgba(31,157,92,0.3)",
+              background: "rgba(255,255,255,0.06)",
+              color: "var(--text-primary)",
+              border: "1px solid rgba(255,255,255,0.1)",
               cursor: "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -561,7 +564,7 @@ export default function Dashboard() {
           {/* Taylor + Bobby panel */}
           <aside
             className="shrink-0 overflow-y-auto flex flex-col"
-            style={{ width: "46%", borderLeft: "1px solid rgba(31,157,92,0.2)" }}
+            style={{ width: "46%", borderLeft: "1px solid rgba(28,125,76,0.2)" }}
           >
             <BobbyPanel
               market={MARKETS[market]}

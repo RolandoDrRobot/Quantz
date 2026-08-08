@@ -8,7 +8,7 @@ function StatCard({ label, value, color, big }: { label: string; value: string; 
   return (
     <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="text-[11px] font-bold tracking-[0.2em]" style={{ color: "var(--text-secondary)" }}>{label}</div>
-      <div className={`${big ? "text-4xl" : "text-2xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#eceef0", fontFamily: "var(--font-display)" }}>
+      <div className={`${big ? "text-4xl" : "text-2xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#f2f5f8", fontFamily: "var(--font-display)" }}>
         {value}
       </div>
     </div>
@@ -16,9 +16,9 @@ function StatCard({ label, value, color, big }: { label: string; value: string; 
 }
 
 const OUTCOME_STYLE: Record<TradeRecord["outcome"], { label: string; color: string }> = {
-  TP:     { label: "TP", color: "#1f9d5c" },
-  SL:     { label: "SL", color: "#c24545" },
-  MANUAL: { label: "MANUAL", color: "#1f9d5c" },
+  TP:     { label: "TP", color: "#1c7d4c" },
+  SL:     { label: "SL", color: "#8a2f2a" },
+  MANUAL: { label: "MANUAL", color: "#1c7d4c" },
 };
 
 export default function RecordsModal({ open, onClose, refreshToken }: { open: boolean; onClose: () => void; refreshToken?: number }) {
@@ -42,7 +42,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
   if (!open) return null;
 
   const stats = computeStats(records);
-  const pnlColor = stats.netPnl > 0 ? "#1f9d5c" : stats.netPnl < 0 ? "#c24545" : "#eceef0";
+  const pnlColor = stats.netPnl > 0 ? "#1c7d4c" : stats.netPnl < 0 ? "#8a2f2a" : "#f2f5f8";
   const pf = stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2);
 
   return (
@@ -66,7 +66,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
             <button
               onClick={handleClear}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold tracking-wider"
-              style={{ background: "rgba(194,69,69,0.08)", color: "#c24545", border: "1px solid rgba(194,69,69,0.3)", cursor: "pointer", fontFamily: "var(--font-display)" }}
+              style={{ background: "rgba(138,47,42,0.08)", color: "#8a2f2a", border: "1px solid rgba(138,47,42,0.3)", cursor: "pointer", fontFamily: "var(--font-display)" }}
             >
               <FiTrash2 size={13} /> LIMPIAR TODO
             </button>
@@ -92,33 +92,33 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               {/* Headline stats */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="P/L NETO" value={`${stats.netPnl >= 0 ? "+" : "−"}$${Math.abs(stats.netPnl).toFixed(0)}`} color={pnlColor} big />
-                <StatCard label="WIN RATE" value={`${stats.winRate.toFixed(0)}%`} color={stats.winRate >= 50 ? "#1f9d5c" : "#c24545"} big />
+                <StatCard label="WIN RATE" value={`${stats.winRate.toFixed(0)}%`} color={stats.winRate >= 50 ? "#1c7d4c" : "#8a2f2a"} big />
                 <StatCard label="TRADES" value={`${stats.total}`} big />
-                <StatCard label="PROFIT FACTOR" value={pf} color={stats.profitFactor >= 1.5 ? "#1f9d5c" : stats.profitFactor >= 1 ? "#1f9d5c" : "#c24545"} big />
+                <StatCard label="PROFIT FACTOR" value={pf} color={stats.profitFactor >= 1.5 ? "#1c7d4c" : stats.profitFactor >= 1 ? "#1c7d4c" : "#8a2f2a"} big />
               </div>
 
               {/* Secondary stats */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard label="PROMEDIO WIN" value={`+$${stats.avgWin.toFixed(0)}`} color="#1f9d5c" />
-                <StatCard label="PROMEDIO LOSS" value={`−$${stats.avgLoss.toFixed(0)}`} color="#c24545" />
-                <StatCard label="EXPECTATIVA/TRADE" value={`${stats.expectancy >= 0 ? "+" : "−"}$${Math.abs(stats.expectancy).toFixed(0)}`} color={stats.expectancy >= 0 ? "#1f9d5c" : "#c24545"} />
+                <StatCard label="PROMEDIO WIN" value={`+$${stats.avgWin.toFixed(0)}`} color="#1c7d4c" />
+                <StatCard label="PROMEDIO LOSS" value={`−$${stats.avgLoss.toFixed(0)}`} color="#8a2f2a" />
+                <StatCard label="EXPECTATIVA/TRADE" value={`${stats.expectancy >= 0 ? "+" : "−"}$${Math.abs(stats.expectancy).toFixed(0)}`} color={stats.expectancy >= 0 ? "#1c7d4c" : "#8a2f2a"} />
                 <StatCard label="MEJOR/PEOR" value={`+$${stats.best.toFixed(0)} / −$${Math.abs(stats.worst).toFixed(0)}`} />
                 <StatCard
                   label="RACHA"
                   value={stats.streak > 0 ? `${stats.streak}G` : stats.streak < 0 ? `${Math.abs(stats.streak)}P` : "—"}
-                  color={stats.streak > 0 ? "#1f9d5c" : stats.streak < 0 ? "#c24545" : undefined}
+                  color={stats.streak > 0 ? "#1c7d4c" : stats.streak < 0 ? "#8a2f2a" : undefined}
                 />
               </div>
 
               {/* Wins vs losses bar */}
               <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center justify-between text-[12px] font-bold mb-2">
-                  <span style={{ color: "#1f9d5c" }}>{stats.wins} GANANCIAS · +${stats.grossWin.toFixed(0)}</span>
-                  <span style={{ color: "#c24545" }}>{stats.losses} PÉRDIDAS · −${stats.grossLoss.toFixed(0)}</span>
+                  <span style={{ color: "#1c7d4c" }}>{stats.wins} GANANCIAS · +${stats.grossWin.toFixed(0)}</span>
+                  <span style={{ color: "#8a2f2a" }}>{stats.losses} PÉRDIDAS · −${stats.grossLoss.toFixed(0)}</span>
                 </div>
                 <div className="flex h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                  <div style={{ width: `${stats.winRate}%`, background: "#1f9d5c" }} />
-                  <div style={{ width: `${100 - stats.winRate}%`, background: "#c24545" }} />
+                  <div style={{ width: `${stats.winRate}%`, background: "#1c7d4c" }} />
+                  <div style={{ width: `${100 - stats.winRate}%`, background: "#8a2f2a" }} />
                 </div>
               </div>
 
@@ -137,24 +137,24 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                       className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[14px] items-center min-w-[520px]"
                       style={{ background: "var(--bg-card)", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
                     >
-                      <span style={{ color: "#9aa1ab" }}>
+                      <span style={{ color: "#8792a0" }}>
                         {new Date(r.time).toLocaleString("en-US", { timeZone: "America/Costa_Rica", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
                       </span>
-                      <span className="font-bold" style={{ color: "#eceef0", fontFamily: "var(--font-display)" }}>{r.market}</span>
-                      <span className="flex items-center gap-1 font-bold" style={{ color: r.direction === "long" ? "#1f9d5c" : "#c24545" }}>
+                      <span className="font-bold" style={{ color: "#f2f5f8", fontFamily: "var(--font-display)" }}>{r.market}</span>
+                      <span className="flex items-center gap-1 font-bold" style={{ color: r.direction === "long" ? "#1c7d4c" : "#8a2f2a" }}>
                         {r.direction === "long" ? <FiArrowUpRight size={14} /> : <FiArrowDownRight size={14} />}
                         {r.direction === "long" ? "L" : "C"}
                       </span>
-                      <span style={{ color: "#9aa1ab", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
+                      <span style={{ color: "#8792a0", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
                       <span>
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-black" style={{ background: `${oc.color}1a`, color: oc.color, border: `1px solid ${oc.color}40` }}>
                           {oc.label}
                         </span>
                       </span>
-                      <span className="font-black" style={{ color: win ? "#1f9d5c" : "#c24545", fontFamily: "var(--font-display)" }}>
+                      <span className="font-black" style={{ color: win ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                         {win ? "+" : "−"}${Math.abs(r.pnl).toFixed(0)}
                       </span>
-                      <span className="font-bold" style={{ color: win ? "#1f9d5c" : "#c24545", fontFamily: "var(--font-display)" }}>
+                      <span className="font-bold" style={{ color: win ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                         {r.rMultiple >= 0 ? "+" : ""}{r.rMultiple.toFixed(2)}
                       </span>
                     </div>
