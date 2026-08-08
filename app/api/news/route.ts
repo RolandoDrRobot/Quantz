@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { MARKETS, type MarketKey } from "../../lib/markets";
-import type { NewsArticle } from "../../lib/news";
+import type { NewsArticle, NewsImpact } from "../../lib/news";
 
 const MARKET_KEYS = new Set<string>(Object.keys(MARKETS));
 function isMarketKey(v: string | null): v is MarketKey {
@@ -47,6 +47,34 @@ function relevantMarkets(text: string): MarketKey[] {
     (Object.keys(KEYWORDS) as MarketKey[]).forEach(k => hits.add(k));
   }
   return [...hits];
+}
+
+// No free source gives real sentiment/impact scoring, so this is a
+// transparent heuristic, not a model: macro events and shock language
+// (crashes, hacks, bans, ETF rulings) are high impact; earnings/corporate
+// moves are medium; routine single-instrument coverage is low. Breadth
+// (how many of our 5 instruments the keyword match already hit) is folded
+// in too — news that moves everything is rarely "low impact".
+const HIGH_IMPACT_WORDS = [
+  "crash", "plunge", "plummet", "surge", "soar", "record high", "record low",
+  "all-time high", "all-time low", "sec charges", "lawsuit", "hack", "hacked",
+  "exploit", "ban", "banned", "etf approval", "etf approved", "etf rejected",
+  "war", "sanction", "default", "bankruptcy", "shutdown", "emergency",
+  "halt", "halted", "collapse", "black swan",
+];
+const MEDIUM_IMPACT_WORDS = [
+  "earnings", "forecast", "outlook", "upgrade", "downgrade", "partnership",
+  "launch", "acquisition", "merger", "ipo", "guidance", "buyback",
+];
+
+function classifyImpact(text: string, relevantCount: number): NewsImpact {
+  const lower = text.toLowerCase();
+  if (MACRO_KEYWORDS.some(w => lower.includes(w))) return "high";
+  if (HIGH_IMPACT_WORDS.some(w => lower.includes(w))) return "high";
+  if (relevantCount >= 3) return "high";
+  if (MEDIUM_IMPACT_WORDS.some(w => lower.includes(w))) return "medium";
+  if (relevantCount === 2) return "medium";
+  return "low";
 }
 
 // Module-level cache — survives across requests on a warm serverless
@@ -96,7 +124,8 @@ export async function GET(request: Request) {
       if (!a.headline || !a.url || !a.datetime) continue;
       if (seen.has(a.url)) continue;
       seen.add(a.url);
-      const relevantTo = relevantMarkets(`${a.headline} ${a.summary ?? ""}`);
+      const combinedText = `${a.headline} ${a.summary ?? ""}`;
+      const relevantTo = relevantMarkets(combinedText);
       if (relevantTo.length === 0) continue; // only news that actually touches one of our 5 markets
       merged.push({
         id: String(a.id ?? a.url),
@@ -107,6 +136,7 @@ export async function GET(request: Request) {
         source: a.source || "Unknown",
         datetime: a.datetime,
         relevantTo,
+        impact: classifyImpact(combinedText, relevantTo.length),
       });
     }
 

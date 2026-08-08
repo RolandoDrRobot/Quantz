@@ -4,12 +4,18 @@ import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { FiX, FiRefreshCw, FiExternalLink } from "react-icons/fi";
 import { LuNewspaper } from "react-icons/lu";
-import type { NewsArticle } from "../lib/news";
+import type { NewsArticle, NewsImpact } from "../lib/news";
 import { fmtTimeAgo } from "../lib/news";
 import { MARKETS, type MarketKey } from "../lib/markets";
 import { backdropVariants, modalVariants, fadeUpVariants, TRANSITION_BACKDROP, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 
 const PAGE_SIZE = 15;
+
+const IMPACT_META: Record<NewsImpact, { label: string; color: string }> = {
+  high:   { label: "HIGH IMPACT",   color: "#8a2f2a" },
+  medium: { label: "MEDIUM IMPACT", color: "#c9a838" },
+  low:    { label: "LOW IMPACT",    color: "var(--text-muted)" },
+};
 
 function ArticleCard({ article, index }: { article: NewsArticle; index: number }) {
   return (
@@ -35,7 +41,15 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
         />
       )}
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <p className="text-sm font-bold leading-snug" style={{ color: "var(--text-primary)" }}>{article.headline}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-bold leading-snug" style={{ color: "var(--text-primary)" }}>{article.headline}</p>
+          <span
+            className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider whitespace-nowrap"
+            style={{ background: `${IMPACT_META[article.impact].color}22`, color: IMPACT_META[article.impact].color, border: `1px solid ${IMPACT_META[article.impact].color}44` }}
+          >
+            {IMPACT_META[article.impact].label}
+          </span>
+        </div>
         {article.summary && (
           <p className="text-[13px] leading-snug line-clamp-2" style={{ color: "var(--text-secondary)" }}>{article.summary}</p>
         )}

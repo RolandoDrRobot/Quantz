@@ -21,6 +21,7 @@ import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
+import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
 
@@ -46,10 +47,33 @@ function pickChartCandles(c1m: RawCandle[], c5m: RawCandle[], slPoints: number):
   return c1m;
 }
 
+function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (tf: Timeframe) => void }) {
+  return (
+    <div className="flex items-center rounded-md overflow-hidden shrink-0" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+      {TIMEFRAMES.map(tf => (
+        <button
+          key={tf.key}
+          onClick={() => onChange(tf.key)}
+          className="px-2.5 py-1.5 text-[11px] font-black tracking-wider"
+          style={{
+            background: value === tf.key ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)",
+            color: value === tf.key ? "var(--text-primary)" : "var(--text-muted)",
+            fontFamily: "var(--font-display)",
+            cursor: "pointer",
+          }}
+        >
+          {tf.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [market, setMarket] = useState<MarketKey>("nasdaq");
-  const [chartCandles, setChartCandles] = useState<RawCandle[]>([]);
+  const [rawCandles1m, setRawCandles1m] = useState<RawCandle[]>([]);
+  const [rawCandles5m, setRawCandles5m] = useState<RawCandle[]>([]);
+  const [timeframe, setTimeframe] = useState<Timeframe>("1m");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
@@ -142,7 +166,8 @@ export default function Dashboard() {
   // depends on cfg.symbol changing, not just on mount.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setChartCandles([]);
+    setRawCandles1m([]);
+    setRawCandles5m([]);
     setAnalysis(null);
     updateOpportunity(null);
     setLivePrice(null);
@@ -155,7 +180,8 @@ export default function Dashboard() {
         if (cancelled) return;
         const c1m: RawCandle[] = data.candles1m ?? [];
         const c5m: RawCandle[] = data.candles5m ?? [];
-        setChartCandles(pickChartCandles(c1m, c5m, cfg.slPoints));
+        setRawCandles1m(c1m);
+        setRawCandles5m(c5m);
         try {
           const raw = localStorage.getItem(storageKey(cfg.symbol));
           if (raw) {
@@ -175,7 +201,8 @@ export default function Dashboard() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
-    setChartCandles(pickChartCandles(c1m, c5m, MARKETS[market].slPoints));
+    setRawCandles1m(c1m);
+    setRawCandles5m(c5m);
     setAnalysis(result);
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
     updateOpportunity(opp);
@@ -357,6 +384,17 @@ export default function Dashboard() {
   const priceUp = (analysis?.priceChange ?? 0) >= 0;
   const trendDir = analysis?.trend.direction ?? null;
 
+  // Chart display candles — purely visual, independent of the analysis
+  // engine (which always runs on 1m data regardless of what's on screen).
+  // "1m" keeps the existing quiet-market fallback to 5m; "5m"/"10m" use the
+  // API's own 5m feed (30 days of history) directly or resampled, since
+  // that's far richer than resampling from 1m's ~25h window.
+  const chartCandles = useMemo(() => {
+    if (timeframe === "5m") return rawCandles5m;
+    if (timeframe === "10m") return resampleCandles(rawCandles5m, 600);
+    return pickChartCandles(rawCandles1m, rawCandles5m, cfg.slPoints);
+  }, [timeframe, rawCandles1m, rawCandles5m, cfg.slPoints]);
+
   // ── Mobile ticker: the opportunity at a glance, no need to open Taylor ──────
   const tickerItems: { text: string; color: string }[] = useMemo(() => {
     if (!analysis) return [];
@@ -500,9 +538,10 @@ export default function Dashboard() {
                     onClick={() => handleMarketChange(key)}
                     className="flex-1 py-4 rounded-md text-base font-black tracking-wider transition-all duration-200"
                     style={{
-                      background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
+                      background: active ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.06)",
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      border: `1px solid ${active ? "var(--gold-border)" : "rgba(255,255,255,0.08)"}`,
+                      border: `1px solid ${active ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.08)"}`,
+                      boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
                       fontFamily: "var(--font-display)",
                       cursor: "pointer",
                     }}
@@ -527,12 +566,14 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* News marquee — tap to open the full feed */}
-          <AnimatePresence>
+          {/* Timeframe selector + news marquee — tap the marquee to open the full feed */}
+          <div className="flex items-center gap-2">
+            <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+            <AnimatePresence>
             {newsTicker.length > 0 && (
               <motion.button
                 onClick={() => setNewsOpen(true)}
-                className="overflow-hidden rounded-md flex items-center gap-2 px-3 py-2"
+                className="overflow-hidden rounded-md flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
                 style={{ background: "rgba(5,14,26,0.7)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
                 variants={fadeVariants}
                 initial="hidden"
@@ -553,7 +594,8 @@ export default function Dashboard() {
                 </div>
               </motion.button>
             )}
-          </AnimatePresence>
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* ── Overlay inferior: precio + botón Taylor + ticker de oportunidad ── */}
@@ -751,9 +793,10 @@ export default function Dashboard() {
                 onClick={() => handleMarketChange(key)}
                 className="px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
-                  background: active ? "var(--gold-dim)" : "transparent",
+                  background: active ? "rgba(255,255,255,0.10)" : "transparent",
                   color: active ? "var(--text-primary)" : "var(--text-muted)",
-                  border: `1px solid ${active ? "var(--gold-border)" : "transparent"}`,
+                  border: `1px solid ${active ? "rgba(255,255,255,0.5)" : "transparent"}`,
+                  boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
                   cursor: "pointer",
                   fontFamily: "var(--font-display)",
                 }}
@@ -804,13 +847,15 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* ── News marquee — tap to open the full feed ── */}
-        <AnimatePresence>
+        {/* ── Timeframe selector + news marquee ── */}
+        <div className="w-full flex items-center gap-3 px-6 py-2 shrink-0" style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)" }}>
+          <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+          <AnimatePresence>
           {newsTicker.length > 0 && (
             <motion.button
               onClick={() => setNewsOpen(true)}
-              className="w-full overflow-hidden flex items-center gap-2 px-6 py-2 shrink-0"
-              style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)", cursor: "pointer" }}
+              className="flex-1 min-w-0 overflow-hidden flex items-center gap-2"
+              style={{ cursor: "pointer" }}
               variants={fadeVariants}
               initial="hidden"
               animate="visible"
@@ -830,7 +875,8 @@ export default function Dashboard() {
               </div>
             </motion.button>
           )}
-        </AnimatePresence>
+          </AnimatePresence>
+        </div>
 
         {/* ── Main body ── */}
         <div className="flex flex-1 overflow-hidden">

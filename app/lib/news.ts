@@ -1,5 +1,7 @@
 import type { MarketKey } from "./markets";
 
+export type NewsImpact = "high" | "medium" | "low";
+
 export interface NewsArticle {
   id: string;
   headline: string;
@@ -9,6 +11,7 @@ export interface NewsArticle {
   source: string;
   datetime: number; // unix seconds
   relevantTo: MarketKey[];
+  impact: NewsImpact;
 }
 
 export interface NewsResponse {
