@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Quantz — Trading Hub",
     short_name: "Quantz",
-    description: "Private NASDAQ scalping hub con Taylor & Bobby",
+    description: "Private NASDAQ scalping hub with Taylor & Bobby",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

@@ -313,19 +313,19 @@ function getMarketTiming(is24h: boolean): { marketOpen: boolean; inSetupWindow: 
 
 const MESSAGES: Record<Signal, ((d: Record<string, unknown>) => string)[]> = {
   GO_LONG: [
-    d => `${d.mkt} está ${d.chg} — tape es alcista, tradea arriba de la MA ${d.ma20} con momentum ${d.mom}. Resistencia clave: ${d.r1}${d.r1s ? ` (${d.r1s}x touches)` : ""}. Ese es tu nivel trigger. Espera un break abrupto arriba, vigila que el retest sostega como soporte — esa es tu entrada larga. Sin retest, sin trade.`,
-    d => `Tendencia arriba en ${d.chg}. Precio arriba de la MA 20 en ${d.ma20} con ${d.mom} conviction. Tienes un muro en ${d.r1}. Cuando ese nivel se quiebra en el open y vuelve a testar — entras largo. No antes. Deja que el mercado confirme.`,
-    d => `Los toros de ${d.mkt} están en control, ${d.chg} con momentum ${d.mom}. Vigila resistencia en ${d.r1}${d.r1s ? ` — ha sido testeada ${d.r1s} veces, se debilita` : ""}. Breakout + retest de ese nivel es tu luz verde para ir largo.`,
+    d => `${d.mkt} is ${d.chg} — tape is bullish, trade above the ${d.ma20} MA with ${d.mom} momentum. Key resistance: ${d.r1}${d.r1s ? ` (${d.r1s}x touches)` : ""}. That's your trigger level. Wait for a sharp break above it, watch for the retest to hold as support — that's your long entry. No retest, no trade.`,
+    d => `Trend is up at ${d.chg}. Price is above the 20 MA at ${d.ma20} with ${d.mom} conviction. You've got a wall at ${d.r1}. When that level breaks at the open and comes back to test it — you go long. Not before. Let the market confirm.`,
+    d => `${d.mkt} bulls are in control, ${d.chg} with ${d.mom} momentum. Watch resistance at ${d.r1}${d.r1s ? ` — it's been tested ${d.r1s}x, it's weakening` : ""}. Breakout + retest of that level is your green light to go long.`,
   ],
   GO_SHORT: [
-    d => `${d.mkt} está ${d.chg} — los osos controlan el tape. Tradea abajo de la MA ${d.ma20} con ${d.mom} presión vendedora. Soporte clave: ${d.s1}${d.s1s ? ` (${d.s1s}x touches)` : ""}. Cuando ese piso se quiebra en el open y retesta como resistencia — cargas corto.`,
-    d => `Tendencia abajo en ${d.chg}. Precio se quebró abajo de la MA 20 en ${d.ma20}. Soporte crítico en ${d.s1}. Cuanto más lo testee ese nivel, más se debilita. Espera el break, espera el retest — luego shorteen y monta el flush.`,
-    d => `Momentum ${d.mom} bajista en ${d.chg}. Todo apunta más bajo. Soporte en ${d.s1}${d.s1s ? ` ha sostenido ${d.s1s} veces` : ""} — pero se le está acabando la fuerza. Cuando se quiebra en el open con volumen y retesta — esa es tu entrada corta.`,
+    d => `${d.mkt} is ${d.chg} — bears control the tape. Trade below the ${d.ma20} MA with ${d.mom} selling pressure. Key support: ${d.s1}${d.s1s ? ` (${d.s1s}x touches)` : ""}. When that floor breaks at the open and retests as resistance — you load up short.`,
+    d => `Trend is down at ${d.chg}. Price broke below the 20 MA at ${d.ma20}. Critical support at ${d.s1}. The more that level gets tested, the weaker it gets. Wait for the break, wait for the retest — then short it and ride the flush.`,
+    d => `${d.mom} bearish momentum at ${d.chg}. Everything points lower. Support at ${d.s1}${d.s1s ? ` has held ${d.s1s}x` : ""} — but it's running out of gas. When it breaks at the open with volume and retests — that's your short entry.`,
   ],
   WAIT: [
-    d => `Mercado en ${d.chg} — sin edge ahora. ${d.r1 ? `Resistencia en ${d.r1}` : "Sin resistencia clara"}. ${d.s1 ? `Soporte en ${d.s1}.` : ""} Momentum es ${d.mom} y tendencia es mixta. No fuerces un trade. La ventana de setup es 30 minutos — o consigues un break limpio con retest, o te vas.`,
-    d => `Tape choppy en ${d.chg} con momentum ${d.mom}. Estructura unclear. Tienes niveles en el gráfico pero sin conviction direccional. Deja que los primeros 15 minutos del open te digan la historia antes de comprometerte. La paciencia es el edge.`,
-    d => `${d.chg} — es un coin flip. ${d.r1 ? `Vigila ${d.r1} como resistencia` : ""}${d.r1 && d.s1 ? " y " : ""}${d.s1 ? `${d.s1} como soporte` : ""}. Espera un break decisivo de uno de esos niveles con volumen real. Si el retest confirma — toma el trade. Si no, siéntate con las manos quietas.`,
+    d => `Market is ${d.chg} — no edge right now. ${d.r1 ? `Resistance at ${d.r1}` : "No clear resistance"}. ${d.s1 ? `Support at ${d.s1}.` : ""} Momentum is ${d.mom} and trend is mixed. Don't force a trade. The setup window is 30 minutes — either you get a clean break with a retest, or you walk.`,
+    d => `Choppy tape at ${d.chg} with ${d.mom} momentum. Structure is unclear. You've got levels on the chart but no directional conviction. Let the first 15 minutes of the open tell the story before you commit. Patience is the edge.`,
+    d => `${d.chg} — it's a coin flip. ${d.r1 ? `Watch ${d.r1} as resistance` : ""}${d.r1 && d.s1 ? " and " : ""}${d.s1 ? `${d.s1} as support` : ""}. Wait for a decisive break of one of those levels with real volume. If the retest confirms — take the trade. If not, sit on your hands.`,
   ],
 };
 
@@ -377,11 +377,11 @@ export function runAnalysis(
 
   let message: string;
   if (breakout && breakoutAligned) {
-    const dirTxt = breakout.direction === "long" ? "arriba" : "abajo";
-    message = `Nivel ${breakout.level.toFixed(2)} quebrado ${dirTxt} con la tendencia detrás. Ahora viene la parte que separa los pros: espera el retest. Si el precio vuelve a ${breakout.level.toFixed(2)} y lo respeta con una vela de confirmación — ese es tu trade. Sin retest, sin entrada.`;
+    const dirTxt = breakout.direction === "long" ? "up" : "down";
+    message = `Level ${breakout.level.toFixed(2)} broke ${dirTxt} with the trend behind it. Now comes the part that separates the pros: wait for the retest. If price comes back to ${breakout.level.toFixed(2)} and respects it with a confirmation candle — that's your trade. No retest, no entry.`;
   } else if (breakout && !breakoutAligned) {
-    const dirTxt = breakout.direction === "long" ? "arriba" : "abajo";
-    message = `Cuidado: nivel ${breakout.level.toFixed(2)} se quebró ${dirTxt}, pero la tendencia es ${trend.direction} — está en contra tuyo. Los breakouts contra-tendencia usualmente son traps. Mantente fuera a menos que el retest muestre confirmación muy fuerte. Proteger capital también es un trade.`;
+    const dirTxt = breakout.direction === "long" ? "up" : "down";
+    message = `Careful: level ${breakout.level.toFixed(2)} broke ${dirTxt}, but the trend is ${trend.direction} — it's against you. Counter-trend breakouts are usually traps. Stay out unless the retest shows very strong confirmation. Protecting capital is a trade too.`;
   } else {
     const arr = MESSAGES[signal];
     message = arr[Math.floor(Math.random() * arr.length)](msgData);
@@ -411,20 +411,20 @@ export function runAnalysis(
     : 0;
 
   const probFactors: ProbFactor[] = volume.hasData ? [
-    { label: "Breakout confirmado", max: 22, points: breakout ? 22 : 0 },
-    { label: "Tendencia alineada",      max: 18, points: trendAligned ? 18 : 0 },
-    { label: "Volumen",            max: 15, points: volPoints },
+    { label: "Breakout confirmed", max: 22, points: breakout ? 22 : 0 },
+    { label: "Trend aligned",      max: 18, points: trendAligned ? 18 : 0 },
+    { label: "Volume",             max: 15, points: volPoints },
     { label: "Momentum",           max: 12, points: trend.momentum === "strong" ? 12 : trend.momentum === "moderate" ? 7 : 2 },
-    { label: "Fuerza del nivel",     max: 12, points: lvlStrength >= 4 ? 12 : lvlStrength === 3 ? 9 : lvlStrength === 2 ? 6 : lvlStrength === 1 ? 3 : 0 },
+    { label: "Level strength",     max: 12, points: lvlStrength >= 4 ? 12 : lvlStrength === 3 ? 9 : lvlStrength === 2 ? 6 : lvlStrength === 1 ? 3 : 0 },
     { label: "Risk:Reward",        max: 12, points: rr >= 2 ? 12 : rr >= 1.5 ? 8 : rr >= 1 ? 5 : 2 },
-    { label: "Ventana de sesión",     max: 9,  points: timing.inSetupWindow ? 9 : 2 },
+    { label: "Session window",     max: 9,  points: timing.inSetupWindow ? 9 : 2 },
   ] : [
-    { label: "Breakout confirmado", max: 25, points: breakout ? 25 : 0 },
-    { label: "Tendencia alineada",      max: 20, points: trendAligned ? 20 : 0 },
+    { label: "Breakout confirmed", max: 25, points: breakout ? 25 : 0 },
+    { label: "Trend aligned",      max: 20, points: trendAligned ? 20 : 0 },
     { label: "Momentum",           max: 15, points: trend.momentum === "strong" ? 15 : trend.momentum === "moderate" ? 9 : 3 },
-    { label: "Fuerza del nivel",     max: 15, points: lvlStrength >= 4 ? 15 : lvlStrength === 3 ? 12 : lvlStrength === 2 ? 8 : lvlStrength === 1 ? 4 : 0 },
+    { label: "Level strength",     max: 15, points: lvlStrength >= 4 ? 15 : lvlStrength === 3 ? 12 : lvlStrength === 2 ? 8 : lvlStrength === 1 ? 4 : 0 },
     { label: "Risk:Reward",        max: 15, points: rr >= 2 ? 15 : rr >= 1.5 ? 10 : rr >= 1 ? 6 : 2 },
-    { label: "Ventana de sesión",     max: 10, points: timing.inSetupWindow ? 10 : 2 },
+    { label: "Session window",     max: 10, points: timing.inSetupWindow ? 10 : 2 },
   ];
   // ── Warnings & penalties: the context the raw score can't see ────────────
   const warnings: Warning[] = [];
@@ -446,10 +446,10 @@ export function runAnalysis(
     if (up >= 1 && down >= 1) {
       warnings.push({
         severity: "high",
-        title: "Whipsaw en el nivel",
-        detail: `${breakout.level.toFixed(2)} se quebró en AMBAS direcciones en los últimos 15 min — los breakouts aquí se comen unos a otros. Ruido de rango clásico.`,
+        title: "Whipsaw at the level",
+        detail: `${breakout.level.toFixed(2)} broke in BOTH directions in the last 15 min — breakouts here are eating each other alive. Classic range noise.`,
       });
-      penalties.push({ label: "Whipsaw en nivel", points: -20, max: 0 });
+      penalties.push({ label: "Whipsaw at level", points: -20, max: 0 });
     }
   }
 
@@ -459,18 +459,18 @@ export function runAnalysis(
   if (volume.hasData && volume.relativeVolume < 0.6) {
     warnings.push({
       severity: "high",
-      title: "Volumen bajo",
-      detail: `Volumen actual es ~${Math.round(volume.relativeVolume * 100)}% del promedio reciente — poca participación real detrás del movimiento. Los breakouts con este perfil suelen fallar el retest. Piénsalo dos veces antes de entrar.`,
+      title: "Low volume",
+      detail: `Current volume is ~${Math.round(volume.relativeVolume * 100)}% of the recent average — little real participation behind the move. Breakouts with this profile tend to fail the retest. Think twice before entering.`,
     });
-    penalties.push({ label: "Volumen bajo", points: -12, max: 0 });
+    penalties.push({ label: "Low volume", points: -12, max: 0 });
   }
 
   // Dead momentum: abrupt candles with no follow-through
   if (trend.momentum === "weak") {
     warnings.push({
       severity: "high",
-      title: "Momentum muerto",
-      detail: `Solo ${trend.changeRecent.toFixed(2)}% de movimiento en los últimos 15 min. Cada vela abrupta se está revirtiendo — los breakouts carecen de follow-through.`,
+      title: "Dead momentum",
+      detail: `Only ${trend.changeRecent.toFixed(2)}% movement in the last 15 min. Every sharp candle is reverting — breakouts lack follow-through.`,
     });
   }
 
@@ -479,10 +479,10 @@ export function runAnalysis(
   if (rangeRecent < slPoints * 3) {
     warnings.push({
       severity: "medium",
-      title: "Mercado rango-limitado",
-      detail: `El rango de los últimos 30 min es solo ${rangeRecent.toFixed(2)} pts vs tu SL de ${slPoints} pts. El chop normal puede tocar tu stop sin un movimiento real.`,
+      title: "Range-bound market",
+      detail: `The last 30 min range is only ${rangeRecent.toFixed(2)} pts vs your ${slPoints} pt SL. Normal chop can tag your stop without a real move.`,
     });
-    penalties.push({ label: "Tape rango-limitado", points: -10, max: 0 });
+    penalties.push({ label: "Range-bound tape", points: -10, max: 0 });
   }
 
   // SL exposed: the stop sits inside the recent price range
@@ -493,8 +493,8 @@ export function runAnalysis(
     if (slExposed) {
       warnings.push({
         severity: "medium",
-        title: "SL dentro del rango reciente",
-        detail: `Tu stop en ${tradeSetup.stopLoss.toFixed(2)} está dentro del rango de los últimos 30 min (${loRecent.toFixed(2)}–${hiRecent.toFixed(2)}). Un whipsaw normal puede sacarlo.`,
+        title: "SL inside the recent range",
+        detail: `Your stop at ${tradeSetup.stopLoss.toFixed(2)} sits inside the last 30 min range (${loRecent.toFixed(2)}–${hiRecent.toFixed(2)}). A normal whipsaw can take it out.`,
       });
     }
   }
@@ -506,10 +506,10 @@ export function runAnalysis(
     if (h >= 16 || h < 3) {
       warnings.push({
         severity: "medium",
-        title: "Sesión delgada",
-        detail: "NY está cerrado — horas asiáticas significan menor liquidez y movimientos más chopy. Niveles se piersan sin conviction.",
+        title: "Thin session",
+        detail: "NY is closed — Asian hours mean thinner liquidity and choppier moves. Levels get pierced without conviction.",
       });
-      penalties.push({ label: "Sesión delgada", points: -8, max: 0 });
+      penalties.push({ label: "Thin session", points: -8, max: 0 });
     }
   }
 
@@ -518,7 +518,7 @@ export function runAnalysis(
 
   // Weak momentum caps the score — a breakout without fuel can't be high probability
   if (trend.momentum === "weak" && probability > 60) {
-    penalties.push({ label: "Cap momentum débil", points: 60 - probability, max: 0 });
+    penalties.push({ label: "Weak-momentum cap", points: 60 - probability, max: 0 });
     probability = 60;
   }
   probability = Math.max(5, Math.min(92, probability));

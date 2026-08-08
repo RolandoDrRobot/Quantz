@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { FiTrash2, FiX, FiBarChart2, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../lib/records";
+import { ACCOUNT } from "../lib/markets";
 
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
@@ -33,7 +34,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
   const records = useMemo(() => (open ? loadRecords() : []), [open, version, refreshToken]);
 
   const handleClear = useCallback(() => {
-    if (window.confirm("¿Eliminar TODOS los trades? No se puede deshacer.")) {
+    if (window.confirm("Delete ALL trades? This can't be undone.")) {
       clearRecords();
       setVersion(v => v + 1);
     }
@@ -59,8 +60,8 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
           <div>
-            <div className="font-black text-xl tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>HISTORIAL DE TRADES</div>
-            <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Performance por trade · riesgo fijo $100</div>
+            <div className="font-black text-xl tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>TRADE HISTORY</div>
+            <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Per-trade performance · fixed risk ${ACCOUNT.riskPerTrade}</div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -68,14 +69,14 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold tracking-wider"
               style={{ background: "rgba(138,47,42,0.08)", color: "#8a2f2a", border: "1px solid rgba(138,47,42,0.3)", cursor: "pointer", fontFamily: "var(--font-display)" }}
             >
-              <FiTrash2 size={13} /> LIMPIAR TODO
+              <FiTrash2 size={13} /> CLEAR ALL
             </button>
             <button
               onClick={onClose}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold"
               style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
             >
-              <FiX size={13} /> CERRAR
+              <FiX size={13} /> CLOSE
             </button>
           </div>
         </div>
@@ -84,14 +85,14 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
           {records.length === 0 ? (
             <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
               <FiBarChart2 size={48} className="mb-4 opacity-15" />
-              <p className="text-lg">Sin trades registrados.</p>
-              <p className="text-base mt-2 opacity-70">Cada TP, SL o cierre manual aparece aquí automáticamente.</p>
+              <p className="text-lg">No trades recorded yet.</p>
+              <p className="text-base mt-2 opacity-70">Every TP, SL, or manual close shows up here automatically.</p>
             </div>
           ) : (
             <>
               {/* Headline stats */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="P/L NETO" value={`${stats.netPnl >= 0 ? "+" : "−"}$${Math.abs(stats.netPnl).toFixed(0)}`} color={pnlColor} big />
+                <StatCard label="NET P/L" value={`${stats.netPnl >= 0 ? "+" : "−"}$${Math.abs(stats.netPnl).toFixed(0)}`} color={pnlColor} big />
                 <StatCard label="WIN RATE" value={`${stats.winRate.toFixed(0)}%`} color={stats.winRate >= 50 ? "#1c7d4c" : "#8a2f2a"} big />
                 <StatCard label="TRADES" value={`${stats.total}`} big />
                 <StatCard label="PROFIT FACTOR" value={pf} color={stats.profitFactor >= 1.5 ? "#1c7d4c" : stats.profitFactor >= 1 ? "#1c7d4c" : "#8a2f2a"} big />
@@ -99,12 +100,12 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
 
               {/* Secondary stats */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard label="PROMEDIO WIN" value={`+$${stats.avgWin.toFixed(0)}`} color="#1c7d4c" />
-                <StatCard label="PROMEDIO LOSS" value={`−$${stats.avgLoss.toFixed(0)}`} color="#8a2f2a" />
-                <StatCard label="EXPECTATIVA/TRADE" value={`${stats.expectancy >= 0 ? "+" : "−"}$${Math.abs(stats.expectancy).toFixed(0)}`} color={stats.expectancy >= 0 ? "#1c7d4c" : "#8a2f2a"} />
-                <StatCard label="MEJOR/PEOR" value={`+$${stats.best.toFixed(0)} / −$${Math.abs(stats.worst).toFixed(0)}`} />
+                <StatCard label="AVG WIN" value={`+$${stats.avgWin.toFixed(0)}`} color="#1c7d4c" />
+                <StatCard label="AVG LOSS" value={`−$${stats.avgLoss.toFixed(0)}`} color="#8a2f2a" />
+                <StatCard label="EXPECTANCY/TRADE" value={`${stats.expectancy >= 0 ? "+" : "−"}$${Math.abs(stats.expectancy).toFixed(0)}`} color={stats.expectancy >= 0 ? "#1c7d4c" : "#8a2f2a"} />
+                <StatCard label="BEST/WORST" value={`+$${stats.best.toFixed(0)} / −$${Math.abs(stats.worst).toFixed(0)}`} />
                 <StatCard
-                  label="RACHA"
+                  label="STREAK"
                   value={stats.streak > 0 ? `${stats.streak}G` : stats.streak < 0 ? `${Math.abs(stats.streak)}P` : "—"}
                   color={stats.streak > 0 ? "#1c7d4c" : stats.streak < 0 ? "#8a2f2a" : undefined}
                 />
@@ -113,8 +114,8 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               {/* Wins vs losses bar */}
               <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center justify-between text-[12px] font-bold mb-2">
-                  <span style={{ color: "#1c7d4c" }}>{stats.wins} GANANCIAS · +${stats.grossWin.toFixed(0)}</span>
-                  <span style={{ color: "#8a2f2a" }}>{stats.losses} PÉRDIDAS · −${stats.grossLoss.toFixed(0)}</span>
+                  <span style={{ color: "#1c7d4c" }}>{stats.wins} WINS · +${stats.grossWin.toFixed(0)}</span>
+                  <span style={{ color: "#8a2f2a" }}>{stats.losses} LOSSES · −${stats.grossLoss.toFixed(0)}</span>
                 </div>
                 <div className="flex h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                   <div style={{ width: `${stats.winRate}%`, background: "#1c7d4c" }} />
@@ -126,7 +127,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="overflow-x-auto">
                 <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[11px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
-                  <span>FECHA</span><span>MERCADO</span><span>LADO</span><span>ENTRADA → SALIDA</span><span>RESULTADO</span><span>P/L</span><span>R</span>
+                  <span>DATE</span><span>MARKET</span><span>SIDE</span><span>ENTRY → EXIT</span><span>OUTCOME</span><span>P/L</span><span>R</span>
                 </div>
                 {records.map((r, i) => {
                   const oc = OUTCOME_STYLE[r.outcome];
@@ -143,7 +144,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                       <span className="font-bold" style={{ color: "#f2f5f8", fontFamily: "var(--font-display)" }}>{r.market}</span>
                       <span className="flex items-center gap-1 font-bold" style={{ color: r.direction === "long" ? "#1c7d4c" : "#8a2f2a" }}>
                         {r.direction === "long" ? <FiArrowUpRight size={14} /> : <FiArrowDownRight size={14} />}
-                        {r.direction === "long" ? "L" : "C"}
+                        {r.direction === "long" ? "L" : "S"}
                       </span>
                       <span style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
                       <span>

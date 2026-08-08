@@ -15,7 +15,7 @@ const josefinSans = Josefin_Sans({
 
 export const metadata: Metadata = {
   title: "Quantz",
-  description: "Private NASDAQ scalping hub con Taylor & Bobby",
+  description: "Private NASDAQ scalping hub with Taylor & Bobby",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

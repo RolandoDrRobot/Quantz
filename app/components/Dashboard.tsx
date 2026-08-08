@@ -148,7 +148,7 @@ export default function Dashboard() {
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
     updateOpportunity(opp);
     saveState(MARKETS[market].symbol, result, opp);
-    const sig = result.signal === "GO_LONG" ? "▲ largo" : result.signal === "GO_SHORT" ? "▼ corto" : "espera";
+    const sig = result.signal === "GO_LONG" ? "▲ long" : result.signal === "GO_SHORT" ? "▼ short" : "wait";
     toast(`taylor · ${sig} · ${result.probability}%`, { duration: 3000 });
   }, [market, updateOpportunity]);
 
@@ -161,7 +161,7 @@ export default function Dashboard() {
     livePriceRef.current = price;
     const prev = opportunityRef.current;
     if (!prev) {
-      if (announce) toast(`Precio actualizado · ${price.toFixed(2)}`, { duration: 2500 });
+      if (announce) toast(`Price updated · ${price.toFixed(2)}`, { duration: 2500 });
       return;
     }
     const next = advanceOpportunity(prev, price, botModeRef.current, analysisRef.current?.levels ?? []);
@@ -173,11 +173,11 @@ export default function Dashboard() {
       if (levelChanged) playBreakoutSound();
       else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") {
         playBreakoutSound();
-        toast(`breakout ${next.direction === "long" ? "▲" : "▼"} ${next.level.toFixed(2)} — espera retest`, { duration: 5000 });
+        toast(`breakout ${next.direction === "long" ? "▲" : "▼"} ${next.level.toFixed(2)} — awaiting retest`, { duration: 5000 });
       }
       else if (next.phase === "RETEST_ACTIVE") {
         playRetestSound();
-        toast.warning(`retest activo · ${next.level.toFixed(2)}`, { duration: 6000 });
+        toast.warning(`retest active · ${next.level.toFixed(2)}`, { duration: 6000 });
       }
       else if (next.phase === "TP_HIT") {
         playResolvedSound(true);
@@ -194,7 +194,7 @@ export default function Dashboard() {
     if (announce && !transitioned) {
       const pnl = next.phase === "CONFIRMED" ? livePnl(next, price) : null;
       const pnlPart = pnl !== null ? ` · ${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)}` : "";
-      toast(`Sin cambios · ${PHASE_META[next.phase].label} · ${price.toFixed(2)}${pnlPart}`, { duration: 3500 });
+      toast(`No change · ${PHASE_META[next.phase].label} · ${price.toFixed(2)}${pnlPart}`, { duration: 3500 });
     }
   }, [recordTrade]);
 
@@ -214,10 +214,10 @@ export default function Dashboard() {
       if (typeof data.currentPrice === "number") {
         advancePrice(data.currentPrice, true);
       } else {
-        toast.error("Respuesta de mercado inválida — intenta de nuevo");
+        toast.error("Invalid market response — try again");
       }
     } catch {
-      if (symbolRef.current === requestSymbol) toast.error("Error de red al verificar");
+      if (symbolRef.current === requestSymbol) toast.error("Network error while checking");
     } finally {
       setCheckingOpportunity(false);
     }
@@ -331,10 +331,10 @@ export default function Dashboard() {
               }}
             >
               <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-                <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
+                <FiZap size={16} /> RETEST ACTIVE — {opportunity.level.toFixed(2)}
               </div>
               <div className="text-sm mt-0.5" style={{ color: "#9ba5b2" }}>
-                {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
+                {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
               </div>
             </div>
           )}
@@ -344,12 +344,12 @@ export default function Dashboard() {
           {chartLoading ? (
             <>
               <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }} />
-              <p className="text-base" style={{ color: "var(--text-muted)" }}>Cargando {cfg.label}...</p>
+              <p className="text-base" style={{ color: "var(--text-muted)" }}>Loading {cfg.label}...</p>
             </>
           ) : (
             <>
               <FiTrendingUp size={40} className="opacity-10" style={{ color: "var(--text-muted)" }} />
-              <p className="text-base" style={{ color: "var(--text-muted)" }}>Error al cargar {cfg.label}</p>
+              <p className="text-base" style={{ color: "var(--text-muted)" }}>Error loading {cfg.label}</p>
             </>
           )}
         </div>
@@ -453,7 +453,7 @@ export default function Dashboard() {
                       color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)"
                     }}>
                       {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
-                      {trendDir === "bullish" ? "ALCISTA" : trendDir === "bearish" ? "BAJISTA" : "NEUTRAL"}
+                      {trendDir === "bullish" ? "BULLISH" : trendDir === "bearish" ? "BEARISH" : "NEUTRAL"}
                     </span>
                   )}
                 </div>
@@ -565,7 +565,7 @@ export default function Dashboard() {
               fontFamily: "var(--font-display)",
             }}
           >
-            <FiBarChart2 size={13} /> HISTORIAL
+            <FiBarChart2 size={13} /> HISTORY
           </button>
         </div>
 

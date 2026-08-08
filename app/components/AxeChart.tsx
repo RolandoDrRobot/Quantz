@@ -46,13 +46,13 @@ interface Props {
 }
 
 const LEGEND = [
-  { color: P.upBorder,    label: "Vela alcista", style: "solid" },
-  { color: P.downBorder,  label: "Vela bajista", style: "solid" },
-  { color: "rgba(194,59,48,0.6)", label: "MA 20 (tendencia)", style: "solid" },
-  { color: "rgba(26,115,70,0.55)", label: "Volumen (si el instrumento lo reporta)", style: "solid" },
-  { color: P.resistance,  label: "Resistencia",     style: "solid" },
-  { color: P.support,     label: "Soporte",        style: "solid" },
-  { color: P.entry,       label: "Entrada",          style: "dashed" },
+  { color: P.upBorder,    label: "Bullish candle", style: "solid" },
+  { color: P.downBorder,  label: "Bearish candle", style: "solid" },
+  { color: "rgba(194,59,48,0.6)", label: "MA 20 (trend)", style: "solid" },
+  { color: "rgba(26,115,70,0.55)", label: "Volume (if the instrument reports it)", style: "solid" },
+  { color: P.resistance,  label: "Resistance",     style: "solid" },
+  { color: P.support,     label: "Support",        style: "solid" },
+  { color: P.entry,       label: "Entry",          style: "dashed" },
   { color: P.sl,          label: "Stop Loss",      style: "solid" },
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
@@ -441,7 +441,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider"
         style={{ background: "rgba(5,14,26,0.92)", border: "1px solid rgba(194,59,48,0.2)", color: "#c23b30", cursor: "pointer" }}
       >
-        {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEYENDA
+        {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEGEND
       </button>
 
       {/* Legend panel */}
@@ -450,7 +450,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           className="absolute top-14 right-4 rounded-md p-5 flex flex-col gap-4"
           style={{ background: "rgba(5,14,26,0.96)", border: "1px solid rgba(194,59,48,0.25)", minWidth: 210 }}
         >
-          <div className="text-sm font-bold tracking-widest mb-1" style={{ color: "#c23b30" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
+          <div className="text-sm font-bold tracking-widest mb-1" style={{ color: "#c23b30" }}>WHAT EACH LINE MEANS</div>
           {LEGEND.map((item, i) => (
             <div key={i} className="flex items-center gap-3">
               {/* Line preview */}
