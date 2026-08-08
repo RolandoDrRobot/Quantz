@@ -59,6 +59,7 @@ export interface AnalysisResult {
   tradeSetup: TradeSetup | null;
   breakout: BreakoutEvent | null;
   volume: VolumeInfo;
+  volatilityRatio: number; // current ATR / this instrument's recent-average ATR; 1 = normal
   probability: number;
   probFactors: ProbFactor[];
   penalties: ProbFactor[];
@@ -129,6 +130,26 @@ export function findLevels(candles: RawCandle[], currentPrice: number, slPoints:
 
 // ─── Trend ───────────────────────────────────────────────────────────────────
 
+// Ported from nyao_scalper_mt5's "Blended Weighted Average Signal Smoothing":
+// a single 1-minute close is noisy enough to flip bullish/bearish on one bad
+// print. Blend a linear-decay-weighted average of the last few CLOSED candles
+// (base) with the very latest close (dampened contribution) instead of
+// trusting that one tick alone — cuts whipsaw while staying responsive.
+function smoothedPrice(slice: RawCandle[], lookback = 3, currentBlend = 0.4): number {
+  const n = slice.length;
+  const latest = slice[n - 1].close;
+  const closed = slice.slice(Math.max(0, n - 1 - lookback), n - 1); // closed candles before the latest
+  if (closed.length === 0) return latest;
+  let weightedSum = 0, weightTotal = 0;
+  closed.forEach((c, i) => {
+    const weight = i + 1; // oldest=1 ... newest=closed.length, linear decay toward recent
+    weightedSum += c.close * weight;
+    weightTotal += weight;
+  });
+  const base = weightTotal > 0 ? weightedSum / weightTotal : latest;
+  return base * (1 - currentBlend) + latest * currentBlend;
+}
+
 function detectTrend(candles: RawCandle[]): TrendInfo {
   const slice = candles.slice(-60); // last 60 minutes on 1min candles
   if (slice.length < 20) return { direction: "neutral", momentum: "weak", ma20: 0, changeRecent: 0 };
@@ -136,7 +157,7 @@ function detectTrend(candles: RawCandle[]): TrendInfo {
   // ma20 on 1min candles = a 20-minute moving average — fast enough to react
   // within a scalping timeframe instead of the old ~100-minute MA on 5m bars.
   const ma20 = slice.slice(-20).reduce((s, c) => s + c.close, 0) / 20;
-  const current = slice[slice.length - 1].close;
+  const current = smoothedPrice(slice);
   const recentAgo = slice[Math.max(0, slice.length - 15)].close;
   const changeRecent = ((current - recentAgo) / recentAgo) * 100;
 
@@ -174,6 +195,50 @@ function analyzeVolume(candles: RawCandle[]): VolumeInfo {
 
   const relativeVolume = baselineAvg > 0 ? currentAvg / baselineAvg : 1;
   return { hasData: true, relativeVolume };
+}
+
+// ─── Volatility ratio (dead-market filter) ────────────────────────────────────
+// Ported from nyao_scalper_mt5's "Dead-Market Filter": current volatility
+// relative to THIS instrument's own recent average, not a fixed threshold —
+// a market that's always tight isn't penalized, only one that's gone quieter
+// than its own normal. Uses true range (not just high-low) so a gap between
+// candles still counts as real movement.
+function trueRange(curr: RawCandle, prevClose: number): number {
+  return Math.max(curr.high - curr.low, Math.abs(curr.high - prevClose), Math.abs(curr.low - prevClose));
+}
+
+function analyzeVolatilityRatio(candles: RawCandle[]): number {
+  // Needs enough history to judge "relative to normal" — assume normal
+  // (ratio 1) rather than penalize a thin data set.
+  if (candles.length < 75) return 1;
+  const trs: number[] = [];
+  for (let i = Math.max(1, candles.length - 74); i < candles.length; i++) {
+    trs.push(trueRange(candles[i], candles[i - 1].close));
+  }
+  const recent = trs.slice(-14);
+  const baseline = trs.slice(0, -14);
+  const currentATR = recent.reduce((s, v) => s + v, 0) / recent.length;
+  const avgATR = baseline.length > 0 ? baseline.reduce((s, v) => s + v, 0) / baseline.length : currentATR;
+  return avgATR > 0 ? currentATR / avgATR : 1;
+}
+
+// ─── Wick rejection ────────────────────────────────────────────────────────────
+// Ported from nyao_scalper_mt5's wick-rejection penalty: a breakout candle
+// with a long wick opposing the break direction means the move got fought
+// off within the same bar — a weaker signal than a clean-bodied break, even
+// though detectBreakout's body-size filter already passed it.
+function wickRejectionRatio(candles: RawCandle[], breakout: BreakoutEvent): number {
+  const idx = candles.findIndex(c => c.time === breakout.breakoutTime);
+  if (idx === -1) return 0;
+  const c = candles[idx];
+  const bodyHigh = Math.max(c.open, c.close);
+  const bodyLow = Math.min(c.open, c.close);
+  const range = c.high - c.low;
+  // Floors the divisor so a near-doji body doesn't produce a wild ratio —
+  // matches detectBreakout's own body-size filter reasoning.
+  const body = Math.max(bodyHigh - bodyLow, range * 0.1);
+  const opposingWick = breakout.direction === "long" ? c.high - bodyHigh : bodyLow - c.low;
+  return body > 0 ? opposingWick / body : 0;
 }
 
 // ─── Breakout Detection ──────────────────────────────────────────────────────
@@ -347,6 +412,7 @@ export function runAnalysis(
   const levels = findLevels(candles, currentPrice, slPoints);
   const trend  = detectTrend(candles);
   const volume = analyzeVolume(candles);
+  const volatilityRatio = analyzeVolatilityRatio(candles);
   const timing = getMarketTiming(is24h);
 
   const resistances = levels.filter(l => l.type === "resistance").sort((a, b) => a.price - b.price);
@@ -440,6 +506,19 @@ export function runAnalysis(
       });
       penalties.push({ label: "Whipsaw at level", points: -20, max: 0 });
     }
+
+    // Wick rejection: the break candle's opposing wick fought the move off
+    // within the same bar — a weaker break than a clean close through the level.
+    const rejection = wickRejectionRatio(candles, breakout);
+    if (rejection > 0.5) {
+      const dirTxt = breakout.direction === "long" ? "upper" : "lower";
+      warnings.push({
+        severity: rejection > 1 ? "high" : "medium",
+        title: "Breakout candle got rejected",
+        detail: `The break candle closed with a long ${dirTxt} wick (${Math.round(rejection * 100)}% of the body) — the move got fought off within the same bar. Weak breaks like this often fail the retest.`,
+      });
+      penalties.push({ label: "Wick rejection", points: -Math.round(Math.min(rejection, 2) * 8), max: 0 });
+    }
   }
 
   // Thin volume: real participation is running well below its recent
@@ -472,6 +551,20 @@ export function runAnalysis(
       detail: `The last 30 min range is only ${fmtPrice(rangeRecent)} pts vs your ${slPoints} pt SL. Normal chop can tag your stop without a real move.`,
     });
     penalties.push({ label: "Range-bound tape", points: -10, max: 0 });
+  }
+
+  // Volatility collapsed relative to THIS instrument's own recent average —
+  // different from range-bound above (that's a fixed range-vs-SL check; this
+  // catches a market that's gone quieter than its own normal, even one that's
+  // always tight). Ported from nyao_scalper_mt5's dead-market ATR filter.
+  const MIN_VOL_RATIO = 0.6;
+  if (volatilityRatio < MIN_VOL_RATIO) {
+    warnings.push({
+      severity: "high",
+      title: "Volatility collapsed",
+      detail: `Current volatility is ~${Math.round(volatilityRatio * 100)}% of this instrument's recent average — too quiet to scalp profitably right now. Costs eat the edge in dead air like this.`,
+    });
+    penalties.push({ label: "Dead volatility (ATR ratio)", points: -25, max: 0 });
   }
 
   // SL exposed: the stop sits inside the recent price range
@@ -551,6 +644,7 @@ export function runAnalysis(
     tradeSetup,
     breakout,
     volume,
+    volatilityRatio,
     probability,
     probFactors,
     penalties,
