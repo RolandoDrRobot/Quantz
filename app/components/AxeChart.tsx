@@ -7,19 +7,19 @@ import type { Level, TradeSetup, BreakoutEvent } from "../lib/analysis";
 
 // ─── Quantz Palette ──────────────────────────────────────────────────────────
 const P = {
-  bg:        "#010503",
-  bgLabel:   "#041208",
-  grid:      "#060f07",
-  text:      "#3d6049",
+  bg:        "#030405",
+  bgLabel:   "#0c0e12",
+  grid:      "#0a0c10",
+  text:      "#565d66",
 
-  upBody:    "#00a05c",
-  upBorder:  "#00a05c",
-  upWick:    "#00a05c",
-  downBody:  "#e05252",
-  downBorder:"#e05252",
-  downWick:  "#e05252",
+  upBody:    "#1c8f54",
+  upBorder:  "#1c8f54",
+  upWick:    "#1c8f54",
+  downBody:  "#c24545",
+  downBorder:"#c24545",
+  downWick:  "#c24545",
 
-  crosshair: "rgba(184,155,40,0.22)",
+  crosshair: "rgba(168,134,47,0.22)",
 
   // Analysis lines at 0.7 opacity — visible but never in the way of the tape
   resistance: "rgba(190,55,55,0.7)",
@@ -27,7 +27,7 @@ const P = {
 
   entry: "rgba(212,184,58,0.7)",
   sl:    "rgba(194,48,48,0.7)",
-  tp:    "rgba(0,184,104,0.7)",
+  tp:    "rgba(31,157,92,0.7)",
 };
 
 const TD_API_KEY = process.env.NEXT_PUBLIC_TWELVEDATA_API_KEY;
@@ -47,7 +47,7 @@ interface Props {
 const LEGEND = [
   { color: P.upBorder,    label: "Vela alcista", style: "solid" },
   { color: P.downBorder,  label: "Vela bajista", style: "solid" },
-  { color: "rgba(184,155,40,0.6)", label: "MA 20 (tendencia)", style: "solid" },
+  { color: "rgba(168,134,47,0.6)", label: "MA 20 (tendencia)", style: "solid" },
   { color: P.resistance,  label: "Resistencia",     style: "solid" },
   { color: P.support,     label: "Soporte",        style: "solid" },
   { color: P.entry,       label: "Entrada",          style: "dashed" },
@@ -55,7 +55,7 @@ const LEGEND = [
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#b89b28", symbol, tdSymbol, onTick }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#a8862f", symbol, tdSymbol, onTick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -314,10 +314,10 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {livePrice !== null && (
         <div
           className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded"
-          style={{ background: "rgba(1,5,3,0.92)", border: "1px solid rgba(184,155,40,0.3)" }}
+          style={{ background: "rgba(3,4,5,0.92)", border: "1px solid rgba(168,134,47,0.3)" }}
         >
-          <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#b89b28" }} />
-          <span className="font-bold text-sm tracking-wide" style={{ color: "#b89b28", fontFamily: "var(--font-display)" }}>
+          <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#a8862f" }} />
+          <span className="font-bold text-sm tracking-wide" style={{ color: "#a8862f", fontFamily: "var(--font-display)" }}>
             LIVE &nbsp;{livePrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
@@ -327,7 +327,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       <button
         onClick={() => setShowLegend(v => !v)}
         className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold tracking-wider"
-        style={{ background: "rgba(1,5,3,0.92)", border: "1px solid rgba(184,155,40,0.2)", color: "#b89b28", cursor: "pointer" }}
+        style={{ background: "rgba(3,4,5,0.92)", border: "1px solid rgba(168,134,47,0.2)", color: "#a8862f", cursor: "pointer" }}
       >
         {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEYENDA
       </button>
@@ -336,9 +336,9 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {showLegend && (
         <div
           className="absolute top-12 right-3 rounded p-4 flex flex-col gap-3"
-          style={{ background: "rgba(1,5,3,0.96)", border: "1px solid rgba(184,155,40,0.25)", minWidth: 210 }}
+          style={{ background: "rgba(3,4,5,0.96)", border: "1px solid rgba(168,134,47,0.25)", minWidth: 210 }}
         >
-          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#b89b28" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
+          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#a8862f" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
           {LEGEND.map((item, i) => (
             <div key={i} className="flex items-center gap-3">
               {/* Line preview */}
@@ -353,7 +353,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
                   <div className="h-0.5 w-10 rounded" style={{ background: item.color }} />
                 )}
               </div>
-              <span className="text-xs" style={{ color: "#c2d8ca" }}>{item.label}</span>
+              <span className="text-xs" style={{ color: "#9aa1ab" }}>{item.label}</span>
             </div>
           ))}
         </div>

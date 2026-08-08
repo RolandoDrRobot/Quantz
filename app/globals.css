@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Backgrounds — deep forest greens ───────────────────────── */
-  --bg:           #010503;
-  --bg-panel:     #020c05;
-  --bg-elevated:  #041208;
-  --bg-card:      #07190b;
+  /* ── Backgrounds — neutral graphite black ──────────────────── */
+  --bg:           #030405;
+  --bg-panel:     #07080a;
+  --bg-elevated:  #0c0e12;
+  --bg-card:      #12151a;
 
   /* ── Gold ───────────────────────────────────────────────────── */
-  --gold:         #b89b28;
-  --gold-bright:  #d4b83a;
-  --gold-dim:     rgba(184,155,40,0.10);
-  --gold-border:  rgba(184,155,40,0.22);
+  --gold:         #a8862f;
+  --gold-bright:  #c9a545;
+  --gold-dim:     rgba(168,134,47,0.10);
+  --gold-border:  rgba(168,134,47,0.22);
 
   /* ── Prices ─────────────────────────────────────────────────── */
-  --up:           #00b868;
-  --up-dim:       rgba(0,184,104,0.08);
-  --down:         #cc3a3a;
-  --down-dim:     rgba(204,58,58,0.08);
+  --up:           #1f9d5c;
+  --up-dim:       rgba(31,157,92,0.08);
+  --down:         #c24545;
+  --down-dim:     rgba(194,69,69,0.08);
 
   /* ── Text ───────────────────────────────────────────────────── */
-  --text-primary:   #e8f5ec;
-  --text-secondary: #6f9a7e;
-  --text-muted:     #35543f;
+  --text-primary:   #eceef0;
+  --text-secondary: #838a94;
+  --text-muted:     #454b53;
 
   /* ── Fonts ──────────────────────────────────────────────────── */
   --font-display: var(--font-anta), sans-serif;
@@ -40,5 +40,5 @@ html, body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: rgba(184,155,40,0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(184,155,40,0.38); }
+::-webkit-scrollbar-thumb { background: rgba(168,134,47,0.18); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(168,134,47,0.38); }

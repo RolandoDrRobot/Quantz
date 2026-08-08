@@ -277,16 +277,16 @@ export default function Dashboard() {
               className="absolute left-3 right-3 rounded-xl p-3 z-10"
               style={{
                 top: "3.5rem",
-                background: "rgba(1,5,3,0.96)",
-                border: `2px solid ${opportunity.direction === "long" ? "#b89b28" : "#d64848"}`,
-                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(0,184,104,0.35)" : "rgba(204,58,58,0.35)"}`,
+                background: "rgba(3,4,5,0.96)",
+                border: `2px solid ${opportunity.direction === "long" ? "#a8862f" : "#c24545"}`,
+                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(31,157,92,0.35)" : "rgba(194,69,69,0.35)"}`,
                 backdropFilter: "blur(8px)",
               }}
             >
-              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#b89b28" : "#d64848", fontFamily: "var(--font-display)" }}>
+              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#a8862f" : "#c24545", fontFamily: "var(--font-display)" }}>
                 <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: "#c2d8ca" }}>
+              <div className="text-xs mt-0.5" style={{ color: "#9aa1ab" }}>
                 {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
               </div>
             </div>
@@ -327,7 +327,7 @@ export default function Dashboard() {
         {/* ── Overlay superior: mercados + historial ── */}
         <div
           className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-3 pt-safe pt-3 pb-4"
-          style={{ background: "linear-gradient(to bottom, rgba(1,5,3,0.88) 60%, transparent 100%)" }}
+          style={{ background: "linear-gradient(to bottom, rgba(3,4,5,0.88) 60%, transparent 100%)" }}
         >
           <div className="flex gap-1.5 flex-1">
             {MARKET_KEYS.map(key => {
@@ -369,7 +369,7 @@ export default function Dashboard() {
         {/* ── Overlay inferior: precio + botón Taylor ── */}
         <div
           className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-4 pb-8 pt-16"
-          style={{ background: "linear-gradient(to top, rgba(1,5,3,0.92) 50%, transparent 100%)" }}
+          style={{ background: "linear-gradient(to top, rgba(3,4,5,0.92) 50%, transparent 100%)" }}
         >
           {/* Precio en vivo */}
           <div>
@@ -380,13 +380,13 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {analysis && (
-                    <span className="text-sm font-bold" style={{ color: priceUp ? "#00b868" : "#e05252" }}>
+                    <span className="text-sm font-bold" style={{ color: priceUp ? "#1f9d5c" : "#c24545" }}>
                       {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
                     </span>
                   )}
                   {trendDir && (
                     <span className="flex items-center gap-0.5 text-xs font-semibold" style={{
-                      color: trendDir === "bullish" ? "#00b868" : trendDir === "bearish" ? "#e05252" : "var(--text-muted)"
+                      color: trendDir === "bullish" ? "#1f9d5c" : trendDir === "bearish" ? "#c24545" : "var(--text-muted)"
                     }}>
                       {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
                       {trendDir === "bullish" ? "ALCISTA" : trendDir === "bearish" ? "BAJISTA" : "NEUTRAL"}
@@ -407,7 +407,7 @@ export default function Dashboard() {
               background: "var(--gold-dim)",
               color: "var(--gold)",
               border: "1px solid var(--gold-border)",
-              boxShadow: "0 0 20px rgba(184,155,40,0.25)",
+              boxShadow: "0 0 20px rgba(168,134,47,0.25)",
               fontFamily: "var(--font-display)",
               cursor: "pointer",
             }}
@@ -478,9 +478,9 @@ export default function Dashboard() {
             onClick={() => setRecordsOpen(true)}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
-              background: "rgba(0,184,104,0.08)",
+              background: "rgba(31,157,92,0.08)",
               color: "var(--gold)",
-              border: "1px solid rgba(0,184,104,0.3)",
+              border: "1px solid rgba(31,157,92,0.3)",
               cursor: "pointer",
               fontFamily: "var(--font-display)",
             }}
@@ -500,7 +500,7 @@ export default function Dashboard() {
           {/* Taylor + Bobby panel */}
           <aside
             className="shrink-0 overflow-y-auto flex flex-col"
-            style={{ width: "46%", borderLeft: "1px solid rgba(0,184,104,0.2)" }}
+            style={{ width: "46%", borderLeft: "1px solid rgba(31,157,92,0.2)" }}
           >
             <BobbyPanel
               market={MARKETS[market]}
