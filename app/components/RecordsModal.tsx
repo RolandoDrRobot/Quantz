@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { FiTrash2, FiX, FiBarChart2, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../lib/records";
 import { ACCOUNT } from "../lib/markets";
+import { backdropVariants, modalVariants, TRANSITION_BACKDROP, TRANSITION_BASE } from "../lib/motionVariants";
 
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
@@ -40,18 +42,32 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
     }
   }, []);
 
-  if (!open) return null;
-
   const stats = computeStats(records);
   const pnlColor = stats.netPnl > 0 ? "#1c7d4c" : stats.netPnl < 0 ? "#8a2f2a" : "#f2f5f8";
   const pf = stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6" style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-      <div
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={onClose}
+      variants={backdropVariants}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      transition={TRANSITION_BACKDROP}
+    >
+      <motion.div
         className="w-full lg:max-w-4xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
         style={{ background: "var(--bg-panel)", border: "1px solid var(--gold-border)", boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
         onClick={e => e.stopPropagation()}
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+        transition={TRANSITION_BASE}
       >
         {/* Mobile drag handle */}
         <div className="lg:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -166,7 +182,9 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
             </>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

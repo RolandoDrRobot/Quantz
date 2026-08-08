@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
@@ -10,6 +11,7 @@ import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
 import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
+import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
   GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
@@ -453,33 +455,57 @@ export default function BobbyPanel({
       </div>
 
       {/* Error */}
-      {error && (
-        <div className="mx-6 mt-5 p-4 rounded-md text-base" style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}>
-          {error}
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            className="mx-6 mt-5 p-4 rounded-md text-base"
+            style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={TRANSITION_BASE}
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {result && sig && (
-        <div className="p-6 flex flex-col gap-5">
+      <AnimatePresence mode="wait">
+      {result && sig ? (
+        <motion.div key="result" className="p-6 flex flex-col gap-5" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
 
-          {opportunity ? (
-            <TradeCard
-              opp={opportunity}
-              price={livePrice}
-              bot={botMode}
-              lots={lots}
-              onTakeTrade={onTakeTrade}
-              onMarketEntry={onMarketEntry}
-              onCloseTrade={onCloseTrade}
-              onCheckOpportunity={onCheckOpportunity}
-              checking={checkingOpportunity}
-              onToggleBot={onToggleBot}
-            />
-          ) : (
-            <div className="rounded-lg px-5 py-4 text-base" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
-              No tradeable setup — run a new analysis once the market moves.
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {opportunity ? (
+              <motion.div key={opportunity.phase} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+                <TradeCard
+                  opp={opportunity}
+                  price={livePrice}
+                  bot={botMode}
+                  lots={lots}
+                  onTakeTrade={onTakeTrade}
+                  onMarketEntry={onMarketEntry}
+                  onCloseTrade={onCloseTrade}
+                  onCheckOpportunity={onCheckOpportunity}
+                  checking={checkingOpportunity}
+                  onToggleBot={onToggleBot}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="no-setup"
+                className="rounded-lg px-5 py-4 text-base"
+                style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}
+                variants={fadeVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={TRANSITION_FAST}
+              >
+                No tradeable setup — run a new analysis once the market moves.
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Signal + probability gauge */}
           <div className="rounded-lg flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -497,24 +523,42 @@ export default function BobbyPanel({
           </div>
 
           {/* Warnings — solo si existen */}
-          {result.warnings.length > 0 && (
-            <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(138,47,42,0.35)" }}>
-              <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}>
-                <FiAlertTriangle size={13} /> WARNINGS — READ BEFORE ENTERING
-              </div>
-              <div className="flex flex-col">
-                {result.warnings.map((w, i) => (
-                  <div key={i} className="flex gap-2.5 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-elevated)" }}>
-                    <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
-                    <div className="text-[16px] leading-snug">
-                      <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
-                      <span style={{ color: "#929ba7" }}>{w.detail}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {result.warnings.length > 0 && (
+              <motion.div
+                className="rounded-lg overflow-hidden"
+                style={{ border: "1px solid rgba(138,47,42,0.35)" }}
+                variants={fadeUpVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={TRANSITION_BASE}
+              >
+                <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}>
+                  <FiAlertTriangle size={13} /> WARNINGS — READ BEFORE ENTERING
+                </div>
+                <div className="flex flex-col">
+                  {result.warnings.map((w, i) => (
+                    <motion.div
+                      key={i}
+                      className="flex gap-2.5 py-3"
+                      style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-elevated)" }}
+                      variants={fadeUpVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ ...TRANSITION_FAST, delay: i * 0.04 }}
+                    >
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
+                      <div className="text-[16px] leading-snug">
+                        <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
+                        <span style={{ color: "#929ba7" }}>{w.detail}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Score factors */}
           <div className="rounded-lg py-4 lg:px-5" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -566,17 +610,15 @@ export default function BobbyPanel({
             )}
           </div>
 
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!result && !loading && !error && (
-        <div className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }}>
+        </motion.div>
+      ) : !loading && !error ? (
+        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
           <FiZap size={48} className="mb-4 opacity-15" />
           <p className="text-lg">Press <strong style={{ color: "var(--gold)" }}>New Analysis</strong> to analyze {market.label}.</p>
           <p className="text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>
-        </div>
-      )}
+        </motion.div>
+      ) : null}
+      </AnimatePresence>
     </div>
   );
 }

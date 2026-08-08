@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { FiHelpCircle, FiX } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { Level, TradeSetup, BreakoutEvent } from "../lib/analysis";
+import { popVariants, fadeUpVariants, TRANSITION_FAST, TRANSITION_BASE } from "../lib/motionVariants";
 
 // ─── AXE CAPITAL Palette — navy + brand red ──────────────────────────────────
 const P = {
@@ -443,17 +445,24 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       <div ref={containerRef} className="w-full h-full" />
 
       {/* Live price badge */}
-      {livePrice !== null && (
-        <div
-          className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-md"
-          style={{ background: "rgba(5,14,26,0.92)", border: "1px solid rgba(194,59,48,0.3)" }}
-        >
-          <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#c23b30" }} />
-          <span className="font-bold text-base tracking-wide" style={{ color: "#c23b30", fontFamily: "var(--font-display)" }}>
-            LIVE &nbsp;{livePrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </span>
-        </div>
-      )}
+      <AnimatePresence>
+        {livePrice !== null && (
+          <motion.div
+            className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-md"
+            style={{ background: "rgba(5,14,26,0.92)", border: "1px solid rgba(194,59,48,0.3)" }}
+            variants={popVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={TRANSITION_FAST}
+          >
+            <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#c23b30" }} />
+            <span className="font-bold text-base tracking-wide" style={{ color: "#c23b30", fontFamily: "var(--font-display)" }}>
+              LIVE &nbsp;{livePrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Legend toggle */}
       <button
@@ -465,31 +474,38 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       </button>
 
       {/* Legend panel */}
-      {showLegend && (
-        <div
-          className="absolute top-14 right-4 rounded-md p-5 flex flex-col gap-4"
-          style={{ background: "rgba(5,14,26,0.96)", border: "1px solid rgba(194,59,48,0.25)", minWidth: 210 }}
-        >
-          <div className="text-sm font-bold tracking-widest mb-1" style={{ color: "#c23b30" }}>WHAT EACH LINE MEANS</div>
-          {LEGEND.map((item, i) => (
-            <div key={i} className="flex items-center gap-3">
-              {/* Line preview */}
-              <div className="flex items-center gap-0.5 flex-shrink-0 w-10">
-                {item.style === "dashed" ? (
-                  <>
-                    <div className="h-0.5 w-3 rounded" style={{ background: item.color }} />
-                    <div className="h-0.5 w-1 rounded opacity-0" />
-                    <div className="h-0.5 w-3 rounded" style={{ background: item.color }} />
-                  </>
-                ) : (
-                  <div className="h-0.5 w-10 rounded" style={{ background: item.color }} />
-                )}
+      <AnimatePresence>
+        {showLegend && (
+          <motion.div
+            className="absolute top-14 right-4 rounded-md p-5 flex flex-col gap-4"
+            style={{ background: "rgba(5,14,26,0.96)", border: "1px solid rgba(194,59,48,0.25)", minWidth: 210 }}
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={TRANSITION_BASE}
+          >
+            <div className="text-sm font-bold tracking-widest mb-1" style={{ color: "#c23b30" }}>WHAT EACH LINE MEANS</div>
+            {LEGEND.map((item, i) => (
+              <div key={i} className="flex items-center gap-3">
+                {/* Line preview */}
+                <div className="flex items-center gap-0.5 flex-shrink-0 w-10">
+                  {item.style === "dashed" ? (
+                    <>
+                      <div className="h-0.5 w-3 rounded" style={{ background: item.color }} />
+                      <div className="h-0.5 w-1 rounded opacity-0" />
+                      <div className="h-0.5 w-3 rounded" style={{ background: item.color }} />
+                    </>
+                  ) : (
+                    <div className="h-0.5 w-10 rounded" style={{ background: item.color }} />
+                  )}
+                </div>
+                <span className="text-sm" style={{ color: "#9ba5b2" }}>{item.label}</span>
               </div>
-              <span className="text-sm" style={{ color: "#9ba5b2" }}>{item.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

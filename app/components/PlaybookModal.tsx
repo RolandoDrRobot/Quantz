@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { FiX, FiCheck } from "react-icons/fi";
 import { LuListChecks } from "react-icons/lu";
 import { PLAYBOOK, TOTAL_RULES, loadChecked, saveChecked } from "../lib/playbook";
+import { backdropVariants, modalVariants, popVariants, TRANSITION_BACKDROP, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 
 export default function PlaybookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   // Nothing else writes to this storage key, so a lazy initializer (read
@@ -19,16 +21,30 @@ export default function PlaybookModal({ open, onClose }: { open: boolean; onClos
     });
   }, []);
 
-  if (!open) return null;
-
   const pct = Math.round((checked.size / TOTAL_RULES) * 100);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6" style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-      <div
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={onClose}
+      variants={backdropVariants}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      transition={TRANSITION_BACKDROP}
+    >
+      <motion.div
         className="w-full lg:max-w-3xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
         style={{ background: "var(--bg-panel)", border: "1px solid var(--gold-border)", boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
         onClick={e => e.stopPropagation()}
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+        transition={TRANSITION_BASE}
       >
         {/* Mobile drag handle */}
         <div className="lg:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -87,7 +103,20 @@ export default function PlaybookModal({ open, onClose }: { open: boolean; onClos
                           border: `1px solid ${isChecked ? "#1c7d4c" : "rgba(255,255,255,0.15)"}`,
                         }}
                       >
-                        {isChecked && <FiCheck size={16} color="#f2f5f8" />}
+                        <AnimatePresence>
+                          {isChecked && (
+                            <motion.span
+                              className="flex items-center justify-center"
+                              variants={popVariants}
+                              initial="hidden"
+                              animate="visible"
+                              exit="hidden"
+                              transition={TRANSITION_FAST}
+                            >
+                              <FiCheck size={16} color="#f2f5f8" />
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
                       </span>
                       <span style={{ color: isChecked ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: isChecked ? "line-through" : "none" }}>
                         {rule.text}
@@ -99,7 +128,9 @@ export default function PlaybookModal({ open, onClose }: { open: boolean; onClos
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

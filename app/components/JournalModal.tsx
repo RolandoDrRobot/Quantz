@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { FiX, FiArrowUpRight, FiArrowDownRight, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { LuNotebookPen } from "react-icons/lu";
 import { loadRecords, type TradeRecord } from "../lib/records";
 import { loadJournal, saveJournal, EMOTIONS, EMPTY_ENTRY, type JournalEntry, type SetupGrade } from "../lib/journal";
+import { backdropVariants, modalVariants, fadeUpVariants, TRANSITION_BACKDROP, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 
 const GRADES: SetupGrade[] = ["A+", "A", "B", "C"];
 
@@ -38,8 +40,16 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
         {open ? <FiChevronUp size={16} color="var(--text-muted)" /> : <FiChevronDown size={16} color="var(--text-muted)" />}
       </button>
 
+      <AnimatePresence>
       {open && (
-        <div className="px-4 py-4 flex flex-col gap-4" style={{ background: "var(--bg-panel)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <motion.div
+          className="px-4 py-4 flex flex-col gap-4 overflow-hidden"
+          style={{ background: "var(--bg-panel)", borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={TRANSITION_BASE}
+        >
           <div>
             <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-muted)" }}>FOLLOWED THE PLAN?</div>
             <div className="flex gap-2">
@@ -114,8 +124,9 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-primary)" }}
             />
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -135,14 +146,28 @@ export default function JournalModal({ open, onClose }: { open: boolean; onClose
     });
   }, []);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6" style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-      <div
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6"
+      style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={onClose}
+      variants={backdropVariants}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      transition={TRANSITION_BACKDROP}
+    >
+      <motion.div
         className="w-full lg:max-w-3xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
         style={{ background: "var(--bg-panel)", border: "1px solid var(--gold-border)", boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
         onClick={e => e.stopPropagation()}
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+        transition={TRANSITION_BASE}
       >
         {/* Mobile drag handle */}
         <div className="lg:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -174,17 +199,26 @@ export default function JournalModal({ open, onClose }: { open: boolean; onClose
               <p className="text-base mt-2 opacity-70">Every closed trade shows up here — tap one to write it up.</p>
             </div>
           ) : (
-            records.map(r => (
-              <EntryRow
+            records.map((r, i) => (
+              <motion.div
                 key={r.id}
-                record={r}
-                entry={entries[r.id] ?? EMPTY_ENTRY}
-                onChange={patch => updateEntry(r.id, patch)}
-              />
+                variants={fadeUpVariants}
+                initial="hidden"
+                animate="visible"
+                transition={{ ...TRANSITION_FAST, delay: Math.min(i, 8) * 0.02 }}
+              >
+                <EntryRow
+                  record={r}
+                  entry={entries[r.id] ?? EMPTY_ENTRY}
+                  onChange={patch => updateEntry(r.id, patch)}
+                />
+              </motion.div>
             ))
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

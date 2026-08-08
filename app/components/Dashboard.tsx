@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import { LuListChecks, LuBrainCircuit, LuNotebookPen } from "react-icons/lu";
 import AxeChart from "./AxeChart";
@@ -16,6 +17,7 @@ import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/al
 import { toast } from "sonner";
 import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor } from "../lib/markets";
+import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
 
@@ -324,25 +326,32 @@ export default function Dashboard() {
             coinbaseProduct={cfg.coinbaseProduct}
             onTick={handleTick}
           />
-          {opportunity?.phase === "RETEST_ACTIVE" && (
-            <div
-              className="absolute left-4 right-4 rounded-lg p-4 z-10"
-              style={{
-                top: "3.5rem",
-                background: "rgba(5,14,26,0.96)",
-                border: `2px solid ${opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"}`,
-                boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(28,125,76,0.35)" : "rgba(138,47,42,0.35)"}`,
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-                <FiZap size={16} /> RETEST ACTIVE — {opportunity.level.toFixed(2)}
-              </div>
-              <div className="text-sm mt-0.5" style={{ color: "#9ba5b2" }}>
-                {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {opportunity?.phase === "RETEST_ACTIVE" && (
+              <motion.div
+                className="absolute left-4 right-4 rounded-lg p-4 z-10"
+                style={{
+                  top: "3.5rem",
+                  background: "rgba(5,14,26,0.96)",
+                  border: `2px solid ${opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"}`,
+                  boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(28,125,76,0.35)" : "rgba(138,47,42,0.35)"}`,
+                  backdropFilter: "blur(8px)",
+                }}
+                variants={popVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={TRANSITION_BASE}
+              >
+                <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
+                  <FiZap size={16} /> RETEST ACTIVE — {opportunity.level.toFixed(2)}
+                </div>
+                <div className="text-sm mt-0.5" style={{ color: "#9ba5b2" }}>
+                  {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -371,7 +380,13 @@ export default function Dashboard() {
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< lg) — chart a pantalla completa
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="lg:hidden relative overflow-hidden" style={{ height: "100dvh" }}>
+      <motion.div
+        className="lg:hidden relative overflow-hidden"
+        style={{ height: "100dvh" }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={TRANSITION_APP}
+      >
 
         {/* ── Chart — cubre toda la pantalla ── */}
         <div className="absolute inset-0">
@@ -444,30 +459,43 @@ export default function Dashboard() {
         >
           {/* Precio en vivo */}
           <div>
-            {displayPrice !== null ? (
-              <>
-                <div className="text-4xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                  {displayPrice.toFixed(2)}
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  {analysis && (
-                    <span className="text-base font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
-                      {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
-                    </span>
-                  )}
-                  {trendDir && (
-                    <span className="flex items-center gap-0.5 text-sm font-semibold" style={{
-                      color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)"
-                    }}>
-                      {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
-                      {trendDir === "bullish" ? "BULLISH" : trendDir === "bearish" ? "BEARISH" : "NEUTRAL"}
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <span className="text-base" style={{ color: "var(--text-muted)" }}>{cfg.label}</span>
-            )}
+            <AnimatePresence mode="wait">
+              {displayPrice !== null ? (
+                <motion.div key="price" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+                  <div className="text-4xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                    {displayPrice.toFixed(2)}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    {analysis && (
+                      <span className="text-base font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
+                        {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
+                      </span>
+                    )}
+                    <AnimatePresence>
+                      {trendDir && (
+                        <motion.span
+                          key={trendDir}
+                          className="flex items-center gap-0.5 text-sm font-semibold"
+                          style={{ color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)" }}
+                          variants={popVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="hidden"
+                          transition={TRANSITION_FAST}
+                        >
+                          {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
+                          {trendDir === "bullish" ? "BULLISH" : trendDir === "bearish" ? "BEARISH" : "NEUTRAL"}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.span key="label" className="text-base" style={{ color: "var(--text-muted)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+                  {cfg.label}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Botones Journal + Playbook + Taylor */}
@@ -515,13 +543,15 @@ export default function Dashboard() {
         </div>
 
         {/* ── Taylor sheet — cubre pantalla completa ── */}
-        <div
-          className="absolute inset-0 z-50 flex flex-col transition-transform duration-300 ease-out"
+        <motion.div
+          className="absolute inset-0 z-50 flex flex-col"
           style={{
-            transform: taylorOpen ? "translateY(0)" : "translateY(100%)",
             background: "var(--bg-panel)",
             paddingTop: "env(safe-area-inset-top, 0px)",
           }}
+          animate={{ y: taylorOpen ? "0%" : "100%" }}
+          initial={false}
+          transition={TRANSITION_SHEET}
         >
           {/* Contenido scrollable */}
           <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.5rem)" }}>
@@ -541,13 +571,18 @@ export default function Dashboard() {
               onClose={() => setTaylorOpen(false)}
             />
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
           DESKTOP LAYOUT  (>= lg)
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="hidden lg:flex lg:flex-col lg:flex-1 overflow-hidden">
+      <motion.div
+        className="hidden lg:flex lg:flex-col lg:flex-1 overflow-hidden"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={TRANSITION_APP}
+      >
 
         {/* ── Header: título + reloj ── */}
         <div
@@ -658,7 +693,7 @@ export default function Dashboard() {
             />
           </aside>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }
