@@ -120,10 +120,16 @@ export function Clock({ is24h }: { is24h: boolean }) {
   }, [is24h]);
 
   return (
-    <div className="text-right">
+    <a
+      href="https://www.exness.com/calendar/"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Economic calendar (Exness)"
+      className="text-right block"
+    >
       <div className="text-xl font-bold tracking-widest leading-none" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{time}</div>
       <div className="text-sm mt-1 font-semibold" style={{ color: statusColor }}>{statusLabel}</div>
-    </div>
+    </a>
   );
 }
 

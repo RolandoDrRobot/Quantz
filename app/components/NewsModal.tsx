@@ -88,10 +88,13 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
       if (!res.ok) throw new Error(data.error ?? "Failed to load news");
       setArticles(data.articles ?? []);
       setVisibleCount(PAGE_SIZE);
-      setLoaded(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load news");
     } finally {
+      // Set on both success and failure — otherwise a failed fetch (e.g. a
+      // missing API key) leaves `loaded` false forever, and the auto-load
+      // effect below keeps re-triggering it on every render while open.
+      setLoaded(true);
       setLoading(false);
     }
   }, [market]);
