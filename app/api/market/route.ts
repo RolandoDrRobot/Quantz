@@ -45,6 +45,7 @@ async function fetchCandles(symbol: string, interval: string, period1: number, p
 // chart matches the real-time WebSocket ticks (spot price, not futures).
 const TD_CANDLE_SOURCE: Record<string, string> = {
   "GC=F": "XAU/USD",
+  "BTC-USD": "BTC/USD",
 };
 
 async function fetchTDCandles(tdSymbol: string, interval: string, outputsize: number): Promise<RawCandle[]> {

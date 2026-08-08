@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight, FiCpu } from "react-icons/fi";
 import AxeChart from "./AxeChart";
-import BobbyPanel from "./BobbyPanel";
+import BobbyPanel, { PHASE_META } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor } from "../lib/markets";
 
-const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold"];
+const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin"];
 
 const STORAGE_MARKET = "axe-market";
 const storageKey = (symbol: string) => `axe-analysis-${symbol}`;
@@ -49,6 +49,7 @@ export default function Dashboard() {
   const [botMode, setBotMode] = useState(true);
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [taylorOpen, setTaylorOpen] = useState(false);
+  const [checkingOpportunity, setCheckingOpportunity] = useState(false);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
@@ -149,15 +150,23 @@ export default function Dashboard() {
     toast(`taylor · ${sig} · ${result.probability}%`, { duration: 3000 });
   }, [market, updateOpportunity]);
 
-  const handleTick = useCallback((price: number) => {
+  // Shared by both the live WS tick stream and the manual "check opportunity"
+  // button, so a manual check goes through exactly the same state machine —
+  // announce is only set for the manual path, to report back even when
+  // nothing changed (the WS path stays silent unless the phase moves).
+  const advancePrice = useCallback((price: number, announce = false) => {
     setLivePrice(price);
     livePriceRef.current = price;
     const prev = opportunityRef.current;
-    if (!prev) return;
+    if (!prev) {
+      if (announce) toast(`Precio actualizado · ${price.toFixed(2)}`, { duration: 2500 });
+      return;
+    }
     const next = advanceOpportunity(prev, price, botModeRef.current, analysisRef.current?.levels ?? []);
     opportunityRef.current = next;
     const levelChanged = next.level !== prev.level;
-    if (next.phase !== prev.phase || levelChanged) {
+    const transitioned = next.phase !== prev.phase || levelChanged;
+    if (transitioned) {
       setOpportunity(next);
       if (levelChanged) playBreakoutSound();
       else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") {
@@ -180,7 +189,28 @@ export default function Dashboard() {
       }
       saveState(symbolRef.current, analysisRef.current, next);
     }
+    if (announce && !transitioned) {
+      const pnl = next.phase === "CONFIRMED" ? livePnl(next, price) : null;
+      const pnlPart = pnl !== null ? ` · ${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)}` : "";
+      toast(`Sin cambios · ${PHASE_META[next.phase].label} · ${price.toFixed(2)}${pnlPart}`, { duration: 3500 });
+    }
   }, [recordTrade]);
+
+  const handleTick = useCallback((price: number) => advancePrice(price), [advancePrice]);
+
+  const handleCheckOpportunity = useCallback(async () => {
+    setCheckingOpportunity(true);
+    try {
+      const res = await fetch(`/api/market?symbol=${encodeURIComponent(symbolRef.current)}`, { cache: "no-store" });
+      if (!res.ok) { toast.error("No se pudo verificar el mercado"); return; }
+      const data = await res.json();
+      if (typeof data.currentPrice === "number") advancePrice(data.currentPrice, true);
+    } catch {
+      toast.error("Error de red al verificar");
+    } finally {
+      setCheckingOpportunity(false);
+    }
+  }, [advancePrice]);
 
   const handleMarketChange = useCallback((key: MarketKey) => {
     setMarket(key);
@@ -437,6 +467,8 @@ export default function Dashboard() {
               onTakeTrade={handleTakeTrade}
               onMarketEntry={handleMarketEntry}
               onCloseTrade={handleCloseTrade}
+              onCheckOpportunity={handleCheckOpportunity}
+              checkingOpportunity={checkingOpportunity}
               onClose={() => setTaylorOpen(false)}
             />
           </div>
@@ -513,6 +545,8 @@ export default function Dashboard() {
               onTakeTrade={handleTakeTrade}
               onMarketEntry={handleMarketEntry}
               onCloseTrade={handleCloseTrade}
+              onCheckOpportunity={handleCheckOpportunity}
+              checkingOpportunity={checkingOpportunity}
             />
           </aside>
         </div>

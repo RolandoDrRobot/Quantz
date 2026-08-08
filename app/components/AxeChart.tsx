@@ -85,6 +85,12 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     async function run() {
       const LW = await import("lightweight-charts");
 
+      // The container can unmount while the dynamic import above is in
+      // flight (fast market switching, Fast Refresh) — bail rather than
+      // dereference a null ref.
+      const el = containerRef.current;
+      if (!el) return;
+
       // ── Rebuild chart + candle series only when candles actually changed ──
       if (needRebuild) {
         prevCandlesRef.current = candles;
@@ -93,7 +99,6 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         maSeriesRef.current = null;
         seriesRef.current = null;
 
-        const el = containerRef.current!;
         chart = LW.createChart(el, {
           width:  el.clientWidth,
           height: el.clientHeight,

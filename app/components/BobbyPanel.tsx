@@ -17,7 +17,7 @@ const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; 
   WAIT:     { label: "ESPERA", color: "#a8862f", bg: "rgba(168,134,47,0.07)",  border: "rgba(168,134,47,0.30)",  Icon: FiPauseCircle },
 };
 
-const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
+export const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
   HUNTING:       { label: "BUSCANDO BREAKOUT",          color: "#838a94", step: 0 },
   AWAIT_RETEST:  { label: "BREAKOUT — ESPERANDO RETEST", color: "#a8862f", step: 1 },
   RETEST_ACTIVE: { label: "RETEST ACTIVO",              color: "#c9a545", step: 2 },
@@ -124,7 +124,7 @@ function Clock({ is24h }: { is24h: boolean }) {
 
 // ── The Trade card — everything about the position in one place ──────────────
 function TradeCard({
-  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade,
+  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checking,
 }: {
   opp: Opportunity;
   price: number | null;
@@ -133,6 +133,8 @@ function TradeCard({
   onTakeTrade: () => void;
   onMarketEntry: () => void;
   onCloseTrade: () => void;
+  onCheckOpportunity: () => void;
+  checking: boolean;
 }) {
   // Values come from the LIVE opportunity — it can re-anchor to closer levels
   const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * 100);
@@ -186,21 +188,39 @@ function TradeCard({
         boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33` : "none",
       }}
     >
-      {/* Header: phase + direction pill */}
-      <div className="flex items-center justify-between px-5 pt-4">
-        <div className="flex items-center gap-2">
-          {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: meta.color }} />}
-          <span className="font-black text-sm tracking-wider" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
+      {/* Header: phase + verify button + direction pill */}
+      <div className="flex items-center justify-between gap-2 px-5 pt-4">
+        <div className="flex items-center gap-2 min-w-0">
+          {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: meta.color }} />}
+          <span className="font-black text-sm tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
             {meta.label}
           </span>
         </div>
-        <span
-          className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider"
-          style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
-        >
-          {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
-          {opp.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · {lots} LOTES
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {!isTerminal && (
+            <button
+              onClick={onCheckOpportunity}
+              disabled={checking}
+              title="Verificar oportunidad actual"
+              className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-secondary)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                cursor: checking ? "not-allowed" : "pointer",
+              }}
+            >
+              <FiRefreshCw size={12} className={checking ? "animate-spin" : ""} />
+            </button>
+          )}
+          <span
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider whitespace-nowrap"
+            style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
+          >
+            {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
+            {opp.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · {lots.toFixed(2)} LOTES
+          </span>
+        </div>
       </div>
 
       {/* Status + P/L */}
@@ -299,12 +319,14 @@ interface Props {
   onTakeTrade: () => void;
   onMarketEntry: () => void;
   onCloseTrade: () => void;
+  onCheckOpportunity: () => void;
+  checkingOpportunity: boolean;
   onClose?: () => void;
 }
 
 export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
-  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onClose,
+  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checkingOpportunity, onClose,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -385,7 +407,7 @@ export default function BobbyPanel({
       <div className="flex items-center gap-2.5 px-6 py-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         {[
           ["SL", market.slLabel, "#eceef0"],
-          ["LOTES", `${lots}`, "#eceef0"],
+          ["LOTES", lots.toFixed(2), "#eceef0"],
           ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#a8862f"],
           ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#c24545"],
         ].map(([k, v, c]) => (
@@ -434,6 +456,8 @@ export default function BobbyPanel({
               onTakeTrade={onTakeTrade}
               onMarketEntry={onMarketEntry}
               onCloseTrade={onCloseTrade}
+              onCheckOpportunity={onCheckOpportunity}
+              checking={checkingOpportunity}
             />
           ) : (
             <div className="rounded-2xl px-5 py-4 text-sm" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>

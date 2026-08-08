@@ -44,6 +44,19 @@ export const MARKETS = {
     spreadPoints: 0.15,
     color: "#c9a838",
   },
+  bitcoin: {
+    symbol: "BTC-USD",
+    tdSymbol: "BTC/USD",
+    label: "Bitcoin",
+    short: "BTCUSD",
+    description: "Bitcoin · 24/7",
+    is24h: true,
+    slPoints: 150,
+    slLabel: "$150",
+    contractSize: 1,
+    spreadPoints: 20,
+    color: "#f7931a",
+  },
 } as const;
 
 export type MarketKey = keyof typeof MARKETS;
