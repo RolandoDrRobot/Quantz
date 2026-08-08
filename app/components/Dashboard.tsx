@@ -317,6 +317,7 @@ export default function Dashboard() {
             accentColor={cfg.color}
             symbol={cfg.symbol}
             tdSymbol={cfg.tdSymbol}
+            binanceSymbol={cfg.binanceSymbol}
             onTick={handleTick}
           />
           {opportunity?.phase === "RETEST_ACTIVE" && (

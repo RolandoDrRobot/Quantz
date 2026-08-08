@@ -41,6 +41,7 @@ interface Props {
   accentColor?: string;
   symbol: string;
   tdSymbol: string;
+  binanceSymbol?: string | null;
   onTick?: (price: number) => void;
 }
 
@@ -56,7 +57,7 @@ const LEGEND = [
   { color: P.tp,          label: "Take Profit",    style: "solid" },
 ];
 
-export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#a8862f", symbol, tdSymbol, onTick }: Props) {
+export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, accentColor = "#a8862f", symbol, tdSymbol, binanceSymbol, onTick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef  = useRef<any>(null);
@@ -285,7 +286,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
 
   // ── Live data ────────────────────────────────────────────────────────────
-  // Twelve Data WebSocket for all assets (indices, commodities, 24/5 real-time)
+  // Binance's public trade stream for Bitcoin; Twelve Data's WS for
+  // everything else (indices, commodities, 24/5 real-time).
   useEffect(() => {
     if (!symbol) return;
 
@@ -322,7 +324,28 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatId: ReturnType<typeof setInterval> | null = null;
 
-    if (TD_API_KEY && tdSymbol) {
+    if (binanceSymbol) {
+      // Binance's public trade stream — free, no key, no subscribe handshake
+      // or heartbeat needed (the browser answers WS ping frames natively).
+      const streamSymbol = binanceSymbol.toLowerCase();
+      const connect = () => {
+        if (closed) return;
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${streamSymbol}@trade`);
+        ws.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            const price = parseFloat(msg.p);
+            if (isFinite(price)) {
+              const tsSec = typeof msg.T === "number" ? Math.floor(msg.T / 1000) : Math.floor(Date.now() / 1000);
+              applyTick(price, tsSec);
+            }
+          } catch { /* skip */ }
+        };
+        ws.onclose = () => { if (!closed) reconnectTimer = setTimeout(connect, 3000); };
+        ws.onerror = () => { ws?.close(); };
+      };
+      connect();
+    } else if (TD_API_KEY && tdSymbol) {
       const connect = () => {
         if (closed) return;
         ws = new WebSocket(`wss://ws.twelvedata.com/v1/quotes/price?apikey=${TD_API_KEY}`);
@@ -356,7 +379,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       if (heartbeatId) clearInterval(heartbeatId);
       ws?.close();
     };
-  }, [symbol, tdSymbol]);
+  }, [symbol, tdSymbol, binanceSymbol]);
 
   return (
     <div className="relative w-full h-full" style={{ background: P.bg }}>

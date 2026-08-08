@@ -48,8 +48,47 @@ async function fetchCandles(symbol: string, interval: string, period1: number, p
 // undefined.
 const TD_CANDLE_SOURCE = new Map<string, string>([
   ["GC=F", "XAU/USD"],
-  ["BTC-USD", "BTC/USD"],
 ]);
+
+// Symbols sourced from Binance's public API instead — free, no key, and
+// (unlike Twelve Data's free tier) actually reports real trade volume.
+const BINANCE_SOURCE = new Map<string, string>([
+  ["BTC-USD", "BTCUSDT"],
+]);
+
+// Binance caps each klines request at 1000 bars, so reaching the same
+// history depth as the Twelve Data path (5000x5m / 3000x1m) means paging
+// backwards with `endTime`. Binance's public rate limit is generous enough
+// that this is still fast — nothing like Twelve Data's 8-credits/minute cap.
+async function fetchBinanceCandles(symbol: string, interval: "1m" | "5m", totalWanted: number): Promise<RawCandle[]> {
+  const PAGE = 1000;
+  let out: RawCandle[] = [];
+  let endTime: number | undefined;
+  try {
+    while (out.length < totalWanted) {
+      const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${PAGE}`
+        + (endTime !== undefined ? `&endTime=${endTime}` : "");
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) break;
+      const data: unknown = await res.json();
+      if (!Array.isArray(data) || data.length === 0) break;
+
+      const batch: RawCandle[] = [];
+      for (const k of data) {
+        if (!Array.isArray(k)) continue;
+        const time = Math.floor(Number(k[0]) / 1000);
+        const o = parseFloat(String(k[1])), h = parseFloat(String(k[2])), l = parseFloat(String(k[3])), c = parseFloat(String(k[4]));
+        const v = parseFloat(String(k[5]));
+        if (!isFinite(time) || !isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c)) continue;
+        batch.push({ time, open: o, high: h, low: l, close: c, volume: isFinite(v) ? v : 0 });
+      }
+      out = [...batch, ...out]; // this page is older than everything already collected
+      if (data.length < PAGE) break; // hit the start of Binance's available history
+      endTime = Number((data[0] as unknown[])[0]) - 1;
+    }
+  } catch { /* return whatever pages succeeded before the failure */ }
+  return out.length > totalWanted ? out.slice(out.length - totalWanted) : out;
+}
 
 async function fetchTDCandles(tdSymbol: string, interval: string, outputsize: number): Promise<RawCandle[]> {
   try {
@@ -100,8 +139,18 @@ export async function GET(request: Request) {
   let candles5m: RawCandle[];
   let candles1m: RawCandle[];
 
+  const binanceSource = BINANCE_SOURCE.get(symbol);
   const tdSource = TD_CANDLE_SOURCE.get(symbol);
-  if (tdSource) {
+  if (binanceSource) {
+    // Same depth target as the Twelve Data path: ~17 days of 5m for
+    // analysis, ~2 days of 1m for the chart.
+    const [b5m, b1m] = await Promise.all([
+      fetchBinanceCandles(binanceSource, "5m", 5000),
+      fetchBinanceCandles(binanceSource, "1m", 3000),
+    ]);
+    candles5m = dedup(b5m);
+    candles1m = dedup(b1m);
+  } else if (tdSource) {
     // Twelve Data: 5000 x 5min ≈ 17 days for analysis, 3000 x 1min ≈ 2 days for chart
     const [td5m, td1m] = await Promise.all([
       fetchTDCandles(tdSource, "5min", 5000),

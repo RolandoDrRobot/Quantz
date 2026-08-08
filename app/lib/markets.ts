@@ -8,6 +8,7 @@ export const MARKETS = {
   nasdaq: {
     symbol: "^NDX",
     tdSymbol: "NDX",
+    binanceSymbol: null,
     label: "NASDAQ 100",
     short: "US100",
     description: "NASDAQ 100 · 7:30 AM CR Open",
@@ -21,6 +22,7 @@ export const MARKETS = {
   dowjones: {
     symbol: "^DJI",
     tdSymbol: "DJI",
+    binanceSymbol: null,
     label: "Dow Jones",
     short: "US30",
     description: "Dow Jones · 7:30 AM CR Open",
@@ -34,6 +36,7 @@ export const MARKETS = {
   gold: {
     symbol: "GC=F",
     tdSymbol: "XAU/USD",
+    binanceSymbol: null,
     label: "Gold",
     short: "XAUUSD",
     description: "Gold · 23h/day · Asian Session",
@@ -47,6 +50,11 @@ export const MARKETS = {
   bitcoin: {
     symbol: "BTC-USD",
     tdSymbol: "BTC/USD",
+    // Twelve Data's free tier never reports volume for crypto — Binance's
+    // public REST/WS API is free, needs no key, and gives real price +
+    // volume for both history and the live tick stream, so Bitcoin sources
+    // everything from Binance instead.
+    binanceSymbol: "BTCUSDT",
     label: "Bitcoin",
     short: "BTCUSD",
     description: "Bitcoin · 24/7",
