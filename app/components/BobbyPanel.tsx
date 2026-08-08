@@ -244,7 +244,7 @@ function TradeCard({
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-5 py-3.5">
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#c23b30" }}>ENTRADA</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>ENTRADA</div>
           <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>

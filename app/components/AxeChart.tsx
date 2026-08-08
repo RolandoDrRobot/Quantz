@@ -25,7 +25,7 @@ const P = {
   resistance: "rgba(138,47,42,0.7)",
   support:    "rgba(28,125,76,0.7)",
 
-  entry: "rgba(194,59,48,0.7)",
+  entry: "rgba(212,167,44,0.7)",
   sl:    "rgba(138,47,42,0.7)",
   tp:    "rgba(28,125,76,0.7)",
 };
