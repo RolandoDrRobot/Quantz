@@ -186,7 +186,7 @@ function TradeCard({
 
   return (
     <div
-      className="rounded-2xl overflow-hidden"
+      className="rounded-lg overflow-hidden"
       style={{
         border: `1px solid ${meta.color}55`,
         background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-panel)`,
@@ -261,15 +261,15 @@ function TradeCard({
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-5 py-3.5">
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>ENTRADA</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
           <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · −${ACCOUNT.riskPerTrade}</div>
           <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TARGET · +${reward}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · +${reward}</div>
           <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
         </div>
       </div>
@@ -279,7 +279,7 @@ function TradeCard({
         <div className="grid grid-cols-2 gap-3 px-5 pb-4 pt-2">
           <button
             onClick={onTakeTrade}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-base tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-3 rounded-md font-black text-base tracking-widest transition-all duration-150"
             style={{
               background: opp.phase === "RETEST_ACTIVE" ? "#1c7d4c" : "rgba(28,125,76,0.1)",
               color: opp.phase === "RETEST_ACTIVE" ? "#050e1a" : "#1c7d4c",
@@ -293,7 +293,7 @@ function TradeCard({
           <button
             onClick={onMarketEntry}
             disabled={price === null}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-base tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-3 rounded-md font-black text-base tracking-widest transition-all duration-150"
             style={{
               background: "rgba(28,125,76,0.1)",
               color: "#c23b30",
@@ -311,7 +311,7 @@ function TradeCard({
         <div className="px-5 pb-4 pt-2">
           <button
             onClick={onCloseTrade}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-base tracking-widest transition-all duration-150"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-black text-base tracking-widest transition-all duration-150"
             style={{
               background: "rgba(138,47,42,0.1)",
               color: "#8a2f2a",
@@ -425,7 +425,7 @@ export default function BobbyPanel({
         <button
           onClick={analyze}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
+          className="px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
           style={{
             background: "transparent",
             color: "#1c7d4c",
@@ -440,7 +440,7 @@ export default function BobbyPanel({
           </span>
         </button>
         {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
+          <button onClick={onClose} className="p-1.5 rounded" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
             <FiX size={18} />
           </button>
         )}
@@ -464,7 +464,7 @@ export default function BobbyPanel({
 
       {/* Error */}
       {error && (
-        <div className="mx-6 mt-5 p-4 rounded-xl text-base" style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}>
+        <div className="mx-6 mt-5 p-4 rounded-md text-base" style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}>
           {error}
         </div>
       )}
@@ -486,13 +486,13 @@ export default function BobbyPanel({
               onToggleBot={onToggleBot}
             />
           ) : (
-            <div className="rounded-2xl px-5 py-4 text-base" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
+            <div className="rounded-lg px-5 py-4 text-base" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
               Sin setup tradeable — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
 
           {/* Signal + probability gauge */}
-          <div className="rounded-2xl flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-lg flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <ProbRing value={result.probability} />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -508,7 +508,7 @@ export default function BobbyPanel({
 
           {/* Warnings — solo si existen */}
           {result.warnings.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(138,47,42,0.35)" }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(138,47,42,0.35)" }}>
               <div className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}>
                 <FiAlertTriangle size={13} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
               </div>
@@ -527,42 +527,46 @@ export default function BobbyPanel({
           )}
 
           {/* Score factors */}
-          <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg py-4 lg:px-5" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
                 const { Icon, color: c } = factorVisual(pct);
                 return (
                   <div
                     key={i}
-                    className="flex flex-col items-center text-center gap-2 rounded-xl px-3 py-4"
+                    className="flex items-center text-left gap-3 rounded-md px-4 py-3 w-full lg:flex-col lg:items-center lg:text-center lg:gap-2 lg:px-3 lg:py-4"
                     style={{ background: "var(--bg-elevated)", border: `1px solid ${c}33` }}
                   >
-                    <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: `${c}26` }}>
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0" style={{ background: `${c}26` }}>
                       <Icon size={18} color={c} />
                     </span>
-                    <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{f.label}</span>
-                    <span className="font-black text-3xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
+                    <div className="flex flex-col lg:contents">
+                      <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{f.label}</span>
+                      <span className="font-black text-3xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
+                    </div>
                   </div>
                 );
               })}
               {result.penalties.map((p, i) => (
                 <div
                   key={`p${i}`}
-                  className="flex flex-col items-center text-center gap-2 rounded-xl px-3 py-4"
+                  className="flex items-center text-left gap-3 rounded-md px-4 py-3 w-full lg:flex-col lg:items-center lg:text-center lg:gap-2 lg:px-3 lg:py-4"
                   style={{ background: "rgba(138,47,42,0.06)", border: "1px solid rgba(138,47,42,0.35)" }}
                 >
-                  <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: "rgba(138,47,42,0.15)" }}>
+                  <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0" style={{ background: "rgba(138,47,42,0.15)" }}>
                     <FiAlertTriangle size={18} color="#8a2f2a" />
                   </span>
-                  <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{p.label}</span>
-                  <span className="font-black text-3xl leading-none" style={{ color: "#8a2f2a", fontFamily: "var(--font-display)" }}>{p.points}</span>
+                  <div className="flex flex-col lg:contents">
+                    <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{p.label}</span>
+                    <span className="font-black text-3xl leading-none" style={{ color: "#8a2f2a", fontFamily: "var(--font-display)" }}>{p.points}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-2xl px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
+          <div className="rounded-lg px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
             <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
             <p className="text-lg leading-relaxed" style={{ color: "#9ba5b2" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (

@@ -6,7 +6,7 @@ import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../li
 
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
-    <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="text-[11px] font-bold tracking-[0.2em]" style={{ color: "var(--text-secondary)" }}>{label}</div>
       <div className={`${big ? "text-4xl" : "text-2xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#f2f5f8", fontFamily: "var(--font-display)" }}>
         {value}
@@ -48,7 +48,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
   return (
     <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6" style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
       <div
-        className="w-full lg:max-w-4xl h-[92dvh] lg:h-[88vh] rounded-t-3xl lg:rounded-2xl overflow-hidden flex flex-col"
+        className="w-full lg:max-w-4xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
         style={{ background: "var(--bg-panel)", border: "1px solid var(--gold-border)", boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -65,14 +65,14 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
           <div className="flex items-center gap-2">
             <button
               onClick={handleClear}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold tracking-wider"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold tracking-wider"
               style={{ background: "rgba(138,47,42,0.08)", color: "#8a2f2a", border: "1px solid rgba(138,47,42,0.3)", cursor: "pointer", fontFamily: "var(--font-display)" }}
             >
               <FiTrash2 size={13} /> LIMPIAR TODO
             </button>
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold"
               style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
             >
               <FiX size={13} /> CERRAR
@@ -111,7 +111,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               </div>
 
               {/* Wins vs losses bar */}
-              <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center justify-between text-[12px] font-bold mb-2">
                   <span style={{ color: "#1c7d4c" }}>{stats.wins} GANANCIAS · +${stats.grossWin.toFixed(0)}</span>
                   <span style={{ color: "#8a2f2a" }}>{stats.losses} PÉRDIDAS · −${stats.grossLoss.toFixed(0)}</span>
@@ -123,7 +123,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               </div>
 
               {/* Trade list */}
-              <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="overflow-x-auto">
                 <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[11px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
                   <span>FECHA</span><span>MERCADO</span><span>LADO</span><span>ENTRADA → SALIDA</span><span>RESULTADO</span><span>P/L</span><span>R</span>

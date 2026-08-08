@@ -335,7 +335,7 @@ export default function Dashboard() {
           />
           {opportunity?.phase === "RETEST_ACTIVE" && (
             <div
-              className="absolute left-4 right-4 rounded-2xl p-4 z-10"
+              className="absolute left-4 right-4 rounded-lg p-4 z-10"
               style={{
                 top: "3.5rem",
                 background: "rgba(5,14,26,0.96)",
@@ -409,7 +409,7 @@ export default function Dashboard() {
                   <button
                     key={key}
                     onClick={() => handleMarketChange(key)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-black tracking-wider transition-all duration-200"
+                    className="flex-1 py-2.5 rounded-md text-sm font-black tracking-wider transition-all duration-200"
                     style={{
                       background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -425,7 +425,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => setRecordsOpen(true)}
-              className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-bold"
+              className="flex items-center gap-1 px-3 py-2.5 rounded-md text-sm font-bold"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 color: "var(--text-primary)",
@@ -479,7 +479,7 @@ export default function Dashboard() {
           {/* Botón Taylor */}
           <button
             onClick={() => setTaylorOpen(true)}
-            className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-base tracking-widest transition-all duration-150 active:scale-95"
+            className="flex items-center gap-2 px-6 py-4 rounded-lg font-black text-base tracking-widest transition-all duration-150 active:scale-95"
             style={{
               background: "var(--gold-dim)",
               color: "var(--gold)",
@@ -552,7 +552,7 @@ export default function Dashboard() {
               <button
                 key={key}
                 onClick={() => handleMarketChange(key)}
-                className="px-4 py-2 rounded-xl text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
+                className="px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
                   background: active ? "var(--gold-dim)" : "transparent",
                   color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -568,7 +568,7 @@ export default function Dashboard() {
           <span className="ml-3 text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
           <button
             onClick={() => setRecordsOpen(true)}
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
+            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
               background: "rgba(255,255,255,0.06)",
               color: "var(--text-primary)",
