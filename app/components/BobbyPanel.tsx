@@ -361,9 +361,15 @@ export default function BobbyPanel({
       }
       const data = await res.json();
 
+      // Scalping runs the analysis engine (levels, trend, breakout) on 1min
+      // candles — much faster reads than the old 5min basis. Falls back to
+      // 5min only if 1min data is too thin to trust (e.g. a gappy session).
+      const candles1m: RawCandle[] = data.candles1m ?? [];
+      const analysisCandles = candles1m.length >= 60 ? candles1m : data.candles5m;
+
       const { runAnalysis } = await import("../lib/analysis");
       const fresh = runAnalysis(
-        data.candles5m,
+        analysisCandles,
         data.currentPrice,
         data.prevClose,
         market.is24h,
@@ -371,7 +377,7 @@ export default function BobbyPanel({
         market.label
       );
       if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
-      onAnalysis(fresh, data.candles5m, data.candles1m ?? []);
+      onAnalysis(fresh, data.candles5m, candles1m);
     } catch (e: unknown) {
       if (marketSymbolRef.current !== requestSymbol) return;
       setError(e instanceof Error ? e.message : "Something went wrong");

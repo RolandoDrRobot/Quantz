@@ -1,7 +1,7 @@
 // FTMO-style account settings — reflected across the whole app
 export const ACCOUNT = {
   balance: 1000,
-  riskPerTrade: 100,
+  riskPerTrade: 25,
 };
 
 export const MARKETS = {
@@ -13,8 +13,8 @@ export const MARKETS = {
     short: "US100",
     description: "NASDAQ 100 · 7:30 AM CR Open",
     is24h: false,
-    slPoints: 40,
-    slLabel: "40 pts",
+    slPoints: 20,
+    slLabel: "20 pts",
     contractSize: 1,
     spreadPoints: 2.0,
     color: "#1f9d5c",
@@ -27,8 +27,8 @@ export const MARKETS = {
     short: "US30",
     description: "Dow Jones · 7:30 AM CR Open",
     is24h: false,
-    slPoints: 40,
-    slLabel: "40 pts",
+    slPoints: 20,
+    slLabel: "20 pts",
     contractSize: 1,
     spreadPoints: 2.5,
     color: "#3a72c9",
@@ -41,8 +41,8 @@ export const MARKETS = {
     short: "XAUUSD",
     description: "Gold · 23h/day · Asian Session",
     is24h: true,
-    slPoints: 4,
-    slLabel: "40 pips ($4.00)",
+    slPoints: 2,
+    slLabel: "20 pips ($2.00)",
     contractSize: 100,
     spreadPoints: 0.15,
     color: "#c9a838",
@@ -59,11 +59,27 @@ export const MARKETS = {
     short: "BTCUSD",
     description: "Bitcoin · 24/7",
     is24h: true,
-    slPoints: 150,
-    slLabel: "$150",
+    slPoints: 75,
+    slLabel: "$75",
     contractSize: 1,
     spreadPoints: 20,
     color: "#f7931a",
+  },
+  ethereum: {
+    symbol: "ETH-USD",
+    tdSymbol: "ETH/USD",
+    binanceSymbol: "ETHUSDT",
+    label: "Ethereum",
+    short: "ETHUSD",
+    description: "Ethereum · 24/7",
+    is24h: true,
+    // Same SL-to-price ratio as Bitcoin (~0.13%) for a consistent scalping
+    // feel across both crypto instruments — ETH trades far cheaper than BTC.
+    slPoints: 2.5,
+    slLabel: "$2.50",
+    contractSize: 1,
+    spreadPoints: 0.5,
+    color: "#627eea",
   },
 } as const;
 

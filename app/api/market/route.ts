@@ -54,6 +54,7 @@ const TD_CANDLE_SOURCE = new Map<string, string>([
 // (unlike Twelve Data's free tier) actually reports real trade volume.
 const BINANCE_SOURCE = new Map<string, string>([
   ["BTC-USD", "BTCUSDT"],
+  ["ETH-USD", "ETHUSDT"],
 ]);
 
 // Binance caps each klines request at 1000 bars, so reaching the same

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor } from "../lib/markets";
 
-const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin"];
+const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
 
 const STORAGE_MARKET = "axe-market";
 const storageKey = (symbol: string) => `axe-analysis-${symbol}`;

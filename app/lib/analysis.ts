@@ -13,7 +13,7 @@ export interface TrendInfo {
   direction: "bullish" | "bearish" | "neutral";
   momentum: "strong" | "moderate" | "weak";
   ma20: number;
-  change1h: number;
+  changeRecent: number; // % change over the last ~15 minutes
 }
 
 export interface TradeSetup {
@@ -73,8 +73,10 @@ export interface AnalysisResult {
 export function findLevels(candles: RawCandle[], currentPrice: number): Level[] {
   if (candles.length < 10) return [];
 
-  // Use only the last 500 candles (~2 weeks on 5min) for level detection
-  const slice = candles.slice(-500);
+  // Use only the last 600 candles (~10h on 1min) for level detection —
+  // scalping cares about levels formed in the current session, not stale
+  // ones from days ago.
+  const slice = candles.slice(-600);
   const lookback = 3;
   const threshold = currentPrice * 0.0012;
 
@@ -120,19 +122,23 @@ export function findLevels(candles: RawCandle[], currentPrice: number): Level[] 
 // ─── Trend ───────────────────────────────────────────────────────────────────
 
 function detectTrend(candles: RawCandle[]): TrendInfo {
-  const slice = candles.slice(-60); // last 5 hours of 5min candles
-  if (slice.length < 20) return { direction: "neutral", momentum: "weak", ma20: 0, change1h: 0 };
+  const slice = candles.slice(-60); // last 60 minutes on 1min candles
+  if (slice.length < 20) return { direction: "neutral", momentum: "weak", ma20: 0, changeRecent: 0 };
 
+  // ma20 on 1min candles = a 20-minute moving average — fast enough to react
+  // within a scalping timeframe instead of the old ~100-minute MA on 5m bars.
   const ma20 = slice.slice(-20).reduce((s, c) => s + c.close, 0) / 20;
   const current = slice[slice.length - 1].close;
-  const oneHourAgo = slice[Math.max(0, slice.length - 12)].close;
-  const change1h = ((current - oneHourAgo) / oneHourAgo) * 100;
+  const recentAgo = slice[Math.max(0, slice.length - 15)].close;
+  const changeRecent = ((current - recentAgo) / recentAgo) * 100;
 
   const direction = current > ma20 ? "bullish" : current < ma20 ? "bearish" : "neutral";
-  const abs = Math.abs(change1h);
-  const momentum = abs > 0.5 ? "strong" : abs > 0.15 ? "moderate" : "weak";
+  const abs = Math.abs(changeRecent);
+  // Thresholds scaled down from the old 1h-window values (0.5% / 0.15%) to
+  // match a ~15min window — roughly sqrt(15/60) of the hourly move size.
+  const momentum = abs > 0.20 ? "strong" : abs > 0.07 ? "moderate" : "weak";
 
-  return { direction, momentum, ma20, change1h };
+  return { direction, momentum, ma20, changeRecent };
 }
 
 // ─── Volume ──────────────────────────────────────────────────────────────────
@@ -167,8 +173,9 @@ function analyzeVolume(candles: RawCandle[]): VolumeInfo {
 function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number): BreakoutEvent | null {
   if (candles.length < 15) return null;
 
-  // Look only at last 24 candles (2 hours) — stale breakouts don't matter
-  const window = candles.slice(-24);
+  // Look only at last 30 candles (30 minutes on 1min) — scalping cares about
+  // breakouts happening right now, not something that broke an hour ago.
+  const window = candles.slice(-30);
   const retestZone = slPoints * 0.25; // retest = price within 1/4 SL of the level
   const failDist  = slPoints * 0.75; // close beyond this against the break = failed breakout
 
@@ -176,10 +183,12 @@ function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number)
     const curr = window[i];
     const prev = window[i - 1];
 
-    // Candle must have a real body (not a doji)
+    // Candle must have a real body (not a doji). 1min candles are naturally
+    // smaller than 5min ones — the old 0.06%-of-price threshold rejected
+    // almost every 1min bar, so it's halved here to still catch real moves.
     const bodySize = Math.abs(curr.close - curr.open);
     const range = curr.high - curr.low;
-    if (range === 0 || bodySize / range < 0.45 || bodySize / curr.close < 0.0006) continue;
+    if (range === 0 || bodySize / range < 0.45 || bodySize / curr.close < 0.0003) continue;
 
     for (const level of levels) {
       // Abrupt pierce through the level, no gap
@@ -413,13 +422,15 @@ export function runAnalysis(
   // ── Warnings & penalties: the context the raw score can't see ────────────
   const warnings: Warning[] = [];
   const penalties: ProbFactor[] = [];
-  const recent2h = candles.slice(-24);
-  const hi2h = Math.max(...recent2h.map(c => c.high));
-  const lo2h = Math.min(...recent2h.map(c => c.low));
+  // 30 minutes on 1min candles — was "2 hours" back when this ran on 5min
+  // bars; scalping cares about the range that's actually relevant right now.
+  const recentRange = candles.slice(-30);
+  const hiRecent = Math.max(...recentRange.map(c => c.high));
+  const loRecent = Math.min(...recentRange.map(c => c.low));
 
-  // Whipsaw: the breakout level was crossed in BOTH directions in the last hour
+  // Whipsaw: the breakout level was crossed in BOTH directions in the last 15 minutes
   if (breakout) {
-    const w = candles.slice(-12);
+    const w = candles.slice(-15);
     let up = 0, down = 0;
     for (let i = 1; i < w.length; i++) {
       if (w[i - 1].close < breakout.level && w[i].close > breakout.level) up++;
@@ -429,7 +440,7 @@ export function runAnalysis(
       warnings.push({
         severity: "high",
         title: "Whipsaw en el nivel",
-        detail: `${breakout.level.toFixed(2)} se quebró en AMBAS direcciones en la última hora — los breakouts aquí se comen unos a otros. Ruido de rango clásico.`,
+        detail: `${breakout.level.toFixed(2)} se quebró en AMBAS direcciones en los últimos 15 min — los breakouts aquí se comen unos a otros. Ruido de rango clásico.`,
       });
       penalties.push({ label: "Whipsaw en nivel", points: -20, max: 0 });
     }
@@ -452,17 +463,17 @@ export function runAnalysis(
     warnings.push({
       severity: "high",
       title: "Momentum muerto",
-      detail: `Solo ${trend.change1h.toFixed(2)}% de movimiento en la última hora. Cada vela abrupta se está revirtiendo — los breakouts carecen de follow-through.`,
+      detail: `Solo ${trend.changeRecent.toFixed(2)}% de movimiento en los últimos 15 min. Cada vela abrupta se está revirtiendo — los breakouts carecen de follow-through.`,
     });
   }
 
-  // Range-bound: 2h range too small relative to the SL
-  const range2h = hi2h - lo2h;
-  if (range2h < slPoints * 3) {
+  // Range-bound: recent range too small relative to the SL
+  const rangeRecent = hiRecent - loRecent;
+  if (rangeRecent < slPoints * 3) {
     warnings.push({
       severity: "medium",
       title: "Mercado rango-limitado",
-      detail: `El rango de 2h es solo ${range2h.toFixed(2)} pts vs tu SL de ${slPoints} pts. El chop normal puede tocar tu stop sin un movimiento real.`,
+      detail: `El rango de los últimos 30 min es solo ${rangeRecent.toFixed(2)} pts vs tu SL de ${slPoints} pts. El chop normal puede tocar tu stop sin un movimiento real.`,
     });
     penalties.push({ label: "Tape rango-limitado", points: -10, max: 0 });
   }
@@ -470,13 +481,13 @@ export function runAnalysis(
   // SL exposed: the stop sits inside the recent price range
   if (tradeSetup) {
     const slExposed = tradeSetup.direction === "short"
-      ? tradeSetup.stopLoss <= hi2h
-      : tradeSetup.stopLoss >= lo2h;
+      ? tradeSetup.stopLoss <= hiRecent
+      : tradeSetup.stopLoss >= loRecent;
     if (slExposed) {
       warnings.push({
         severity: "medium",
         title: "SL dentro del rango reciente",
-        detail: `Tu stop en ${tradeSetup.stopLoss.toFixed(2)} está dentro del rango de últimas 2h (${lo2h.toFixed(2)}–${hi2h.toFixed(2)}). Un whipsaw normal puede sacarlo.`,
+        detail: `Tu stop en ${tradeSetup.stopLoss.toFixed(2)} está dentro del rango de los últimos 30 min (${loRecent.toFixed(2)}–${hiRecent.toFixed(2)}). Un whipsaw normal puede sacarlo.`,
       });
     }
   }
