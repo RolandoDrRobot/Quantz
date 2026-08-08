@@ -174,9 +174,11 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           volSeriesRef.current = vs;
         }
 
-        const barsToShow = 240;
+        // Tighter default zoom for scalping — fewer bars on screen means
+        // each candle reads bigger and price action is easier to react to.
+        const barsToShow = 90;
         if (clean.length > barsToShow) {
-          chart.timeScale().setVisibleLogicalRange({ from: clean.length - barsToShow, to: clean.length + 8 });
+          chart.timeScale().setVisibleLogicalRange({ from: clean.length - barsToShow, to: clean.length + 5 });
         } else {
           chart.timeScale().fitContent();
         }
