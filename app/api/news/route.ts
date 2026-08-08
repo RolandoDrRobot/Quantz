@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import type { MarketKey } from "../../lib/markets";
+import { MARKETS, type MarketKey } from "../../lib/markets";
 import type { NewsArticle } from "../../lib/news";
+
+const MARKET_KEYS = new Set<string>(Object.keys(MARKETS));
+function isMarketKey(v: string | null): v is MarketKey {
+  return v !== null && MARKET_KEYS.has(v);
+}
 
 interface FinnhubArticle {
   id: number;
@@ -69,40 +74,52 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const forceRefresh = searchParams.get("refresh") === "1";
+  const marketParam = searchParams.get("market");
+  const marketFilter = isMarketKey(marketParam) ? marketParam : null;
+
+  let all: NewsArticle[];
+  let cached: boolean;
 
   if (!forceRefresh && cache && Date.now() - cache.at < CACHE_MS) {
-    return NextResponse.json({ articles: cache.articles, cached: true });
+    all = cache.articles;
+    cached = true;
+  } else {
+    const [general, forex, crypto] = await Promise.all([
+      fetchCategory("general", key),
+      fetchCategory("forex", key),
+      fetchCategory("crypto", key),
+    ]);
+
+    const seen = new Set<string>();
+    const merged: NewsArticle[] = [];
+    for (const a of [...general, ...forex, ...crypto]) {
+      if (!a.headline || !a.url || !a.datetime) continue;
+      if (seen.has(a.url)) continue;
+      seen.add(a.url);
+      const relevantTo = relevantMarkets(`${a.headline} ${a.summary ?? ""}`);
+      if (relevantTo.length === 0) continue; // only news that actually touches one of our 5 markets
+      merged.push({
+        id: String(a.id ?? a.url),
+        headline: a.headline,
+        summary: a.summary ?? "",
+        url: a.url,
+        image: a.image || null,
+        source: a.source || "Unknown",
+        datetime: a.datetime,
+        relevantTo,
+      });
+    }
+
+    merged.sort((x, y) => y.datetime - x.datetime);
+    all = merged.slice(0, 60);
+    cache = { at: Date.now(), articles: all };
+    cached = false;
   }
 
-  const [general, forex, crypto] = await Promise.all([
-    fetchCategory("general", key),
-    fetchCategory("forex", key),
-    fetchCategory("crypto", key),
-  ]);
+  // The underlying fetch+cache always covers all 5 markets at once (cheap on
+  // Finnhub's quota) — a `market` filter narrows the response per-request
+  // without ever needing a separate upstream fetch per instrument.
+  const articles = marketFilter ? all.filter(a => a.relevantTo.includes(marketFilter)) : all;
 
-  const seen = new Set<string>();
-  const merged: NewsArticle[] = [];
-  for (const a of [...general, ...forex, ...crypto]) {
-    if (!a.headline || !a.url || !a.datetime) continue;
-    if (seen.has(a.url)) continue;
-    seen.add(a.url);
-    const relevantTo = relevantMarkets(`${a.headline} ${a.summary ?? ""}`);
-    if (relevantTo.length === 0) continue; // only news that actually touches one of our 5 markets
-    merged.push({
-      id: String(a.id ?? a.url),
-      headline: a.headline,
-      summary: a.summary ?? "",
-      url: a.url,
-      image: a.image || null,
-      source: a.source || "Unknown",
-      datetime: a.datetime,
-      relevantTo,
-    });
-  }
-
-  merged.sort((x, y) => y.datetime - x.datetime);
-  const articles = merged.slice(0, 60);
-
-  cache = { at: Date.now(), articles };
-  return NextResponse.json({ articles, cached: false });
+  return NextResponse.json({ articles, cached });
 }

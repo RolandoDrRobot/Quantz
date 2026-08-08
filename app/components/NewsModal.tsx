@@ -58,7 +58,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
   );
 }
 
-export default function NewsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function NewsModal({ open, onClose, market }: { open: boolean; onClose: () => void; market: MarketKey }) {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
@@ -69,7 +69,7 @@ export default function NewsModal({ open, onClose }: { open: boolean; onClose: (
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/news${refresh ? "?refresh=1" : ""}`, { cache: "no-store" });
+      const res = await fetch(`/api/news?market=${market}${refresh ? "&refresh=1" : ""}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load news");
       setArticles(data.articles ?? []);
@@ -80,11 +80,20 @@ export default function NewsModal({ open, onClose }: { open: boolean; onClose: (
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [market]);
 
-  // Lazy-load on first open — avoids fetching news that's never viewed if
-  // the user never taps the ticker this session.
+  // Switching markets invalidates whatever was loaded for the previous one
+  // — the server-side cache makes the refetch cheap, it's just a re-filter
+  // of already-fetched data (see /api/news), not a fresh Finnhub hit.
   /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setLoaded(false);
+    setArticles([]);
+  }, [market]);
+
+  // Lazy-load on first open (or after a market change resets `loaded`) —
+  // avoids fetching news that's never viewed if the user never taps the
+  // ticker this session.
   useEffect(() => {
     if (open && !loaded && !loading) load(false);
   }, [open, loaded, loading, load]);

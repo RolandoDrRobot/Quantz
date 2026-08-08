@@ -80,13 +80,16 @@ export default function Dashboard() {
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
 
-  // News ticker feed — one shared fetch for the marquee, independent of the
-  // NewsModal's own fetch (the modal loads lazily on first open and supports
-  // a manual refresh; this just keeps the marquee text reasonably current).
+  // News ticker feed — scoped to the selected market, so switching markets
+  // reloads it. The server keeps one shared cache of all 5 markets' news
+  // underneath (see /api/news), so this reload is cheap — it never triggers
+  // a fresh Finnhub fetch on its own, just a re-filter of already-cached data.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
+    setNewsTicker([]);
     const load = () => {
-      fetch("/api/news", { cache: "no-store" })
+      fetch(`/api/news?market=${market}`, { cache: "no-store" })
         .then(r => r.json())
         .then(data => { if (!cancelled && Array.isArray(data.articles)) setNewsTicker(data.articles); })
         .catch(() => {});
@@ -94,7 +97,8 @@ export default function Dashboard() {
     load();
     const id = setInterval(load, 5 * 60 * 1000);
     return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  }, [market]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const opportunityRef = useRef<Opportunity | null>(null);
   const updateOpportunity = useCallback((next: Opportunity | null) => {
@@ -377,6 +381,13 @@ export default function Dashboard() {
     return items;
   }, [analysis, opportunity, cfg]);
 
+  // Marquee speed scales with content so reading pace stays comfortable
+  // regardless of how many items are loaded — a fixed-duration loop reads
+  // fine with a handful of items but races by unreadably once there are 50+
+  // news headlines queued up.
+  const oppTickerDuration = Math.max(15, tickerItems.length * 3.5);
+  const newsMarqueeDuration = Math.max(40, newsTicker.length * 6);
+
   // ── Shared chart block ───────────────────────────────────────────────────────
   const chartBlock = (
     <div className="relative w-full h-full">
@@ -444,7 +455,7 @@ export default function Dashboard() {
       <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} refreshToken={recordsVersion} />
       <PlaybookModal open={playbookOpen} onClose={() => setPlaybookOpen(false)} />
       <JournalModal open={journalOpen} onClose={() => setJournalOpen(false)} />
-      <NewsModal open={newsOpen} onClose={() => setNewsOpen(false)} />
+      <NewsModal open={newsOpen} onClose={() => setNewsOpen(false)} market={market} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< lg) — chart a pantalla completa
@@ -531,7 +542,7 @@ export default function Dashboard() {
               >
                 <LuNewspaper size={14} className="shrink-0" style={{ color: "var(--gold)" }} />
                 <div className="overflow-hidden flex-1">
-                  <div className="flex w-max animate-marquee">
+                  <div className="flex w-max animate-marquee" style={{ animationDuration: `${newsMarqueeDuration}s` }}>
                     {[...newsTicker, ...newsTicker].map((a, i) => (
                       <span key={i} className="flex items-center shrink-0 text-sm font-bold pl-4" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-display)" }}>
                         {a.headline}
@@ -654,7 +665,7 @@ export default function Dashboard() {
                 exit="hidden"
                 transition={TRANSITION_FAST}
               >
-                <div className="flex w-max py-2 animate-marquee">
+                <div className="flex w-max py-2 animate-marquee" style={{ animationDuration: `${oppTickerDuration}s` }}>
                   {[...tickerItems, ...tickerItems].map((item, i) => (
                     <span
                       key={i}
@@ -792,6 +803,34 @@ export default function Dashboard() {
             <FiBarChart2 size={13} /> HISTORY
           </button>
         </div>
+
+        {/* ── News marquee — tap to open the full feed ── */}
+        <AnimatePresence>
+          {newsTicker.length > 0 && (
+            <motion.button
+              onClick={() => setNewsOpen(true)}
+              className="w-full overflow-hidden flex items-center gap-2 px-6 py-2 shrink-0"
+              style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)", cursor: "pointer" }}
+              variants={fadeVariants}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              transition={TRANSITION_FAST}
+            >
+              <LuNewspaper size={14} className="shrink-0" style={{ color: "var(--gold)" }} />
+              <div className="overflow-hidden flex-1">
+                <div className="flex w-max animate-marquee" style={{ animationDuration: `${newsMarqueeDuration}s` }}>
+                  {[...newsTicker, ...newsTicker].map((a, i) => (
+                    <span key={i} className="flex items-center shrink-0 text-sm font-bold pl-4" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-display)" }}>
+                      {a.headline}
+                      <span className="pl-4 opacity-25">•</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* ── Main body ── */}
         <div className="flex flex-1 overflow-hidden">
