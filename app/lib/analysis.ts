@@ -70,7 +70,7 @@ export interface AnalysisResult {
 
 // ─── Support / Resistance ────────────────────────────────────────────────────
 
-export function findLevels(candles: RawCandle[], currentPrice: number): Level[] {
+export function findLevels(candles: RawCandle[], currentPrice: number, slPoints: number): Level[] {
   if (candles.length < 10) return [];
 
   // Use only the last 600 candles (~10h on 1min) for level detection —
@@ -109,10 +109,17 @@ export function findLevels(candles: RawCandle[], currentPrice: number): Level[] 
     if (isLow)  addPivot(c.low,  c.low  < currentPrice ? "support"    : "resistance");
   }
 
+  // Upper bound scales with the instrument's own SL distance instead of a
+  // flat % of price — a level 2.5% away (the old fixed threshold) is ~100pts
+  // on Gold at $4342, which then gets drawn as a price line and blows out
+  // the chart's autoscale on a tightly-zoomed scalping view, squashing every
+  // real candle into a sliver. 20x the SL keeps levels within the zone that
+  // could plausibly be an entry/target for this instrument's own scale.
+  const maxRelevantDist = slPoints * 20;
   return clusters
     .filter(c => {
-      const dist = Math.abs(c.price - currentPrice) / currentPrice;
-      return dist > 0.0003 && dist < 0.025;
+      const dist = Math.abs(c.price - currentPrice);
+      return dist / currentPrice > 0.0003 && dist < maxRelevantDist;
     })
     .sort((a, b) => b.strength - a.strength)
     .slice(0, 12)
@@ -336,7 +343,7 @@ export function runAnalysis(
   const priceChangePct = prevClose > 0 ? (priceChange / prevClose) * 100 : 0;
   const chg = `${priceChange >= 0 ? "+" : ""}${priceChangePct.toFixed(2)}%`;
 
-  const levels = findLevels(candles, currentPrice);
+  const levels = findLevels(candles, currentPrice, slPoints);
   const trend  = detectTrend(candles);
   const volume = analyzeVolume(candles);
   const timing = getMarketTiming(is24h);
