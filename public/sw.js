@@ -1,7 +1,11 @@
-const CACHE_NAME = 'quantz-v1';
+// Bumping this forces every installed PWA to drop its old cache on the next
+// activate — needed once, here, because the cache-first "/" entry below
+// used to never expire (same CACHE_NAME across deploys meant `activate`'s
+// cleanup never saw it as stale), so an installed app could keep serving a
+// JS bundle from before a fix shipped, indefinitely, even on a fresh network.
+const CACHE_NAME = 'quantz-v2';
 
 const STATIC_ASSETS = [
-  '/',
   '/favicon-32x32.png',
   '/favicon-16x16.png',
   '/apple-touch-icon.png',
@@ -39,9 +43,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets
+  // Network-first for page navigations. Cache-first on "/" is what caused
+  // the installed PWA to keep running an old build indefinitely — it never
+  // re-checked the network once cached. Falls back to the cache only when
+  // actually offline.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          return res;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  // Cache-first for everything else (icons, Next.js's content-hashed JS/CSS
+  // chunks) — safe here since a changed file gets a new hashed URL, never a
+  // stale hit on the same request.
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    caches.match(request).then((cached) => cached || fetch(request).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      return res;
+    }))
   );
 });
 
