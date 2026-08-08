@@ -188,7 +188,7 @@ function TradeCard({
       className="rounded-2xl overflow-hidden"
       style={{
         border: `1px solid ${meta.color}55`,
-        background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-card)`,
+        background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-panel)`,
         boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33` : "none",
       }}
     >
@@ -442,7 +442,7 @@ export default function BobbyPanel({
           ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#8a2f2a"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <span style={{ color: "var(--text-muted)" }}>{k}</span>
             <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
           </span>
@@ -465,7 +465,7 @@ export default function BobbyPanel({
               onClick={onToggleBot}
               className="flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-black tracking-wider transition-all duration-150"
               style={{
-                background: botMode ? "rgba(28,125,76,0.12)" : "rgba(255,255,255,0.04)",
+                background: botMode ? "rgba(28,125,76,0.12)" : "var(--bg-elevated)",
                 color: botMode ? "#1c7d4c" : "var(--text-secondary)",
                 border: `1px solid ${botMode ? "rgba(28,125,76,0.4)" : "rgba(255,255,255,0.12)"}`,
                 cursor: "pointer",
@@ -490,13 +490,13 @@ export default function BobbyPanel({
               checking={checkingOpportunity}
             />
           ) : (
-            <div className="rounded-2xl px-5 py-4 text-base" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
+            <div className="rounded-2xl px-5 py-4 text-base" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
               Sin setup tradeable — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
 
           {/* Signal + probability gauge */}
-          <div className="rounded-2xl flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-2xl flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <ProbRing value={result.probability} />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -518,7 +518,7 @@ export default function BobbyPanel({
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
-                  <div key={i} className="flex gap-2.5 px-4 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
+                  <div key={i} className="flex gap-2.5 px-4 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-elevated)" }}>
                     <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
                     <div className="text-[16px] leading-snug">
                       <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
@@ -531,7 +531,7 @@ export default function BobbyPanel({
           )}
 
           {/* Score factors */}
-          <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="grid grid-cols-2 gap-3">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
@@ -540,7 +540,7 @@ export default function BobbyPanel({
                   <div
                     key={i}
                     className="flex flex-col items-center text-center gap-2 rounded-xl px-3 py-4"
-                    style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${c}33` }}
+                    style={{ background: "var(--bg-elevated)", border: `1px solid ${c}33` }}
                   >
                     <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: `${c}26` }}>
                       <Icon size={18} color={c} />
