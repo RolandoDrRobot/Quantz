@@ -376,18 +376,6 @@ export function runAnalysis(
     signal = "WAIT";
   }
 
-  let message: string;
-  if (breakout && breakoutAligned) {
-    const dirTxt = breakout.direction === "long" ? "up" : "down";
-    message = `Level ${fmtPrice(breakout.level)} broke ${dirTxt} with the trend behind it. Now comes the part that separates the pros: wait for the retest. If price comes back to ${fmtPrice(breakout.level)} and respects it with a confirmation candle — that's your trade. No retest, no entry.`;
-  } else if (breakout && !breakoutAligned) {
-    const dirTxt = breakout.direction === "long" ? "up" : "down";
-    message = `Careful: level ${fmtPrice(breakout.level)} broke ${dirTxt}, but the trend is ${trend.direction} — it's against you. Counter-trend breakouts are usually traps. Stay out unless the retest shows very strong confirmation. Protecting capital is a trade too.`;
-  } else {
-    const arr = MESSAGES[signal];
-    message = arr[Math.floor(Math.random() * arr.length)](msgData);
-  }
-
   const tradeSetup = calculateTradeSetup(signal, currentPrice, levels, slPoints, trend.direction, breakout);
 
   // ── Probability score: confluence of every strategy requirement ──────────
@@ -497,6 +485,7 @@ export function runAnalysis(
         title: "SL inside the recent range",
         detail: `Your stop at ${fmtPrice(tradeSetup.stopLoss)} sits inside the last 30 min range (${fmtPrice(loRecent)}–${fmtPrice(hiRecent)}). A normal whipsaw can take it out.`,
       });
+      penalties.push({ label: "SL exposed to chop", points: -10, max: 0 });
     }
   }
 
@@ -523,6 +512,33 @@ export function runAnalysis(
     probability = 60;
   }
   probability = Math.max(5, Math.min(92, probability));
+
+  // Signal and probability used to be able to flatly contradict each other —
+  // a real, trend-aligned breakout stacked with whipsaw/low-volume/range-bound
+  // penalties could still show a confident "GO LONG" next to a 5% score. If
+  // the score can't back up the call, the call doesn't stand: downgrade to
+  // WAIT rather than asserting a direction the number next to it disowns.
+  const SIGNAL_PROBABILITY_FLOOR = 30;
+  let downgraded = false;
+  if (signal !== "WAIT" && probability < SIGNAL_PROBABILITY_FLOOR) {
+    signal = "WAIT";
+    downgraded = true;
+  }
+
+  let message: string;
+  if (breakout && breakoutAligned && downgraded) {
+    const dirTxt = breakout.direction === "long" ? "up" : "down";
+    message = `Level ${fmtPrice(breakout.level)} broke ${dirTxt} with the trend behind it, but the setup itself is weak — only ${probability}% once volume, momentum, and range get weighed in. Too much stacked against it to call this a real trade. Let it go, wait for a cleaner one.`;
+  } else if (breakout && breakoutAligned) {
+    const dirTxt = breakout.direction === "long" ? "up" : "down";
+    message = `Level ${fmtPrice(breakout.level)} broke ${dirTxt} with the trend behind it. Now comes the part that separates the pros: wait for the retest. If price comes back to ${fmtPrice(breakout.level)} and respects it with a confirmation candle — that's your trade. No retest, no entry.`;
+  } else if (breakout && !breakoutAligned) {
+    const dirTxt = breakout.direction === "long" ? "up" : "down";
+    message = `Careful: level ${fmtPrice(breakout.level)} broke ${dirTxt}, but the trend is ${trend.direction} — it's against you. Counter-trend breakouts are usually traps. Stay out unless the retest shows very strong confirmation. Protecting capital is a trade too.`;
+  } else {
+    const arr = MESSAGES[signal];
+    message = arr[Math.floor(Math.random() * arr.length)](msgData);
+  }
 
   return {
     signal,

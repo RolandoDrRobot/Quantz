@@ -150,7 +150,7 @@ function TradeCard({
   onToggleBot: () => void;
 }) {
   // Values come from the LIVE opportunity — it can re-anchor to closer levels
-  const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * 100);
+  const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * ACCOUNT.riskPerTrade);
   const meta = PHASE_META[opp.phase];
   const isTerminal = ["TP_HIT", "SL_HIT", "CLOSED", "INVALIDATED"].includes(opp.phase);
   const dirColor = opp.direction === "long" ? "#1c7d4c" : "#8a2f2a";

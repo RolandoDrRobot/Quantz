@@ -32,6 +32,13 @@ export interface Opportunity {
 
 export function createOpportunity(a: AnalysisResult, slPoints: number, cost: number): Opportunity | null {
   if (!a.tradeSetup) return null;
+  // A breakout that already happened but isn't trend-aligned (or scored too
+  // low to trust) is exactly what Taylor's own message calls a trap — don't
+  // hand back a trackable, tradeable opportunity for it (which would reach
+  // RETEST_ACTIVE and a live "TAKE TRADE" button on the very next tick,
+  // since price is already past the level). Nothing to hunt at this level
+  // anymore; the next "New Analysis" looks for a cleaner setup instead.
+  if (a.breakout && a.signal === "WAIT") return null;
   const now = Date.now();
   return {
     phase: a.breakout ? "AWAIT_RETEST" : "HUNTING",
