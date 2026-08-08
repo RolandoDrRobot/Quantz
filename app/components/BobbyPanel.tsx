@@ -12,6 +12,7 @@ import type { AnalysisResult, Signal } from "../lib/analysis";
 import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
+import { fmtPrice, fmtMoney, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
   GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
@@ -160,25 +161,25 @@ function TradeCard({
   let statusLine = "";
   switch (opp.phase) {
     case "HUNTING":
-      statusLine = dist !== null ? `Waiting for break of ${opp.level.toFixed(2)} · ${dist.toFixed(2)} pts away` : `Waiting for break of ${opp.level.toFixed(2)}`;
+      statusLine = dist !== null ? `Waiting for break of ${fmtPrice(opp.level)} · ${fmtPrice(dist)} pts away` : `Waiting for break of ${fmtPrice(opp.level)}`;
       break;
     case "AWAIT_RETEST":
-      statusLine = dist !== null ? `Level broke — awaiting retest · ${dist.toFixed(2)} pts away` : "Level broke — awaiting retest";
+      statusLine = dist !== null ? `Level broke — awaiting retest · ${fmtPrice(dist)} pts away` : "Level broke — awaiting retest";
       break;
     case "RETEST_ACTIVE":
       statusLine = bot ? "Price at the level — bot enters if the candle holds" : "Price at the level — your call. Take it or skip it.";
       break;
     case "CONFIRMED":
-      statusLine = `${bot ? "Bot entered" : "Position open"} · spread $${(opp.cost ?? 0).toFixed(2)}`;
+      statusLine = `${bot ? "Bot entered" : "Position open"} · spread ${fmtMoney2(opp.cost ?? 0)}`;
       break;
     case "TP_HIT":
-      statusLine = `Target hit at ${opp.tp.toFixed(2)}. That's how it's done.`;
+      statusLine = `Target hit at ${fmtPrice(opp.tp)}. That's how it's done.`;
       break;
     case "SL_HIT":
-      statusLine = `Stopped at ${opp.sl.toFixed(2)} — controlled loss, next one up.`;
+      statusLine = `Stopped at ${fmtPrice(opp.sl)} — controlled loss, next one up.`;
       break;
     case "CLOSED":
-      statusLine = `Closed at ${opp.exitPrice?.toFixed(2)} by your call.`;
+      statusLine = `Closed at ${opp.exitPrice != null ? fmtPrice(opp.exitPrice) : "—"} by your call.`;
       break;
     case "INVALIDATED":
       statusLine = "Price reversed — trap avoided.";
@@ -239,7 +240,7 @@ function TradeCard({
             style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
           >
             {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
-            {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {lots.toFixed(2)} LOTS
+            {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {fmtLots(lots)} LOTS
           </span>
         </div>
       </div>
@@ -250,7 +251,7 @@ function TradeCard({
         {pnl !== null && (
           <div className="text-right shrink-0">
             <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-              {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
+              {fmtSignedMoney(pnl)}
             </div>
             <div className="text-[11px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
               {opp.phase === "CONFIRMED" ? "LIVE P/L" : "RESULT"}
@@ -263,15 +264,15 @@ function TradeCard({
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-5 py-3.5">
           <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
-          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
+          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · −${ACCOUNT.riskPerTrade}</div>
-          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · {fmtSignedMoney(-ACCOUNT.riskPerTrade)}</div>
+          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · +${reward}</div>
-          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · {fmtSignedMoney(reward)}</div>
+          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
         </div>
       </div>
 
@@ -303,7 +304,7 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            <FiZap size={15} /> {price !== null ? `MARKET @ ${price.toFixed(2)}` : "MARKET ENTRY"}
+            <FiZap size={15} /> {price !== null ? `MARKET @ ${fmtPrice(price)}` : "MARKET ENTRY"}
           </button>
         </div>
       )}
@@ -321,7 +322,7 @@ function TradeCard({
               fontFamily: "var(--font-display)",
             }}
           >
-            <FiPower size={15} /> CLOSE POSITION {price !== null && pnl !== null ? `@ ${price.toFixed(2)} (${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)})` : ""}
+            <FiPower size={15} /> CLOSE POSITION {price !== null && pnl !== null ? `@ ${fmtPrice(price)} (${fmtSignedMoney(pnl)})` : ""}
           </button>
         </div>
       )}
@@ -442,9 +443,9 @@ export default function BobbyPanel({
       <div className="flex items-center gap-2.5 px-6 py-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         {[
           ["SL", market.slLabel, "#f2f5f8"],
-          ["LOTS", lots.toFixed(2), "#f2f5f8"],
-          ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#c23b30"],
-          ["RISK", `$${ACCOUNT.riskPerTrade}`, "#8a2f2a"],
+          ["LOTS", fmtLots(lots), "#f2f5f8"],
+          ["SPREAD", `~${fmtMoney2(tradeCostFor(market))}`, "#c23b30"],
+          ["RISK", fmtMoney(ACCOUNT.riskPerTrade), "#8a2f2a"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap"
             style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.07)" }}>

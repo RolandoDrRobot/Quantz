@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
+import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
 
@@ -168,7 +169,7 @@ export default function Dashboard() {
     livePriceRef.current = price;
     const prev = opportunityRef.current;
     if (!prev) {
-      if (announce) toast(`Price updated · ${price.toFixed(2)}`, { duration: 2500 });
+      if (announce) toast(`Price updated · ${fmtPrice(price)}`, { duration: 2500 });
       return;
     }
     const next = advanceOpportunity(prev, price, botModeRef.current, analysisRef.current?.levels ?? []);
@@ -180,28 +181,28 @@ export default function Dashboard() {
       if (levelChanged) playBreakoutSound();
       else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") {
         playBreakoutSound();
-        toast(`breakout ${next.direction === "long" ? "▲" : "▼"} ${next.level.toFixed(2)} — awaiting retest`, { duration: 5000 });
+        toast(`breakout ${next.direction === "long" ? "▲" : "▼"} ${fmtPrice(next.level)} — awaiting retest`, { duration: 5000 });
       }
       else if (next.phase === "RETEST_ACTIVE") {
         playRetestSound();
-        toast.warning(`retest active · ${next.level.toFixed(2)}`, { duration: 6000 });
+        toast.warning(`retest active · ${fmtPrice(next.level)}`, { duration: 6000 });
       }
       else if (next.phase === "TP_HIT") {
         playResolvedSound(true);
         recordTrade(next, "TP", next.tp);
-        toast.success(`tp · ${next.tp.toFixed(2)}`, { duration: 4000 });
+        toast.success(`tp · ${fmtPrice(next.tp)}`, { duration: 4000 });
       }
       else if (next.phase === "SL_HIT") {
         playResolvedSound(false);
         recordTrade(next, "SL", next.sl);
-        toast.error(`sl · ${next.sl.toFixed(2)}`, { duration: 4000 });
+        toast.error(`sl · ${fmtPrice(next.sl)}`, { duration: 4000 });
       }
       saveState(symbolRef.current, analysisRef.current, next);
     }
     if (announce && !transitioned) {
       const pnl = next.phase === "CONFIRMED" ? livePnl(next, price) : null;
-      const pnlPart = pnl !== null ? ` · ${pnl >= 0 ? "+" : "−"}$${Math.abs(pnl).toFixed(0)}` : "";
-      toast(`No change · ${PHASE_META[next.phase].label} · ${price.toFixed(2)}${pnlPart}`, { duration: 3500 });
+      const pnlPart = pnl !== null ? ` · ${fmtSignedMoney(pnl)}` : "";
+      toast(`No change · ${PHASE_META[next.phase].label} · ${fmtPrice(price)}${pnlPart}`, { duration: 3500 });
     }
   }, [recordTrade]);
 
@@ -342,13 +343,13 @@ export default function Dashboard() {
     if (opportunity) {
       const meta = PHASE_META[opportunity.phase];
       items.push({ text: meta.label, color: meta.color });
-      items.push({ text: `${opportunity.direction === "long" ? "▲" : "▼"} ENTRY ${opportunity.entry.toFixed(2)}`, color: "var(--text-secondary)" });
-      items.push({ text: `SL ${opportunity.sl.toFixed(2)}`, color: "#8a2f2a" });
-      items.push({ text: `TP ${opportunity.tp.toFixed(2)}`, color: "#1c7d4c" });
+      items.push({ text: `${opportunity.direction === "long" ? "▲" : "▼"} ENTRY ${fmtPrice(opportunity.entry)}`, color: "var(--text-secondary)" });
+      items.push({ text: `SL ${fmtPrice(opportunity.sl)}`, color: "#8a2f2a" });
+      items.push({ text: `TP ${fmtPrice(opportunity.tp)}`, color: "#1c7d4c" });
     }
-    items.push({ text: `${lotsFor(cfg).toFixed(2)} LOTS`, color: "var(--text-secondary)" });
+    items.push({ text: `${fmtLots(lotsFor(cfg))} LOTS`, color: "var(--text-secondary)" });
     if (analysis.tradeSetup) {
-      items.push({ text: `R:R ${analysis.tradeSetup.rrRatio.toFixed(2)}`, color: "var(--text-secondary)" });
+      items.push({ text: `R:R ${fmtRatio(analysis.tradeSetup.rrRatio)}`, color: "var(--text-secondary)" });
     }
     if (analysis.warnings.length > 0) {
       items.push({ text: `${analysis.warnings.length} WARNING${analysis.warnings.length > 1 ? "S" : ""}`, color: "#c23b30" });
@@ -391,7 +392,7 @@ export default function Dashboard() {
                 transition={TRANSITION_BASE}
               >
                 <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-                  <FiZap size={16} /> RETEST ACTIVE — {opportunity.level.toFixed(2)}
+                  <FiZap size={16} /> RETEST ACTIVE — {fmtPrice(opportunity.level)}
                 </div>
                 <div className="text-sm mt-0.5" style={{ color: "#9ba5b2" }}>
                   {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
@@ -513,12 +514,12 @@ export default function Dashboard() {
               {displayPrice !== null ? (
                 <motion.div key="price" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
                   <div className="text-4xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                    {displayPrice.toFixed(2)}
+                    {fmtPrice(displayPrice)}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     {analysis && (
                       <span className="text-base font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
-                        {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
+                        {fmtSignedPct(analysis.priceChangePct)}
                       </span>
                     )}
                     <AnimatePresence>

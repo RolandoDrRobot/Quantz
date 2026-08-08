@@ -7,6 +7,7 @@ import { LuNotebookPen } from "react-icons/lu";
 import { loadRecords, type TradeRecord } from "../lib/records";
 import { loadJournal, saveJournal, EMOTIONS, EMPTY_ENTRY, type JournalEntry, type SetupGrade } from "../lib/journal";
 import { backdropVariants, modalVariants, fadeUpVariants, TRANSITION_BACKDROP, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
+import { fmtSignedMoney } from "../lib/format";
 
 const GRADES: SetupGrade[] = ["A+", "A", "B", "C"];
 
@@ -35,7 +36,7 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
           </div>
         </div>
         <span className="font-black text-sm shrink-0" style={{ color: win ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-          {win ? "+" : "−"}${Math.abs(record.pnl).toFixed(0)}
+          {fmtSignedMoney(record.pnl)}
         </span>
         {open ? <FiChevronUp size={16} color="var(--text-muted)" /> : <FiChevronDown size={16} color="var(--text-muted)" />}
       </button>

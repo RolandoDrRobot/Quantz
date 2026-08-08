@@ -6,6 +6,7 @@ import { FiTrash2, FiX, FiBarChart2, FiArrowUpRight, FiArrowDownRight } from "re
 import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../lib/records";
 import { ACCOUNT } from "../lib/markets";
 import { backdropVariants, modalVariants, TRANSITION_BACKDROP, TRANSITION_BASE } from "../lib/motionVariants";
+import { fmtPrice, fmtPct, fmtMoney, fmtSignedMoney, fmtRatio, fmtSignedR, fmtInt } from "../lib/format";
 
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
@@ -44,7 +45,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
 
   const stats = computeStats(records);
   const pnlColor = stats.netPnl > 0 ? "#1c7d4c" : stats.netPnl < 0 ? "#8a2f2a" : "#f2f5f8";
-  const pf = stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2);
+  const pf = stats.profitFactor === Infinity ? "∞" : fmtRatio(stats.profitFactor);
 
   return (
     <AnimatePresence>
@@ -77,7 +78,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
         <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
           <div>
             <div className="font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>TRADE HISTORY</div>
-            <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Per-trade performance · fixed risk ${ACCOUNT.riskPerTrade}</div>
+            <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Per-trade performance · fixed risk {fmtMoney(ACCOUNT.riskPerTrade)}</div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -108,21 +109,21 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
             <>
               {/* Headline stats */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="NET P/L" value={`${stats.netPnl >= 0 ? "+" : "−"}$${Math.abs(stats.netPnl).toFixed(0)}`} color={pnlColor} big />
-                <StatCard label="WIN RATE" value={`${stats.winRate.toFixed(0)}%`} color={stats.winRate >= 50 ? "#1c7d4c" : "#8a2f2a"} big />
-                <StatCard label="TRADES" value={`${stats.total}`} big />
+                <StatCard label="NET P/L" value={fmtSignedMoney(stats.netPnl)} color={pnlColor} big />
+                <StatCard label="WIN RATE" value={fmtPct(stats.winRate)} color={stats.winRate >= 50 ? "#1c7d4c" : "#8a2f2a"} big />
+                <StatCard label="TRADES" value={fmtInt(stats.total)} big />
                 <StatCard label="PROFIT FACTOR" value={pf} color={stats.profitFactor >= 1.5 ? "#1c7d4c" : stats.profitFactor >= 1 ? "#1c7d4c" : "#8a2f2a"} big />
               </div>
 
               {/* Secondary stats */}
               <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard label="AVG WIN" value={`+$${stats.avgWin.toFixed(0)}`} color="#1c7d4c" />
-                <StatCard label="AVG LOSS" value={`−$${stats.avgLoss.toFixed(0)}`} color="#8a2f2a" />
-                <StatCard label="EXPECTANCY/TRADE" value={`${stats.expectancy >= 0 ? "+" : "−"}$${Math.abs(stats.expectancy).toFixed(0)}`} color={stats.expectancy >= 0 ? "#1c7d4c" : "#8a2f2a"} />
-                <StatCard label="BEST/WORST" value={`+$${stats.best.toFixed(0)} / −$${Math.abs(stats.worst).toFixed(0)}`} />
+                <StatCard label="AVG WIN" value={fmtSignedMoney(stats.avgWin)} color="#1c7d4c" />
+                <StatCard label="AVG LOSS" value={fmtSignedMoney(-stats.avgLoss)} color="#8a2f2a" />
+                <StatCard label="EXPECTANCY/TRADE" value={fmtSignedMoney(stats.expectancy)} color={stats.expectancy >= 0 ? "#1c7d4c" : "#8a2f2a"} />
+                <StatCard label="BEST/WORST" value={`${fmtSignedMoney(stats.best)} / ${fmtSignedMoney(-Math.abs(stats.worst))}`} />
                 <StatCard
                   label="STREAK"
-                  value={stats.streak > 0 ? `${stats.streak}G` : stats.streak < 0 ? `${Math.abs(stats.streak)}P` : "—"}
+                  value={stats.streak > 0 ? `${fmtInt(stats.streak)}G` : stats.streak < 0 ? `${fmtInt(Math.abs(stats.streak))}P` : "—"}
                   color={stats.streak > 0 ? "#1c7d4c" : stats.streak < 0 ? "#8a2f2a" : undefined}
                 />
               </div>
@@ -130,8 +131,8 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               {/* Wins vs losses bar */}
               <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center justify-between text-[12px] font-bold mb-2">
-                  <span style={{ color: "#1c7d4c" }}>{stats.wins} WINS · +${stats.grossWin.toFixed(0)}</span>
-                  <span style={{ color: "#8a2f2a" }}>{stats.losses} LOSSES · −${stats.grossLoss.toFixed(0)}</span>
+                  <span style={{ color: "#1c7d4c" }}>{fmtInt(stats.wins)} WINS · {fmtSignedMoney(stats.grossWin)}</span>
+                  <span style={{ color: "#8a2f2a" }}>{fmtInt(stats.losses)} LOSSES · {fmtSignedMoney(-stats.grossLoss)}</span>
                 </div>
                 <div className="flex h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
                   <div style={{ width: `${stats.winRate}%`, background: "#1c7d4c" }} />
@@ -162,17 +163,17 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                         {r.direction === "long" ? <FiArrowUpRight size={14} /> : <FiArrowDownRight size={14} />}
                         {r.direction === "long" ? "L" : "S"}
                       </span>
-                      <span style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
+                      <span style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>{fmtPrice(r.entry)} → {fmtPrice(r.exit)}</span>
                       <span>
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-black" style={{ background: `${oc.color}1a`, color: oc.color, border: `1px solid ${oc.color}40` }}>
                           {oc.label}
                         </span>
                       </span>
                       <span className="font-black" style={{ color: win ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-                        {win ? "+" : "−"}${Math.abs(r.pnl).toFixed(0)}
+                        {fmtSignedMoney(r.pnl)}
                       </span>
                       <span className="font-bold" style={{ color: win ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-                        {r.rMultiple >= 0 ? "+" : ""}{r.rMultiple.toFixed(2)}
+                        {fmtSignedR(r.rMultiple)}
                       </span>
                     </div>
                   );

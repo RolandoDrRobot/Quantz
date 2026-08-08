@@ -6,6 +6,7 @@ import { FiHelpCircle, FiX } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { Level, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { popVariants, fadeUpVariants, TRANSITION_FAST, TRANSITION_BASE } from "../lib/motionVariants";
+import { fmtPrice } from "../lib/format";
 
 // ─── AXE CAPITAL Palette — navy + brand red ──────────────────────────────────
 const P = {
@@ -127,6 +128,10 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           // Bottom margin reserves room for the volume histogram, which
           // overlays this same pane on its own (bottom-anchored) price scale.
           rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.24 } },
+          // Thousands-grouped axis/crosshair/tooltip labels (lightweight-charts'
+          // own default formatter has no comma grouping — "29722.30" instead
+          // of "29,722.30" on an instrument like NASDAQ or Dow).
+          localization: { priceFormatter: fmtPrice },
           timeScale: {
             borderColor: P.grid,
             timeVisible: true,
@@ -458,7 +463,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           >
             <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#c23b30" }} />
             <span className="font-bold text-base tracking-wide" style={{ color: "#c23b30", fontFamily: "var(--font-display)" }}>
-              LIVE &nbsp;{livePrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              LIVE &nbsp;{fmtPrice(livePrice)}
             </span>
           </motion.div>
         )}

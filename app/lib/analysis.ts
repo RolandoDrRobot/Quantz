@@ -1,5 +1,6 @@
 import { RawCandle } from "../api/market/route";
 import { ACCOUNT } from "./markets";
+import { fmtPrice, fmtPct, fmtSignedPct } from "./format";
 
 export type Signal = "GO_LONG" | "GO_SHORT" | "WAIT";
 
@@ -341,7 +342,7 @@ export function runAnalysis(
 ): AnalysisResult {
   const priceChange = currentPrice - prevClose;
   const priceChangePct = prevClose > 0 ? (priceChange / prevClose) * 100 : 0;
-  const chg = `${priceChange >= 0 ? "+" : ""}${priceChangePct.toFixed(2)}%`;
+  const chg = fmtSignedPct(priceChangePct);
 
   const levels = findLevels(candles, currentPrice, slPoints);
   const trend  = detectTrend(candles);
@@ -351,12 +352,12 @@ export function runAnalysis(
   const resistances = levels.filter(l => l.type === "resistance").sort((a, b) => a.price - b.price);
   const supports    = levels.filter(l => l.type === "support").sort((a, b) => b.price - a.price);
 
-  const r1 = resistances[0]?.price.toFixed(2) ?? null;
+  const r1 = resistances[0] ? fmtPrice(resistances[0].price) : null;
   const r1s = resistances[0]?.strength ?? null;
-  const s1 = supports[0]?.price.toFixed(2) ?? null;
+  const s1 = supports[0] ? fmtPrice(supports[0].price) : null;
   const s1s = supports[0]?.strength ?? null;
 
-  const msgData = { chg, r1, r1s, s1, s1s, ma20: trend.ma20.toFixed(2), mom: trend.momentum, mkt: marketLabel };
+  const msgData = { chg, r1, r1s, s1, s1s, ma20: fmtPrice(trend.ma20), mom: trend.momentum, mkt: marketLabel };
 
   const breakout = detectBreakout(candles, levels, slPoints);
 
@@ -378,10 +379,10 @@ export function runAnalysis(
   let message: string;
   if (breakout && breakoutAligned) {
     const dirTxt = breakout.direction === "long" ? "up" : "down";
-    message = `Level ${breakout.level.toFixed(2)} broke ${dirTxt} with the trend behind it. Now comes the part that separates the pros: wait for the retest. If price comes back to ${breakout.level.toFixed(2)} and respects it with a confirmation candle — that's your trade. No retest, no entry.`;
+    message = `Level ${fmtPrice(breakout.level)} broke ${dirTxt} with the trend behind it. Now comes the part that separates the pros: wait for the retest. If price comes back to ${fmtPrice(breakout.level)} and respects it with a confirmation candle — that's your trade. No retest, no entry.`;
   } else if (breakout && !breakoutAligned) {
     const dirTxt = breakout.direction === "long" ? "up" : "down";
-    message = `Careful: level ${breakout.level.toFixed(2)} broke ${dirTxt}, but the trend is ${trend.direction} — it's against you. Counter-trend breakouts are usually traps. Stay out unless the retest shows very strong confirmation. Protecting capital is a trade too.`;
+    message = `Careful: level ${fmtPrice(breakout.level)} broke ${dirTxt}, but the trend is ${trend.direction} — it's against you. Counter-trend breakouts are usually traps. Stay out unless the retest shows very strong confirmation. Protecting capital is a trade too.`;
   } else {
     const arr = MESSAGES[signal];
     message = arr[Math.floor(Math.random() * arr.length)](msgData);
@@ -447,7 +448,7 @@ export function runAnalysis(
       warnings.push({
         severity: "high",
         title: "Whipsaw at the level",
-        detail: `${breakout.level.toFixed(2)} broke in BOTH directions in the last 15 min — breakouts here are eating each other alive. Classic range noise.`,
+        detail: `${fmtPrice(breakout.level)} broke in BOTH directions in the last 15 min — breakouts here are eating each other alive. Classic range noise.`,
       });
       penalties.push({ label: "Whipsaw at level", points: -20, max: 0 });
     }
@@ -470,7 +471,7 @@ export function runAnalysis(
     warnings.push({
       severity: "high",
       title: "Dead momentum",
-      detail: `Only ${trend.changeRecent.toFixed(2)}% movement in the last 15 min. Every sharp candle is reverting — breakouts lack follow-through.`,
+      detail: `Only ${fmtPct(Math.abs(trend.changeRecent))} movement in the last 15 min. Every sharp candle is reverting — breakouts lack follow-through.`,
     });
   }
 
@@ -480,7 +481,7 @@ export function runAnalysis(
     warnings.push({
       severity: "medium",
       title: "Range-bound market",
-      detail: `The last 30 min range is only ${rangeRecent.toFixed(2)} pts vs your ${slPoints} pt SL. Normal chop can tag your stop without a real move.`,
+      detail: `The last 30 min range is only ${fmtPrice(rangeRecent)} pts vs your ${slPoints} pt SL. Normal chop can tag your stop without a real move.`,
     });
     penalties.push({ label: "Range-bound tape", points: -10, max: 0 });
   }
@@ -494,7 +495,7 @@ export function runAnalysis(
       warnings.push({
         severity: "medium",
         title: "SL inside the recent range",
-        detail: `Your stop at ${tradeSetup.stopLoss.toFixed(2)} sits inside the last 30 min range (${loRecent.toFixed(2)}–${hiRecent.toFixed(2)}). A normal whipsaw can take it out.`,
+        detail: `Your stop at ${fmtPrice(tradeSetup.stopLoss)} sits inside the last 30 min range (${fmtPrice(loRecent)}–${fmtPrice(hiRecent)}). A normal whipsaw can take it out.`,
       });
     }
   }
