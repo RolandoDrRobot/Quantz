@@ -331,10 +331,10 @@ export default function Dashboard() {
                 backdropFilter: "blur(8px)",
               }}
             >
-              <div className="flex items-center gap-2 font-black text-base tracking-wider" style={{ color: opportunity.direction === "long" ? "#a8862f" : "#c24545", fontFamily: "var(--font-display)" }}>
+              <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#a8862f" : "#c24545", fontFamily: "var(--font-display)" }}>
                 <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
               </div>
-              <div className="text-xs mt-0.5" style={{ color: "#9aa1ab" }}>
+              <div className="text-sm mt-0.5" style={{ color: "#9aa1ab" }}>
                 {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
               </div>
             </div>
@@ -345,12 +345,12 @@ export default function Dashboard() {
           {chartLoading ? (
             <>
               <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }} />
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Cargando {cfg.label}...</p>
+              <p className="text-base" style={{ color: "var(--text-muted)" }}>Cargando {cfg.label}...</p>
             </>
           ) : (
             <>
               <FiTrendingUp size={40} className="opacity-10" style={{ color: "var(--text-muted)" }} />
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Error al cargar {cfg.label}</p>
+              <p className="text-base" style={{ color: "var(--text-muted)" }}>Error al cargar {cfg.label}</p>
             </>
           )}
         </div>
@@ -391,7 +391,7 @@ export default function Dashboard() {
                 <button
                   key={key}
                   onClick={() => handleMarketChange(key)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-black tracking-wider transition-all duration-200"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-black tracking-wider transition-all duration-200"
                   style={{
                     background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
                     color: active ? "var(--gold)" : "var(--text-muted)",
@@ -407,7 +407,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => setRecordsOpen(true)}
-            className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold"
+            className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-bold"
             style={{
               background: "rgba(255,255,255,0.06)",
               color: "var(--text-secondary)",
@@ -433,17 +433,17 @@ export default function Dashboard() {
           <div>
             {displayPrice !== null ? (
               <>
-                <div className="text-3xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                <div className="text-4xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
                   {displayPrice.toFixed(2)}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {analysis && (
-                    <span className="text-sm font-bold" style={{ color: priceUp ? "#1f9d5c" : "#c24545" }}>
+                    <span className="text-base font-bold" style={{ color: priceUp ? "#1f9d5c" : "#c24545" }}>
                       {priceUp ? "+" : ""}{analysis.priceChangePct.toFixed(2)}%
                     </span>
                   )}
                   {trendDir && (
-                    <span className="flex items-center gap-0.5 text-xs font-semibold" style={{
+                    <span className="flex items-center gap-0.5 text-sm font-semibold" style={{
                       color: trendDir === "bullish" ? "#1f9d5c" : trendDir === "bearish" ? "#c24545" : "var(--text-muted)"
                     }}>
                       {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
@@ -453,14 +453,14 @@ export default function Dashboard() {
                 </div>
               </>
             ) : (
-              <span className="text-sm" style={{ color: "var(--text-muted)" }}>{cfg.label}</span>
+              <span className="text-base" style={{ color: "var(--text-muted)" }}>{cfg.label}</span>
             )}
           </div>
 
           {/* Botón Taylor */}
           <button
             onClick={() => setTaylorOpen(true)}
-            className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-sm tracking-widest transition-all duration-150 active:scale-95"
+            className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-base tracking-widest transition-all duration-150 active:scale-95"
             style={{
               background: "var(--gold-dim)",
               color: "var(--gold)",
@@ -521,7 +521,7 @@ export default function Dashboard() {
               <button
                 key={key}
                 onClick={() => handleMarketChange(key)}
-                className="px-4 py-2 rounded-xl text-xs font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
+                className="px-4 py-2 rounded-xl text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
                   background: active ? "var(--gold-dim)" : "transparent",
                   color: active ? "var(--gold)" : "var(--text-muted)",
@@ -534,10 +534,10 @@ export default function Dashboard() {
               </button>
             );
           })}
-          <span className="ml-3 text-[10px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
+          <span className="ml-3 text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
           <button
             onClick={() => setRecordsOpen(true)}
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
+            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
               background: "rgba(31,157,92,0.08)",
               color: "var(--gold)",

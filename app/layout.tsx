@@ -1,13 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Anta } from "next/font/google";
+import { Josefin_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const anta = Anta({
-  weight: "400",
+// Josefin Sans is a true variable font (weight 100-700) — Next.js loads the
+// variable instance automatically when no fixed `weight` is given, same as
+// self-hosting the @import from Google Fonts but without a render-blocking
+// external request.
+const josefinSans = Josefin_Sans({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-anta",
+  variable: "--font-josefin",
 });
 
 export const metadata: Metadata = {
@@ -39,13 +42,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`h-full ${anta.variable}`} suppressHydrationWarning>
+    <html lang="es" className={`h-full ${josefinSans.variable}`} suppressHydrationWarning>
       <body className="h-full flex flex-col antialiased">
         {children}
         <Toaster
           position="bottom-right"
           expand={false}
           visibleToasts={3}
+          gap={6}
           toastOptions={{
             style: {
               background: "#0c0e12",
@@ -53,11 +57,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               color: "#9aa1ab",
               fontSize: "11px",
               fontFamily: "var(--font-display)",
-              letterSpacing: "0.04em",
-              padding: "8px 12px",
-              borderRadius: "8px",
+              letterSpacing: "0.03em",
+              padding: "6px 10px",
+              borderRadius: "6px",
+              minHeight: "0",
               minWidth: "0",
-              maxWidth: "260px",
+              maxWidth: "200px",
             },
             duration: 3500,
           }}

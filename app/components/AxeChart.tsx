@@ -115,7 +115,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         chart = LW.createChart(el, {
           width:  el.clientWidth,
           height: el.clientHeight,
-          layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: 12 },
+          layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: 13 },
           grid: { vertLines: { color: P.grid }, horzLines: { color: P.grid } },
           crosshair: {
             mode: LW.CrosshairMode.Normal,
@@ -394,7 +394,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           style={{ background: "rgba(3,4,5,0.92)", border: "1px solid rgba(168,134,47,0.3)" }}
         >
           <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#a8862f" }} />
-          <span className="font-bold text-sm tracking-wide" style={{ color: "#a8862f", fontFamily: "var(--font-display)" }}>
+          <span className="font-bold text-base tracking-wide" style={{ color: "#a8862f", fontFamily: "var(--font-display)" }}>
             LIVE &nbsp;{livePrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
@@ -403,7 +403,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {/* Legend toggle */}
       <button
         onClick={() => setShowLegend(v => !v)}
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wider"
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold tracking-wider"
         style={{ background: "rgba(3,4,5,0.92)", border: "1px solid rgba(168,134,47,0.2)", color: "#a8862f", cursor: "pointer" }}
       >
         {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEYENDA
@@ -415,7 +415,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           className="absolute top-14 right-4 rounded-xl p-5 flex flex-col gap-4"
           style={{ background: "rgba(3,4,5,0.96)", border: "1px solid rgba(168,134,47,0.25)", minWidth: 210 }}
         >
-          <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#a8862f" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
+          <div className="text-sm font-bold tracking-widest mb-1" style={{ color: "#a8862f" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
           {LEGEND.map((item, i) => (
             <div key={i} className="flex items-center gap-3">
               {/* Line preview */}
@@ -430,7 +430,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
                   <div className="h-0.5 w-10 rounded" style={{ background: item.color }} />
                 )}
               </div>
-              <span className="text-xs" style={{ color: "#9aa1ab" }}>{item.label}</span>
+              <span className="text-sm" style={{ color: "#9aa1ab" }}>{item.label}</span>
             </div>
           ))}
         </div>

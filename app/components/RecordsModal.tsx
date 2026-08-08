@@ -7,8 +7,8 @@ import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../li
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
     <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "var(--text-secondary)" }}>{label}</div>
-      <div className={`${big ? "text-3xl" : "text-xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#eceef0", fontFamily: "var(--font-display)" }}>
+      <div className="text-[11px] font-bold tracking-[0.2em]" style={{ color: "var(--text-secondary)" }}>{label}</div>
+      <div className={`${big ? "text-4xl" : "text-2xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#eceef0", fontFamily: "var(--font-display)" }}>
         {value}
       </div>
     </div>
@@ -59,20 +59,20 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
           <div>
-            <div className="font-black text-lg tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>HISTORIAL DE TRADES</div>
-            <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>Performance por trade · riesgo fijo $100</div>
+            <div className="font-black text-xl tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>HISTORIAL DE TRADES</div>
+            <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Performance por trade · riesgo fijo $100</div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleClear}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold tracking-wider"
               style={{ background: "rgba(194,69,69,0.08)", color: "#c24545", border: "1px solid rgba(194,69,69,0.3)", cursor: "pointer", fontFamily: "var(--font-display)" }}
             >
               <FiTrash2 size={13} /> LIMPIAR TODO
             </button>
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold"
               style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
             >
               <FiX size={13} /> CERRAR
@@ -84,8 +84,8 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
           {records.length === 0 ? (
             <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
               <FiBarChart2 size={48} className="mb-4 opacity-15" />
-              <p className="text-base">Sin trades registrados.</p>
-              <p className="text-sm mt-2 opacity-70">Cada TP, SL o cierre manual aparece aquí automáticamente.</p>
+              <p className="text-lg">Sin trades registrados.</p>
+              <p className="text-base mt-2 opacity-70">Cada TP, SL o cierre manual aparece aquí automáticamente.</p>
             </div>
           ) : (
             <>
@@ -112,7 +112,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
 
               {/* Wins vs losses bar */}
               <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <div className="flex items-center justify-between text-[11px] font-bold mb-2">
+                <div className="flex items-center justify-between text-[12px] font-bold mb-2">
                   <span style={{ color: "#1f9d5c" }}>{stats.wins} GANANCIAS · +${stats.grossWin.toFixed(0)}</span>
                   <span style={{ color: "#c24545" }}>{stats.losses} PÉRDIDAS · −${stats.grossLoss.toFixed(0)}</span>
                 </div>
@@ -125,7 +125,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
               {/* Trade list */}
               <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="overflow-x-auto">
-                <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[10px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
+                <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[11px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
                   <span>FECHA</span><span>MERCADO</span><span>LADO</span><span>ENTRADA → SALIDA</span><span>RESULTADO</span><span>P/L</span><span>R</span>
                 </div>
                 {records.map((r, i) => {
@@ -134,7 +134,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                   return (
                     <div
                       key={r.id}
-                      className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[13px] items-center min-w-[520px]"
+                      className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[14px] items-center min-w-[520px]"
                       style={{ background: "var(--bg-card)", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
                     >
                       <span style={{ color: "#9aa1ab" }}>
@@ -147,7 +147,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                       </span>
                       <span style={{ color: "#9aa1ab", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
                       <span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black" style={{ background: `${oc.color}1a`, color: oc.color, border: `1px solid ${oc.color}40` }}>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-black" style={{ background: `${oc.color}1a`, color: oc.color, border: `1px solid ${oc.color}40` }}>
                           {oc.label}
                         </span>
                       </span>

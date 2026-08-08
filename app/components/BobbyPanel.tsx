@@ -64,7 +64,7 @@ function ProbRing({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
+        <span className="text-2xl font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
       </div>
     </div>
   );
@@ -118,8 +118,8 @@ function Clock({ is24h }: { is24h: boolean }) {
 
   return (
     <div className="text-right">
-      <div className="text-lg font-bold tracking-widest leading-none" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>{time}</div>
-      <div className="text-xs mt-1 font-semibold" style={{ color: statusColor }}>{statusLabel}</div>
+      <div className="text-xl font-bold tracking-widest leading-none" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>{time}</div>
+      <div className="text-sm mt-1 font-semibold" style={{ color: statusColor }}>{statusLabel}</div>
     </div>
   );
 }
@@ -195,7 +195,7 @@ function TradeCard({
       <div className="flex items-center justify-between gap-2 px-5 pt-4">
         <div className="flex items-center gap-2 min-w-0">
           {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: meta.color }} />}
-          <span className="font-black text-sm tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
+          <span className="font-black text-base tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
             {meta.label}
           </span>
         </div>
@@ -217,7 +217,7 @@ function TradeCard({
             </button>
           )}
           <span
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-black tracking-wider whitespace-nowrap"
             style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
           >
             {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
@@ -228,13 +228,13 @@ function TradeCard({
 
       {/* Status + P/L */}
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-        <p className="text-[13px] leading-snug" style={{ color: "#9aa1ab" }}>{statusLine}</p>
+        <p className="text-[14px] leading-snug" style={{ color: "#9aa1ab" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
-            <div className="text-2xl font-black leading-none" style={{ color: pnl >= 0 ? "#1f9d5c" : "#c24545", fontFamily: "var(--font-display)" }}>
+            <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1f9d5c" : "#c24545", fontFamily: "var(--font-display)" }}>
               {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
             </div>
-            <div className="text-[10px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            <div className="text-[11px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
               {opp.phase === "CONFIRMED" ? "P/L EN VIVO" : "RESULTADO"}
             </div>
           </div>
@@ -244,16 +244,16 @@ function TradeCard({
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-5 py-3.5">
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#a8862f" }}>ENTRADA</div>
-          <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#a8862f" }}>ENTRADA</div>
+          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c24545" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
-          <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#c24545" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
+          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#1f9d5c" }}>TARGET · +${reward}</div>
-          <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
+          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1f9d5c" }}>TARGET · +${reward}</div>
+          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
         </div>
       </div>
 
@@ -262,7 +262,7 @@ function TradeCard({
         <div className="grid grid-cols-2 gap-3 px-5 pb-4 pt-2">
           <button
             onClick={onTakeTrade}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-base tracking-widest transition-all duration-150"
             style={{
               background: opp.phase === "RETEST_ACTIVE" ? "#1f9d5c" : "rgba(31,157,92,0.1)",
               color: opp.phase === "RETEST_ACTIVE" ? "#030405" : "#1f9d5c",
@@ -276,7 +276,7 @@ function TradeCard({
           <button
             onClick={onMarketEntry}
             disabled={price === null}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-base tracking-widest transition-all duration-150"
             style={{
               background: "rgba(31,157,92,0.1)",
               color: "#a8862f",
@@ -294,7 +294,7 @@ function TradeCard({
         <div className="px-5 pb-4 pt-2">
           <button
             onClick={onCloseTrade}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-base tracking-widest transition-all duration-150"
             style={{
               background: "rgba(194,69,69,0.1)",
               color: "#c24545",
@@ -399,7 +399,7 @@ export default function BobbyPanel({
         <button
           onClick={analyze}
           disabled={loading}
-          className="px-5 py-2.5 rounded-xl font-black text-xs tracking-widest transition-all duration-150"
+          className="px-5 py-2.5 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
           style={{
             background: "transparent",
             color: "#1f9d5c",
@@ -431,7 +431,7 @@ export default function BobbyPanel({
           ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#a8862f"],
           ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#c24545"],
         ].map(([k, v, c]) => (
-          <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+          <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <span style={{ color: "var(--text-muted)" }}>{k}</span>
             <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
@@ -441,7 +441,7 @@ export default function BobbyPanel({
 
       {/* Error */}
       {error && (
-        <div className="mx-6 mt-5 p-4 rounded-xl text-sm" style={{ background: "rgba(194,69,69,0.1)", border: "1px solid rgba(194,69,69,0.35)", color: "#c24545" }}>
+        <div className="mx-6 mt-5 p-4 rounded-xl text-base" style={{ background: "rgba(194,69,69,0.1)", border: "1px solid rgba(194,69,69,0.35)", color: "#c24545" }}>
           {error}
         </div>
       )}
@@ -453,7 +453,7 @@ export default function BobbyPanel({
           <div className="flex justify-end">
             <button
               onClick={onToggleBot}
-              className="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black tracking-wider transition-all duration-150"
+              className="flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-black tracking-wider transition-all duration-150"
               style={{
                 background: botMode ? "rgba(31,157,92,0.12)" : "rgba(255,255,255,0.04)",
                 color: botMode ? "#1f9d5c" : "var(--text-secondary)",
@@ -480,7 +480,7 @@ export default function BobbyPanel({
               checking={checkingOpportunity}
             />
           ) : (
-            <div className="rounded-2xl px-5 py-4 text-sm" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
+            <div className="rounded-2xl px-5 py-4 text-base" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
               Sin setup tradeable — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
@@ -491,9 +491,9 @@ export default function BobbyPanel({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <sig.Icon size={26} color={sig.color} />
-                <span className="text-2xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
+                <span className="text-3xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
-              <div className="text-sm mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
+              <div className="text-base mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
                 {probLabel(result.probability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factores
                 {result.penalties.length > 0 && ` · ${result.penalties.length} penalidad${result.penalties.length > 1 ? "es" : ""}`}
               </div>
@@ -503,14 +503,14 @@ export default function BobbyPanel({
           {/* Warnings — solo si existen */}
           {result.warnings.length > 0 && (
             <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(194,69,69,0.35)" }}>
-              <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-black tracking-widest" style={{ background: "rgba(194,69,69,0.1)", color: "#c24545" }}>
+              <div className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(194,69,69,0.1)", color: "#c24545" }}>
                 <FiAlertTriangle size={13} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
                   <div key={i} className="flex gap-2.5 px-4 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
                     <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#c24545" : "#a8862f" }} />
-                    <div className="text-[15px] leading-snug">
+                    <div className="text-[16px] leading-snug">
                       <span className="font-bold" style={{ color: w.severity === "high" ? "#c24545" : "#a8862f" }}>{w.title}: </span>
                       <span style={{ color: "#7d848d" }}>{w.detail}</span>
                     </div>
@@ -535,8 +535,8 @@ export default function BobbyPanel({
                     <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: `${c}26` }}>
                       <Icon size={18} color={c} />
                     </span>
-                    <span className="text-sm leading-tight" style={{ color: "#9aa1ab" }}>{f.label}</span>
-                    <span className="font-black text-2xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
+                    <span className="text-base leading-tight" style={{ color: "#9aa1ab" }}>{f.label}</span>
+                    <span className="font-black text-3xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
                   </div>
                 );
               })}
@@ -549,18 +549,18 @@ export default function BobbyPanel({
                   <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: "rgba(194,69,69,0.15)" }}>
                     <FiAlertTriangle size={18} color="#c24545" />
                   </span>
-                  <span className="text-sm leading-tight" style={{ color: "#9aa1ab" }}>{p.label}</span>
-                  <span className="font-black text-2xl leading-none" style={{ color: "#c24545", fontFamily: "var(--font-display)" }}>{p.points}</span>
+                  <span className="text-base leading-tight" style={{ color: "#9aa1ab" }}>{p.label}</span>
+                  <span className="font-black text-3xl leading-none" style={{ color: "#c24545", fontFamily: "var(--font-display)" }}>{p.points}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="rounded-2xl px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
-            <div className="text-xs font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
-            <p className="text-base leading-relaxed" style={{ color: "#9aa1ab" }}>{result.message}</p>
+            <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
+            <p className="text-lg leading-relaxed" style={{ color: "#9aa1ab" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-              <div className="mt-2 pt-2 text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+              <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                 Ventana de setup abre en {result.minutesToOpen} min — este es el bias pre-open.
               </div>
             )}
@@ -573,8 +573,8 @@ export default function BobbyPanel({
       {!result && !loading && !error && (
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }}>
           <FiZap size={48} className="mb-4 opacity-15" />
-          <p className="text-base">Presiona <strong style={{ color: "var(--gold)" }}>Pregunta a Taylor</strong> para analizar {market.label}.</p>
-          <p className="text-sm mt-2 opacity-70">Señal, probabilidad, niveles y tracking de trades en vivo.</p>
+          <p className="text-lg">Presiona <strong style={{ color: "var(--gold)" }}>Pregunta a Taylor</strong> para analizar {market.label}.</p>
+          <p className="text-base mt-2 opacity-70">Señal, probabilidad, niveles y tracking de trades en vivo.</p>
         </div>
       )}
     </div>
