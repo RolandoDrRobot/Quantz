@@ -65,7 +65,7 @@ export function clearRecords() {
 }
 
 // "Today" in Costa Rica local time, matching how trade times are displayed
-// everywhere else in the app (RecordsModal, JournalModal) — a trade at
+// everywhere else in the app (RecordsPanel, JournalPanel) — a trade at
 // 11pm CR shouldn't count against tomorrow's UTC-day limit.
 export function getTodayRecords(records: TradeRecord[]): TradeRecord[] {
   const todayStr = new Date().toLocaleDateString("en-US", { timeZone: "America/Costa_Rica" });

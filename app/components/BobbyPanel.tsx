@@ -4,15 +4,28 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
-  FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
+  FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower, FiBarChart2,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiMinus,
 } from "react-icons/fi";
+import { LuBrainCircuit, LuNotebookPen, LuListChecks } from "react-icons/lu";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
 import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
+import JournalPanel from "./JournalPanel";
+import PlaybookPanel from "./PlaybookPanel";
+import RecordsPanel from "./RecordsPanel";
+
+export type PanelTab = "analysis" | "journal" | "rules" | "history";
+
+const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
+  { key: "analysis", label: "ANALYSIS", Icon: LuBrainCircuit },
+  { key: "journal",  label: "JOURNAL",  Icon: LuNotebookPen },
+  { key: "rules",    label: "RULES",    Icon: LuListChecks },
+  { key: "history",  label: "HISTORY",  Icon: FiBarChart2 },
+];
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
   GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
@@ -357,12 +370,16 @@ interface Props {
   onCheckOpportunity: () => void;
   checkingOpportunity: boolean;
   tradeBlockedReason: string | null;
+  activeTab: PanelTab;
+  onTabChange: (tab: PanelTab) => void;
+  recordsVersion: number;
   onClose?: () => void;
 }
 
 export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
-  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checkingOpportunity, tradeBlockedReason, onClose,
+  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checkingOpportunity, tradeBlockedReason,
+  activeTab, onTabChange, recordsVersion, onClose,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -427,6 +444,53 @@ export default function BobbyPanel({
   return (
     <div className="flex flex-col" style={{ background: "var(--bg-panel)" }}>
 
+      {/* Tab bar — the panel's own menu, replaces separate modals for Journal/Rules/History */}
+      <div className="flex items-center justify-between gap-2 px-6 py-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+        <div className="flex items-center gap-2">
+          {TABS.map(({ key, label, Icon }) => {
+            const active = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => onTabChange(key)}
+                className="flex items-center gap-2 px-4 py-3 rounded-md text-sm font-black tracking-wider whitespace-nowrap transition-all duration-150"
+                style={{
+                  background: active ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.05)",
+                  color: active ? "var(--text-primary)" : "var(--text-secondary)",
+                  border: `1px solid ${active ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.08)"}`,
+                  boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                <Icon size={16} /> {label}
+              </button>
+            );
+          })}
+        </div>
+        {onClose && (
+          <button onClick={onClose} className="p-1.5 rounded shrink-0" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
+            <FiX size={18} />
+          </button>
+        )}
+      </div>
+
+      <AnimatePresence mode="wait">
+      {activeTab === "journal" ? (
+        <motion.div key="journal" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+          <JournalPanel refreshToken={recordsVersion} />
+        </motion.div>
+      ) : activeTab === "rules" ? (
+        <motion.div key="rules" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+          <PlaybookPanel />
+        </motion.div>
+      ) : activeTab === "history" ? (
+        <motion.div key="history" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+          <RecordsPanel refreshToken={recordsVersion} />
+        </motion.div>
+      ) : (
+      <motion.div key="analysis" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+
       {/* Header: analyze button */}
       <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <button
@@ -446,11 +510,6 @@ export default function BobbyPanel({
             {loading ? "LOADING..." : "NEW ANALYSIS"}
           </span>
         </button>
-        {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded" style={{ color: "var(--text-secondary)", cursor: "pointer" }}>
-            <FiX size={18} />
-          </button>
-        )}
       </div>
 
       {/* Account chips — only market-variable values */}
@@ -634,6 +693,10 @@ export default function BobbyPanel({
           <p className="text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>
         </motion.div>
       ) : null}
+      </AnimatePresence>
+
+      </motion.div>
+      )}
       </AnimatePresence>
     </div>
   );

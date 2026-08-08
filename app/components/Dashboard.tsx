@@ -2,16 +2,13 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
-import { LuListChecks, LuBrainCircuit, LuNotebookPen, LuNewspaper } from "react-icons/lu";
+import { FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+import { LuBrainCircuit, LuNewspaper } from "react-icons/lu";
 import AxeChart from "./AxeChart";
-import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
+import BobbyPanel, { PHASE_META, Clock, type PanelTab } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
-import RecordsModal from "./RecordsModal";
-import PlaybookModal from "./PlaybookModal";
-import JournalModal from "./JournalModal";
 import NewsModal from "./NewsModal";
 import type { NewsArticle } from "../lib/news";
 import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
@@ -102,9 +99,7 @@ export default function Dashboard() {
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [botMode, setBotMode] = useState(true);
-  const [recordsOpen, setRecordsOpen] = useState(false);
-  const [playbookOpen, setPlaybookOpen] = useState(false);
-  const [journalOpen, setJournalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
   const [newsOpen, setNewsOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<NewsArticle[]>([]);
   const [taylorOpen, setTaylorOpen] = useState(false);
@@ -569,9 +564,6 @@ export default function Dashboard() {
 
   return (
     <>
-      <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} refreshToken={recordsVersion} />
-      <PlaybookModal open={playbookOpen} onClose={() => setPlaybookOpen(false)} />
-      <JournalModal open={journalOpen} onClose={() => setJournalOpen(false)} />
       <NewsModal open={newsOpen} onClose={() => setNewsOpen(false)} market={market} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -631,19 +623,6 @@ export default function Dashboard() {
                 );
               })}
             </div>
-            <button
-              onClick={() => setRecordsOpen(true)}
-              className="flex items-center gap-1 px-3 py-2.5 rounded-md text-sm font-bold"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                color: "var(--text-primary)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                cursor: "pointer",
-                fontFamily: "var(--font-display)",
-              }}
-            >
-              <FiBarChart2 size={13} />
-            </button>
           </div>
 
           {/* Timeframe selector + news marquee — tap the marquee to open the full feed */}
@@ -731,10 +710,10 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* Botones Journal + Playbook + Taylor */}
+          {/* Botón Taylor — abre el panel (Analysis/Journal/Rules/History viven dentro) */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setJournalOpen(true)}
+              onClick={() => { setActiveTab("analysis"); setTaylorOpen(true); }}
               className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
               style={{
                 background: "rgba(255,255,255,0.06)",
@@ -742,33 +721,7 @@ export default function Dashboard() {
                 border: "1px solid rgba(255,255,255,0.1)",
                 cursor: "pointer",
               }}
-              title="Journal — log your trades"
-            >
-              <LuNotebookPen size={20} />
-            </button>
-            <button
-              onClick={() => setPlaybookOpen(true)}
-              className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                color: "var(--text-primary)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                cursor: "pointer",
-              }}
-              title="Playbook — the 40 rules"
-            >
-              <LuListChecks size={20} />
-            </button>
-            <button
-              onClick={() => setTaylorOpen(true)}
-              className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                color: "var(--text-primary)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                cursor: "pointer",
-              }}
-              title="Taylor — open analysis"
+              title="Taylor — open panel"
             >
               <LuBrainCircuit size={20} />
             </button>
@@ -831,6 +784,9 @@ export default function Dashboard() {
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
               tradeBlockedReason={dailyLimitReason}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              recordsVersion={recordsVersion}
               onClose={() => setTaylorOpen(false)}
             />
           </div>
@@ -888,46 +844,7 @@ export default function Dashboard() {
               </button>
             );
           })}
-          <span className="ml-3 text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
-          <button
-            onClick={() => setJournalOpen(true)}
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              color: "var(--text-primary)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <LuNotebookPen size={13} /> JOURNAL
-          </button>
-          <button
-            onClick={() => setPlaybookOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              color: "var(--text-primary)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <LuListChecks size={13} /> RULES
-          </button>
-          <button
-            onClick={() => setRecordsOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              color: "var(--text-primary)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <FiBarChart2 size={13} /> HISTORY
-          </button>
+          <span className="ml-auto text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
         </div>
 
         {/* ── Timeframe selector + news marquee ── */}
@@ -988,6 +905,9 @@ export default function Dashboard() {
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
               tradeBlockedReason={dailyLimitReason}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              recordsVersion={recordsVersion}
             />
           </aside>
         </div>
