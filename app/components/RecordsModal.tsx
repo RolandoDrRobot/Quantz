@@ -6,7 +6,7 @@ import { loadRecords, clearRecords, computeStats, type TradeRecord } from "../li
 
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
-    <div className="rounded-xl px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "var(--text-secondary)" }}>{label}</div>
       <div className={`${big ? "text-3xl" : "text-xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#eceef0", fontFamily: "var(--font-display)" }}>
         {value}
@@ -53,7 +53,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
           <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
         </div>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+        <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
           <div>
             <div className="font-black text-lg tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>HISTORIAL DE TRADES</div>
             <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>Performance por trade · riesgo fijo $100</div>
@@ -76,7 +76,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-7 flex flex-col gap-6">
           {records.length === 0 ? (
             <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
               <FiBarChart2 size={48} className="mb-4 opacity-15" />
@@ -86,7 +86,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
           ) : (
             <>
               {/* Headline stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="P/L NETO" value={`${stats.netPnl >= 0 ? "+" : "−"}$${Math.abs(stats.netPnl).toFixed(0)}`} color={pnlColor} big />
                 <StatCard label="WIN RATE" value={`${stats.winRate.toFixed(0)}%`} color={stats.winRate >= 50 ? "#1f9d5c" : "#c24545"} big />
                 <StatCard label="TRADES" value={`${stats.total}`} big />
@@ -94,7 +94,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
               </div>
 
               {/* Secondary stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard label="PROMEDIO WIN" value={`+$${stats.avgWin.toFixed(0)}`} color="#1f9d5c" />
                 <StatCard label="PROMEDIO LOSS" value={`−$${stats.avgLoss.toFixed(0)}`} color="#c24545" />
                 <StatCard label="EXPECTATIVA/TRADE" value={`${stats.expectancy >= 0 ? "+" : "−"}$${Math.abs(stats.expectancy).toFixed(0)}`} color={stats.expectancy >= 0 ? "#1f9d5c" : "#c24545"} />
@@ -107,7 +107,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
               </div>
 
               {/* Wins vs losses bar */}
-              <div className="rounded-xl px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center justify-between text-[11px] font-bold mb-2">
                   <span style={{ color: "#1f9d5c" }}>{stats.wins} GANANCIAS · +${stats.grossWin.toFixed(0)}</span>
                   <span style={{ color: "#c24545" }}>{stats.losses} PÉRDIDAS · −${stats.grossLoss.toFixed(0)}</span>
@@ -119,9 +119,9 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
               </div>
 
               {/* Trade list */}
-              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="overflow-x-auto">
-                <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-4 py-2 text-[10px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
+                <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[10px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
                   <span>FECHA</span><span>MERCADO</span><span>LADO</span><span>ENTRADA → SALIDA</span><span>RESULTADO</span><span>P/L</span><span>R</span>
                 </div>
                 {records.map((r, i) => {
@@ -130,7 +130,7 @@ export default function RecordsModal({ open, onClose }: { open: boolean; onClose
                   return (
                     <div
                       key={r.id}
-                      className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-4 py-2.5 text-[13px] items-center min-w-[520px]"
+                      className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[13px] items-center min-w-[520px]"
                       style={{ background: "var(--bg-card)", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
                     >
                       <span style={{ color: "#9aa1ab" }}>

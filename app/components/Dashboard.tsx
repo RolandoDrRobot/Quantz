@@ -274,7 +274,7 @@ export default function Dashboard() {
           />
           {opportunity?.phase === "RETEST_ACTIVE" && (
             <div
-              className="absolute left-3 right-3 rounded-xl p-3 z-10"
+              className="absolute left-4 right-4 rounded-2xl p-4 z-10"
               style={{
                 top: "3.5rem",
                 background: "rgba(3,4,5,0.96)",
@@ -326,10 +326,10 @@ export default function Dashboard() {
 
         {/* ── Overlay superior: mercados + historial ── */}
         <div
-          className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-3 pt-safe pt-3 pb-4"
+          className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 pt-safe pt-4 pb-5"
           style={{ background: "linear-gradient(to bottom, rgba(3,4,5,0.88) 60%, transparent 100%)" }}
         >
-          <div className="flex gap-1.5 flex-1">
+          <div className="flex gap-2 flex-1">
             {MARKET_KEYS.map(key => {
               const m = MARKETS[key];
               const active = key === market;
@@ -337,7 +337,7 @@ export default function Dashboard() {
                 <button
                   key={key}
                   onClick={() => handleMarketChange(key)}
-                  className="flex-1 py-1.5 rounded-lg text-xs font-black tracking-wider transition-all duration-200"
+                  className="flex-1 py-2.5 rounded-xl text-xs font-black tracking-wider transition-all duration-200"
                   style={{
                     background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
                     color: active ? "var(--gold)" : "var(--text-muted)",
@@ -353,7 +353,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => setRecordsOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold"
+            className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold"
             style={{
               background: "rgba(255,255,255,0.06)",
               color: "var(--text-secondary)",
@@ -368,7 +368,7 @@ export default function Dashboard() {
 
         {/* ── Overlay inferior: precio + botón Taylor ── */}
         <div
-          className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-4 pb-8 pt-16"
+          className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-5 pb-9 pt-16"
           style={{ background: "linear-gradient(to top, rgba(3,4,5,0.92) 50%, transparent 100%)" }}
         >
           {/* Precio en vivo */}
@@ -402,7 +402,7 @@ export default function Dashboard() {
           {/* Botón Taylor */}
           <button
             onClick={() => setTaylorOpen(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm tracking-widest transition-all duration-150 active:scale-95"
+            className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-sm tracking-widest transition-all duration-150 active:scale-95"
             style={{
               background: "var(--gold-dim)",
               color: "var(--gold)",
@@ -450,7 +450,7 @@ export default function Dashboard() {
 
         {/* ── Top bar ── */}
         <div
-          className="flex items-center gap-1 px-4 py-2 shrink-0 overflow-x-auto"
+          className="flex items-center gap-2 px-6 py-3 shrink-0 overflow-x-auto"
           style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)" }}
         >
           {MARKET_KEYS.map(key => {
@@ -460,7 +460,7 @@ export default function Dashboard() {
               <button
                 key={key}
                 onClick={() => handleMarketChange(key)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
+                className="px-4 py-2 rounded-xl text-xs font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
                   background: active ? "var(--gold-dim)" : "transparent",
                   color: active ? "var(--gold)" : "var(--text-muted)",
@@ -473,10 +473,10 @@ export default function Dashboard() {
               </button>
             );
           })}
-          <span className="ml-2 text-[10px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
+          <span className="ml-3 text-[10px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
           <button
             onClick={() => setRecordsOpen(true)}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
+            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
               background: "rgba(31,157,92,0.08)",
               color: "var(--gold)",

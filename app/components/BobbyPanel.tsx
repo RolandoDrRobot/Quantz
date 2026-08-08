@@ -172,7 +172,7 @@ function TradeCard({
 
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="rounded-2xl overflow-hidden"
       style={{
         border: `1px solid ${meta.color}55`,
         background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-card)`,
@@ -180,7 +180,7 @@ function TradeCard({
       }}
     >
       {/* Header: phase + direction pill */}
-      <div className="flex items-center justify-between px-4 pt-3">
+      <div className="flex items-center justify-between px-5 pt-4">
         <div className="flex items-center gap-2">
           {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: meta.color }} />}
           <span className="font-black text-sm tracking-wider" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
@@ -197,7 +197,7 @@ function TradeCard({
       </div>
 
       {/* Status + P/L */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5">
         <p className="text-[13px] leading-snug" style={{ color: "#9aa1ab" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
@@ -213,15 +213,15 @@ function TradeCard({
 
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="px-4 py-2.5">
+        <div className="px-5 py-3.5">
           <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#a8862f" }}>ENTRADA</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.entry.toFixed(2)}</div>
         </div>
-        <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#c24545" }}>STOP · −${ACCOUNT.riskPerTrade}</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.sl.toFixed(2)}</div>
         </div>
-        <div className="px-4 py-2.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="text-[9px] font-bold tracking-[0.2em]" style={{ color: "#1f9d5c" }}>TARGET · +${reward}</div>
           <div className="text-base font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{opp.tp.toFixed(2)}</div>
         </div>
@@ -229,10 +229,10 @@ function TradeCard({
 
       {/* Contextual actions */}
       {!bot && (opp.phase === "RETEST_ACTIVE" || opp.phase === "AWAIT_RETEST") && (
-        <div className="grid grid-cols-2 gap-2 px-4 pb-3 pt-1">
+        <div className="grid grid-cols-2 gap-3 px-5 pb-4 pt-2">
           <button
             onClick={onTakeTrade}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
             style={{
               background: opp.phase === "RETEST_ACTIVE" ? "#1f9d5c" : "rgba(31,157,92,0.1)",
               color: opp.phase === "RETEST_ACTIVE" ? "#030405" : "#1f9d5c",
@@ -246,7 +246,7 @@ function TradeCard({
           <button
             onClick={onMarketEntry}
             disabled={price === null}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
             style={{
               background: "rgba(31,157,92,0.1)",
               color: "#a8862f",
@@ -261,10 +261,10 @@ function TradeCard({
       )}
 
       {opp.phase === "CONFIRMED" && (
-        <div className="px-4 pb-3 pt-1">
+        <div className="px-5 pb-4 pt-2">
           <button
             onClick={onCloseTrade}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-black text-sm tracking-widest transition-all duration-150"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest transition-all duration-150"
             style={{
               background: "rgba(194,69,69,0.1)",
               color: "#c24545",
@@ -346,11 +346,11 @@ export default function BobbyPanel({
     <div className="flex flex-col" style={{ background: "var(--bg-panel)" }}>
 
       {/* Header: analyze button + clock */}
-      <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <button
           onClick={analyze}
           disabled={loading}
-          className="px-4 py-1.5 rounded-lg font-black text-xs tracking-widest transition-all duration-150"
+          className="px-5 py-2.5 rounded-xl font-black text-xs tracking-widest transition-all duration-150"
           style={{
             background: "transparent",
             color: "#1f9d5c",
@@ -375,14 +375,14 @@ export default function BobbyPanel({
       </div>
 
       {/* Account chips — only market-variable values */}
-      <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+      <div className="flex items-center gap-2.5 px-6 py-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         {[
           ["SL", market.slLabel, "#eceef0"],
           ["LOTES", `${lots}`, "#eceef0"],
           ["SPREAD", `~$${tradeCostFor(market).toFixed(2)}`, "#a8862f"],
           ["RIESGO", `$${ACCOUNT.riskPerTrade}`, "#c24545"],
         ].map(([k, v, c]) => (
-          <span key={k} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
+          <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <span style={{ color: "var(--text-muted)" }}>{k}</span>
             <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
@@ -392,13 +392,13 @@ export default function BobbyPanel({
 
       {/* Error */}
       {error && (
-        <div className="mx-5 mt-4 p-3 rounded-lg text-sm" style={{ background: "rgba(194,69,69,0.1)", border: "1px solid rgba(194,69,69,0.35)", color: "#c24545" }}>
+        <div className="mx-6 mt-5 p-4 rounded-xl text-sm" style={{ background: "rgba(194,69,69,0.1)", border: "1px solid rgba(194,69,69,0.35)", color: "#c24545" }}>
           {error}
         </div>
       )}
 
       {result && sig && (
-        <div className="p-4 flex flex-col gap-3">
+        <div className="p-6 flex flex-col gap-5">
 
           {/* Bot toggle */}
           <div className="flex justify-end">
@@ -429,13 +429,13 @@ export default function BobbyPanel({
               onCloseTrade={onCloseTrade}
             />
           ) : (
-            <div className="rounded-xl px-4 py-3 text-[13px]" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
+            <div className="rounded-2xl px-5 py-4 text-[13px]" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
               Sin setup tradeable — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
 
           {/* Signal + probability gauge */}
-          <div className="rounded-xl flex items-center gap-4 px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-2xl flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <ProbRing value={result.probability} />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -451,13 +451,13 @@ export default function BobbyPanel({
 
           {/* Warnings — solo si existen */}
           {result.warnings.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(194,69,69,0.35)" }}>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(194,69,69,0.1)", color: "#c24545" }}>
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(194,69,69,0.35)" }}>
+              <div className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(194,69,69,0.1)", color: "#c24545" }}>
                 <FiAlertTriangle size={12} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
-                  <div key={i} className="flex gap-2.5 px-3 py-1.5" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
+                  <div key={i} className="flex gap-2.5 px-4 py-2.5" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#c24545" : "#a8862f" }} />
                     <div className="text-[13px] leading-snug">
                       <span className="font-bold" style={{ color: w.severity === "high" ? "#c24545" : "#a8862f" }}>{w.title}: </span>
@@ -470,8 +470,8 @@ export default function BobbyPanel({
           )}
 
           {/* Score factors */}
-          <div className="rounded-xl px-4 py-3" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-2">
+          <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
                 const c = pct === 100 ? "#1f9d5c" : pct === 0 ? "#c24545" : "#1f9d5c";
@@ -501,7 +501,7 @@ export default function BobbyPanel({
             </div>
           </div>
 
-          <div className="rounded-xl px-4 py-3" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
+          <div className="rounded-2xl px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
             <div className="text-[10px] font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
             <p className="text-[13px] leading-relaxed" style={{ color: "#9aa1ab" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
