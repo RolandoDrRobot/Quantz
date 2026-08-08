@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
-import { LuListChecks, LuBrainCircuit, LuNotebookPen } from "react-icons/lu";
+import { LuListChecks, LuBrainCircuit, LuNotebookPen, LuNewspaper } from "react-icons/lu";
 import AxeChart from "./AxeChart";
 import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
@@ -12,6 +12,8 @@ import { MARKETS, type MarketKey } from "../lib/markets";
 import RecordsModal from "./RecordsModal";
 import PlaybookModal from "./PlaybookModal";
 import JournalModal from "./JournalModal";
+import NewsModal from "./NewsModal";
+import type { NewsArticle } from "../lib/news";
 import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
@@ -56,6 +58,8 @@ export default function Dashboard() {
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [playbookOpen, setPlaybookOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(false);
+  const [newsTicker, setNewsTicker] = useState<NewsArticle[]>([]);
   const [taylorOpen, setTaylorOpen] = useState(false);
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
   const [recordsVersion, setRecordsVersion] = useState(0);
@@ -75,6 +79,22 @@ export default function Dashboard() {
   useEffect(() => { botModeRef.current = botMode; }, [botMode]);
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
+
+  // News ticker feed — one shared fetch for the marquee, independent of the
+  // NewsModal's own fetch (the modal loads lazily on first open and supports
+  // a manual refresh; this just keeps the marquee text reasonably current).
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      fetch("/api/news", { cache: "no-store" })
+        .then(r => r.json())
+        .then(data => { if (!cancelled && Array.isArray(data.articles)) setNewsTicker(data.articles); })
+        .catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const opportunityRef = useRef<Opportunity | null>(null);
   const updateOpportunity = useCallback((next: Opportunity | null) => {
@@ -424,6 +444,7 @@ export default function Dashboard() {
       <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} refreshToken={recordsVersion} />
       <PlaybookModal open={playbookOpen} onClose={() => setPlaybookOpen(false)} />
       <JournalModal open={journalOpen} onClose={() => setJournalOpen(false)} />
+      <NewsModal open={newsOpen} onClose={() => setNewsOpen(false)} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< lg) — chart a pantalla completa
@@ -494,6 +515,34 @@ export default function Dashboard() {
               <FiBarChart2 size={13} />
             </button>
           </div>
+
+          {/* News marquee — tap to open the full feed */}
+          <AnimatePresence>
+            {newsTicker.length > 0 && (
+              <motion.button
+                onClick={() => setNewsOpen(true)}
+                className="overflow-hidden rounded-md flex items-center gap-2 px-3 py-2"
+                style={{ background: "rgba(5,14,26,0.7)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+                variants={fadeVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={TRANSITION_FAST}
+              >
+                <LuNewspaper size={14} className="shrink-0" style={{ color: "var(--gold)" }} />
+                <div className="overflow-hidden flex-1">
+                  <div className="flex w-max animate-marquee">
+                    {[...newsTicker, ...newsTicker].map((a, i) => (
+                      <span key={i} className="flex items-center shrink-0 text-sm font-bold pl-4" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-display)" }}>
+                        {a.headline}
+                        <span className="pl-4 opacity-25">•</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Overlay inferior: precio + botón Taylor + ticker de oportunidad ── */}
