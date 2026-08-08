@@ -528,22 +528,22 @@ export default function BobbyPanel({
 
           {/* Score factors */}
           <div className="rounded-lg py-4 lg:px-5" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
                 const { Icon, color: c } = factorVisual(pct);
                 return (
                   <div
                     key={i}
-                    className="flex items-center text-left gap-3 rounded-md px-4 py-3 w-full lg:flex-col lg:items-center lg:text-center lg:gap-2 lg:px-3 lg:py-4"
+                    className="flex items-center text-left gap-2 rounded-md px-3 py-2 w-full lg:flex-col lg:items-center lg:text-center lg:gap-1.5"
                     style={{ background: "var(--bg-elevated)", border: `1px solid ${c}33` }}
                   >
-                    <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0" style={{ background: `${c}26` }}>
-                      <Icon size={18} color={c} />
+                    <span className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: `${c}26` }}>
+                      <Icon size={14} color={c} />
                     </span>
                     <div className="flex flex-col lg:contents">
-                      <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{f.label}</span>
-                      <span className="font-black text-3xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
+                      <span className="text-xs leading-tight" style={{ color: "#9ba5b2" }}>{f.label}</span>
+                      <span className="font-black text-lg leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
                     </div>
                   </div>
                 );
@@ -551,15 +551,15 @@ export default function BobbyPanel({
               {result.penalties.map((p, i) => (
                 <div
                   key={`p${i}`}
-                  className="flex items-center text-left gap-3 rounded-md px-4 py-3 w-full lg:flex-col lg:items-center lg:text-center lg:gap-2 lg:px-3 lg:py-4"
+                  className="flex items-center text-left gap-2 rounded-md px-3 py-2 w-full lg:flex-col lg:items-center lg:text-center lg:gap-1.5"
                   style={{ background: "rgba(138,47,42,0.06)", border: "1px solid rgba(138,47,42,0.35)" }}
                 >
-                  <span className="flex items-center justify-center w-10 h-10 rounded-full shrink-0" style={{ background: "rgba(138,47,42,0.15)" }}>
-                    <FiAlertTriangle size={18} color="#8a2f2a" />
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: "rgba(138,47,42,0.15)" }}>
+                    <FiAlertTriangle size={14} color="#8a2f2a" />
                   </span>
                   <div className="flex flex-col lg:contents">
-                    <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{p.label}</span>
-                    <span className="font-black text-3xl leading-none" style={{ color: "#8a2f2a", fontFamily: "var(--font-display)" }}>{p.points}</span>
+                    <span className="text-xs leading-tight" style={{ color: "#9ba5b2" }}>{p.label}</span>
+                    <span className="font-black text-lg leading-none" style={{ color: "#8a2f2a", fontFamily: "var(--font-display)" }}>{p.points}</span>
                   </div>
                 </div>
               ))}
