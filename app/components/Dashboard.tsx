@@ -500,8 +500,10 @@ export default function Dashboard() {
           className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-3 px-5 pt-16"
           style={{
             background: "linear-gradient(to top, rgba(5,14,26,0.92) 50%, transparent 100%)",
-            // Clears the home-indicator gesture bar on notched iOS devices.
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)",
+            // Clears the home-indicator gesture bar on notched iOS devices —
+            // no extra fixed padding on top, the ticker row already gives
+            // this section enough bottom breathing room.
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
           }}
         >
         <div className="flex items-end justify-between">
