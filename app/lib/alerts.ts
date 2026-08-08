@@ -1,8 +1,25 @@
 // Audio alerts — distinct sounds so you know what happened without looking
 
-function playNotes(notes: [number, number][], vol = 0.35) {
+// Reused across every call instead of `new AudioContext()` per sound — a
+// long session with several phase transitions used to leak one context per
+// alert until the browser's concurrent-context cap made every `new
+// AudioContext()` throw (swallowed by the try/catch), silently killing all
+// future sound alerts for the rest of the session.
+let sharedCtx: AudioContext | null = null;
+function getContext(): AudioContext | null {
   try {
-    const ctx = new AudioContext();
+    if (!sharedCtx) sharedCtx = new AudioContext();
+    if (sharedCtx.state === "suspended") void sharedCtx.resume();
+    return sharedCtx;
+  } catch {
+    return null;
+  }
+}
+
+function playNotes(notes: [number, number][], vol = 0.35) {
+  const ctx = getContext();
+  if (!ctx) return;
+  try {
     notes.forEach(([freq, delay]) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();

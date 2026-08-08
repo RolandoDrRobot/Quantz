@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
@@ -93,15 +93,18 @@ function Clock({ is24h }: { is24h: boolean }) {
       const day = et.getDay();
       const totalMin = et.getHours() * 60 + et.getMinutes();
       const openMin = 9 * 60 + 30;
+      // Must match getMarketTiming()'s inSetupWindow in lib/analysis.ts —
+      // that window starts 15min before the open, not at the open.
+      const setupStart = openMin - 15;
 
       if (day === 0 || day === 6) {
         setStatusLabel("Fin de semana — Cerrado"); setStatusColor("#6b7280");
       } else if (totalMin < openMin - 30) {
         setStatusLabel(`Pre-market — abre en ${openMin - totalMin}min`); setStatusColor("#f59e0b");
-      } else if (totalMin < openMin) {
-        setStatusLabel(`ABRE EN ${openMin - totalMin}MIN — MARCA TUS NIVELES`); setStatusColor("#1f9d5c");
+      } else if (totalMin < setupStart) {
+        setStatusLabel(`ABRE EN ${setupStart - totalMin}MIN — MARCA TUS NIVELES`); setStatusColor("#1f9d5c");
       } else if (totalMin < openMin + 30) {
-        setStatusLabel(`VENTANA DE SETUP — ${30 - (totalMin - openMin)}min restantes`); setStatusColor("#1f9d5c");
+        setStatusLabel(`VENTANA DE SETUP — ${30 - (totalMin - setupStart)}min restantes`); setStatusColor("#1f9d5c");
       } else if (totalMin < 16 * 60) {
         setStatusLabel("Abierto — ventana cerrada"); setStatusColor("#6b7280");
       } else {
@@ -340,7 +343,14 @@ export default function BobbyPanel({
     setError("");
   }
 
+  // Tracks which symbol is currently selected so an in-flight analyze()
+  // request from a market the user has since switched away from can detect
+  // it's stale and bail instead of overwriting the new market's state.
+  const marketSymbolRef = useRef(market.symbol);
+  useEffect(() => { marketSymbolRef.current = market.symbol; }, [market.symbol]);
+
   const analyze = useCallback(async () => {
+    const requestSymbol = market.symbol;
     setLoading(true);
     setError("");
     try {
@@ -360,10 +370,14 @@ export default function BobbyPanel({
         market.slPoints,
         market.label
       );
+      if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
       onAnalysis(fresh, data.candles5m, data.candles1m ?? []);
     } catch (e: unknown) {
+      if (marketSymbolRef.current !== requestSymbol) return;
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
+      // Always clear the spinner for this component instance — only the
+      // analysis/error *data* is guarded against staleness above.
       setLoading(false);
     }
   }, [market, onAnalysis]);

@@ -21,12 +21,16 @@ const OUTCOME_STYLE: Record<TradeRecord["outcome"], { label: string; color: stri
   MANUAL: { label: "MANUAL", color: "#1f9d5c" },
 };
 
-export default function RecordsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function RecordsModal({ open, onClose, refreshToken }: { open: boolean; onClose: () => void; refreshToken?: number }) {
   // Bumped after a clear to force re-reading localStorage; otherwise records
   // is just a plain derived read, refreshed each time the modal opens.
+  // `refreshToken` (bumped by the parent whenever a trade resolves) does the
+  // same thing while the modal is already open — without it, a TP/SL/manual
+  // close that lands mid-session left the stats and trade list stale until
+  // the modal was closed and reopened.
   const [version, setVersion] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- version is a manual invalidation token, not read inside
-  const records = useMemo(() => (open ? loadRecords() : []), [open, version]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- version/refreshToken are manual invalidation tokens, not read inside
+  const records = useMemo(() => (open ? loadRecords() : []), [open, version, refreshToken]);
 
   const handleClear = useCallback(() => {
     if (window.confirm("¿Eliminar TODOS los trades? No se puede deshacer.")) {

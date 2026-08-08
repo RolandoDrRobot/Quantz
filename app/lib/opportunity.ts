@@ -1,4 +1,5 @@
 import type { AnalysisResult, Level } from "./analysis";
+import { ACCOUNT } from "./markets";
 
 // Live-tracked trade opportunity, advanced tick by tick:
 // HUNTING → AWAIT_RETEST → RETEST_ACTIVE → CONFIRMED → TP_HIT / SL_HIT
@@ -162,7 +163,7 @@ export function closeTrade(o: Opportunity, price: number): Opportunity {
 // Live P/L in dollars from the ACTUAL fill price, minus broker cost (spread).
 // A fresh position correctly starts slightly negative — you pay the spread.
 export function livePnl(o: Opportunity, price: number): number {
-  const perPoint = 100 / o.slPoints;
+  const perPoint = ACCOUNT.riskPerTrade / o.slPoints;
   const base = o.fillPrice ?? o.entry;
   const diff = o.direction === "long" ? price - base : base - price;
   return diff * perPoint - (o.cost ?? 0);

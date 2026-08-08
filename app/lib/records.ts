@@ -15,11 +15,34 @@ export interface TradeRecord {
 }
 
 const KEY = "axe-trade-records";
+const MAX_RECORDS = 2000; // plenty for a personal trading journal, caps unbounded growth
+
+function isTradeRecord(v: unknown): v is TradeRecord {
+  if (typeof v !== "object" || v === null) return false;
+  const r = v as Record<string, unknown>;
+  return (
+    typeof r.id === "string" &&
+    typeof r.time === "number" &&
+    typeof r.market === "string" &&
+    (r.direction === "long" || r.direction === "short") &&
+    typeof r.entry === "number" &&
+    typeof r.exit === "number" &&
+    (r.outcome === "TP" || r.outcome === "SL" || r.outcome === "MANUAL") &&
+    typeof r.pnl === "number" &&
+    typeof r.rMultiple === "number"
+  );
+}
 
 export function loadRecords(): TradeRecord[] {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    // A corrupted or hand-edited localStorage entry used to flow straight
+    // into computeStats/the trade list and crash the Records modal — guard
+    // against a non-array payload and drop any malformed individual rows.
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isTradeRecord);
   } catch {
     return [];
   }
@@ -29,6 +52,7 @@ export function addRecord(r: TradeRecord) {
   try {
     const all = loadRecords();
     all.unshift(r); // newest first
+    if (all.length > MAX_RECORDS) all.length = MAX_RECORDS;
     localStorage.setItem(KEY, JSON.stringify(all));
   } catch { /* storage unavailable */ }
 }
@@ -57,13 +81,17 @@ export interface TradeStats {
 export function computeStats(rs: TradeRecord[]): TradeStats {
   const total = rs.length;
   const wins = rs.filter(r => r.pnl > 0);
-  const losses = rs.filter(r => r.pnl <= 0);
+  // Exact breakeven (pnl === 0) is neither a win nor a loss — it used to
+  // count as a loss here, silently breaking win streaks and dragging down
+  // winRate/avgLoss for a trade that made/lost nothing.
+  const losses = rs.filter(r => r.pnl < 0);
   const grossWin = wins.reduce((s, r) => s + r.pnl, 0);
   const grossLoss = Math.abs(losses.reduce((s, r) => s + r.pnl, 0));
   const netPnl = grossWin - grossLoss;
 
   let streak = 0;
   for (const r of rs) { // rs is newest-first
+    if (r.pnl === 0) break; // breakeven trade — doesn't extend or break a streak, but ends the count
     const win = r.pnl > 0;
     if (streak === 0) streak = win ? 1 : -1;
     else if (streak > 0 && win) streak++;

@@ -43,10 +43,13 @@ async function fetchCandles(symbol: string, interval: string, period1: number, p
 
 // Symbols whose candles come from Twelve Data instead of Yahoo, so that the
 // chart matches the real-time WebSocket ticks (spot price, not futures).
-const TD_CANDLE_SOURCE: Record<string, string> = {
-  "GC=F": "XAU/USD",
-  "BTC-USD": "BTC/USD",
-};
+// A Map (not a plain object) so a user-controlled symbol like "constructor"
+// can never resolve to an inherited Object.prototype value instead of
+// undefined.
+const TD_CANDLE_SOURCE = new Map<string, string>([
+  ["GC=F", "XAU/USD"],
+  ["BTC-USD", "BTC/USD"],
+]);
 
 async function fetchTDCandles(tdSymbol: string, interval: string, outputsize: number): Promise<RawCandle[]> {
   try {
@@ -60,10 +63,17 @@ async function fetchTDCandles(tdSymbol: string, interval: string, outputsize: nu
 
     const candles: RawCandle[] = [];
     for (const v of data.values) {
-      const time = Math.floor(Date.parse(v.datetime.replace(" ", "T") + "Z") / 1000);
-      const o = parseFloat(v.open), h = parseFloat(v.high), l = parseFloat(v.low), c = parseFloat(v.close);
-      if (!isFinite(time) || !isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c)) continue;
-      candles.push({ time, open: o, high: h, low: l, close: c, volume: parseFloat(v.volume ?? "0") || 0 });
+      // One malformed row (e.g. a missing/unexpected-shape `datetime`) used
+      // to throw here and get caught by the outer try/catch, discarding
+      // every candle in the batch instead of just the bad row.
+      try {
+        const time = Math.floor(Date.parse(String(v.datetime).replace(" ", "T") + "Z") / 1000);
+        const o = parseFloat(v.open), h = parseFloat(v.high), l = parseFloat(v.low), c = parseFloat(v.close);
+        if (!isFinite(time) || !isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c)) continue;
+        candles.push({ time, open: o, high: h, low: l, close: c, volume: parseFloat(v.volume ?? "0") || 0 });
+      } catch {
+        continue;
+      }
     }
     return candles;
   } catch {
@@ -90,7 +100,7 @@ export async function GET(request: Request) {
   let candles5m: RawCandle[];
   let candles1m: RawCandle[];
 
-  const tdSource = TD_CANDLE_SOURCE[symbol];
+  const tdSource = TD_CANDLE_SOURCE.get(symbol);
   if (tdSource) {
     // Twelve Data: 5000 x 5min ≈ 17 days for analysis, 3000 x 1min ≈ 2 days for chart
     const [td5m, td1m] = await Promise.all([

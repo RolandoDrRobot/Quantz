@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [taylorOpen, setTaylorOpen] = useState(false);
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
+  const [recordsVersion, setRecordsVersion] = useState(0);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
@@ -86,6 +87,7 @@ export default function Dashboard() {
       pnl,
       rMultiple: parseFloat((pnl / ACCOUNT.riskPerTrade).toFixed(2)),
     });
+    setRecordsVersion(v => v + 1);
   }, []);
 
   // Reading localStorage during the initial render (e.g. a useState
@@ -199,14 +201,24 @@ export default function Dashboard() {
   const handleTick = useCallback((price: number) => advancePrice(price), [advancePrice]);
 
   const handleCheckOpportunity = useCallback(async () => {
+    // Captured up front so a slow response can detect the user switched
+    // markets while it was in flight and bail instead of applying a
+    // wrong-market price to the current opportunity.
+    const requestSymbol = symbolRef.current;
     setCheckingOpportunity(true);
     try {
-      const res = await fetch(`/api/market?symbol=${encodeURIComponent(symbolRef.current)}`, { cache: "no-store" });
+      const res = await fetch(`/api/market?symbol=${encodeURIComponent(requestSymbol)}`, { cache: "no-store" });
+      if (symbolRef.current !== requestSymbol) return;
       if (!res.ok) { toast.error("No se pudo verificar el mercado"); return; }
       const data = await res.json();
-      if (typeof data.currentPrice === "number") advancePrice(data.currentPrice, true);
+      if (symbolRef.current !== requestSymbol) return;
+      if (typeof data.currentPrice === "number") {
+        advancePrice(data.currentPrice, true);
+      } else {
+        toast.error("Respuesta de mercado inválida — intenta de nuevo");
+      }
     } catch {
-      toast.error("Error de red al verificar");
+      if (symbolRef.current === requestSymbol) toast.error("Error de red al verificar");
     } finally {
       setCheckingOpportunity(false);
     }
@@ -245,11 +257,16 @@ export default function Dashboard() {
     };
   }, [opportunity, analysis]);
 
+  // Functional update — two rapid clicks reading botModeRef.current (only
+  // synced post-commit by its own effect) could otherwise both compute the
+  // same "next" value and net out to zero real toggles.
   const handleToggleBot = useCallback(() => {
-    const next = !botModeRef.current;
-    try { localStorage.setItem("axe-bot-mode", String(next)); } catch { /* ignore */ }
-    setBotMode(next);
+    setBotMode(prev => !prev);
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("axe-bot-mode", String(botMode)); } catch { /* ignore */ }
+  }, [botMode]);
 
   const handleTakeTrade = useCallback(() => {
     const prev = opportunityRef.current;
@@ -342,7 +359,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} />
+      <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} refreshToken={recordsVersion} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< lg) — chart a pantalla completa
@@ -356,8 +373,14 @@ export default function Dashboard() {
 
         {/* ── Overlay superior: mercados + historial ── */}
         <div
-          className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 pt-safe pt-4 pb-5"
-          style={{ background: "linear-gradient(to bottom, rgba(3,4,5,0.88) 60%, transparent 100%)" }}
+          className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 pb-5"
+          style={{
+            background: "linear-gradient(to bottom, rgba(3,4,5,0.88) 60%, transparent 100%)",
+            // Clears the notch/Dynamic Island on iOS PWA installs — "pt-safe"
+            // isn't a real Tailwind utility in this project, it resolved to
+            // nothing, so the safe-area inset was never actually applied.
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+          }}
         >
           <div className="flex gap-2 flex-1">
             {MARKET_KEYS.map(key => {
@@ -398,8 +421,12 @@ export default function Dashboard() {
 
         {/* ── Overlay inferior: precio + botón Taylor ── */}
         <div
-          className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-5 pb-9 pt-16"
-          style={{ background: "linear-gradient(to top, rgba(3,4,5,0.92) 50%, transparent 100%)" }}
+          className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-5 pt-16"
+          style={{
+            background: "linear-gradient(to top, rgba(3,4,5,0.92) 50%, transparent 100%)",
+            // Clears the home-indicator gesture bar on notched iOS devices.
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.25rem)",
+          }}
         >
           {/* Precio en vivo */}
           <div>
@@ -452,10 +479,11 @@ export default function Dashboard() {
           style={{
             transform: taylorOpen ? "translateY(0)" : "translateY(100%)",
             background: "var(--bg-panel)",
+            paddingTop: "env(safe-area-inset-top, 0px)",
           }}
         >
           {/* Contenido scrollable */}
-          <div className="flex-1 overflow-y-auto pb-10">
+          <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.5rem)" }}>
             <BobbyPanel
               market={MARKETS[market]}
               analysis={analysis}

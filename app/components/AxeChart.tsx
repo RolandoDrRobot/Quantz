@@ -48,6 +48,7 @@ const LEGEND = [
   { color: P.upBorder,    label: "Vela alcista", style: "solid" },
   { color: P.downBorder,  label: "Vela bajista", style: "solid" },
   { color: "rgba(168,134,47,0.6)", label: "MA 20 (tendencia)", style: "solid" },
+  { color: "rgba(28,143,84,0.55)", label: "Volumen (si el instrumento lo reporta)", style: "solid" },
   { color: P.resistance,  label: "Resistencia",     style: "solid" },
   { color: P.support,     label: "Soporte",        style: "solid" },
   { color: P.entry,       label: "Entrada",          style: "dashed" },
@@ -63,6 +64,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   const seriesRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const maSeriesRef   = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const volSeriesRef  = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const priceLinesRef = useRef<any[]>([]);
   const prevCandlesRef = useRef<RawCandle[]>([]);
@@ -80,10 +83,18 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     if (!containerRef.current || candles.length === 0) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let chart: any = null;
+    let cancelled = false;
     const needRebuild = candles !== prevCandlesRef.current || !chartRef.current;
 
     async function run() {
       const LW = await import("lightweight-charts");
+
+      // The effect can re-fire (fast market switching, a new candles prop
+      // arriving) while the dynamic import above is still in flight. Without
+      // this check a stale run would resume afterward, remove the chart the
+      // newer run already built, and overwrite chartRef.current with its own
+      // stale candles — silently reverting the UI to outdated data.
+      if (cancelled) return;
 
       // The container can unmount while the dynamic import above is in
       // flight (fast market switching, Fast Refresh) — bail rather than
@@ -98,6 +109,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         priceLinesRef.current = [];
         maSeriesRef.current = null;
         seriesRef.current = null;
+        volSeriesRef.current = null;
 
         chart = LW.createChart(el, {
           width:  el.clientWidth,
@@ -109,7 +121,9 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
             vertLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
             horzLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
           },
-          rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.1 } },
+          // Bottom margin reserves room for the volume histogram, which
+          // overlays this same pane on its own (bottom-anchored) price scale.
+          rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.24 } },
           timeScale: {
             borderColor: P.grid,
             timeVisible: true,
@@ -135,6 +149,29 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           .map(c => ({ time: c.time as number, open: c.open, high: c.high, low: c.low, close: c.close }));
         cs.setData(clean);
         seriesRef.current = cs;
+
+        // Twelve Data's forex/crypto feed (Gold, Bitcoin) never reports
+        // volume — skip the histogram entirely rather than draw a flat,
+        // meaningless zero pane for those instruments.
+        const hasVolumeData = candles.some(c => c.volume > 0);
+        if (hasVolumeData) {
+          const vs = chart.addSeries(LW.HistogramSeries, {
+            priceFormat: { type: "volume" },
+            priceScaleId: "",
+          });
+          vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+          const seenVol = new Set<number>();
+          const volData = candles
+            .filter(c => { if (seenVol.has(c.time)) return false; seenVol.add(c.time); return true; })
+            .sort((a, b) => a.time - b.time)
+            .map(c => ({
+              time: c.time as number,
+              value: c.volume,
+              color: c.close >= c.open ? "rgba(28,143,84,0.55)" : "rgba(194,69,69,0.55)",
+            }));
+          vs.setData(volData);
+          volSeriesRef.current = vs;
+        }
 
         const barsToShow = 240;
         if (clean.length > barsToShow) {
@@ -171,10 +208,15 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
             color: accentColor + "55", lineWidth: 1,
             priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
           });
+          // Rolling sum instead of re-summing a 20-candle slice per point —
+          // this overlay effect re-runs on every phase transition, not just
+          // on genuine candle-set changes, so O(n) matters on ~3000 candles.
           const maData: { time: number; value: number }[] = [];
-          for (let i = 19; i < clean2.length; i++) {
-            const avg = clean2.slice(i - 19, i + 1).reduce((s, c) => s + c.close, 0) / 20;
-            maData.push({ time: clean2[i].time, value: avg });
+          let rollingSum = 0;
+          for (let i = 0; i < clean2.length; i++) {
+            rollingSum += clean2[i].close;
+            if (i >= 20) rollingSum -= clean2[i - 20].close;
+            if (i >= 19) maData.push({ time: clean2[i].time, value: rollingSum / 20 });
           }
           maSeries.setData(maData);
           maSeriesRef.current = maSeries;
@@ -188,7 +230,11 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         .filter(c => { if (seen3.has(c.time)) return false; seen3.add(c.time); return true; })
         .sort((a, b) => a.time - b.time);
       const currentPrice = cleanPrices[cleanPrices.length - 1]?.close ?? 0;
-      const eps = currentPrice * 0.0006;
+      // Tight enough to only catch "basically the same line" (rounding/
+      // clustering artifacts) — the old 0.06% was 30-40% of a typical
+      // instrument's SL distance and could hide a genuinely distinct nearby
+      // S/R level under the entry/SL/TP lines.
+      const eps = currentPrice * 0.00015;
       const near = (a: number, b: number) => Math.abs(a - b) < eps;
 
       const entryIsBrokenLevel = !!(tradeSetup && breakout && near(tradeSetup.entryPrice, breakout.level));
@@ -225,6 +271,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
     run().then(fn => { cleanup = fn as (() => void) | undefined; });
 
     return () => {
+      cancelled = true;
       cleanup?.();
       if (needRebuild) {
         roRef.current?.disconnect();

@@ -1,4 +1,5 @@
 import { RawCandle } from "../api/market/route";
+import { ACCOUNT } from "./markets";
 
 export type Signal = "GO_LONG" | "GO_SHORT" | "WAIT";
 
@@ -56,6 +57,7 @@ export interface AnalysisResult {
   priceChangePct: number;
   tradeSetup: TradeSetup | null;
   breakout: BreakoutEvent | null;
+  volume: VolumeInfo;
   probability: number;
   probFactors: ProbFactor[];
   penalties: ProbFactor[];
@@ -133,6 +135,33 @@ function detectTrend(candles: RawCandle[]): TrendInfo {
   return { direction, momentum, ma20, change1h };
 }
 
+// ─── Volume ──────────────────────────────────────────────────────────────────
+// Yahoo (NASDAQ/Dow) reports real traded volume. Twelve Data's forex/crypto
+// spot feed (Gold, Bitcoin) does not — every candle comes back with
+// volume: 0. `hasData` distinguishes the two so we never score or warn on
+// fabricated "zero volume" for an instrument that simply has no volume feed.
+export interface VolumeInfo {
+  hasData: boolean;
+  relativeVolume: number; // recent activity vs baseline average; 1 = normal
+}
+
+function analyzeVolume(candles: RawCandle[]): VolumeInfo {
+  const recent = candles.slice(-30);
+  const hasData = recent.some(c => c.volume > 0);
+  if (!hasData) return { hasData: false, relativeVolume: 1 };
+
+  // Baseline = average volume over the hour before "now", current = last
+  // 5 candles — relative volume answers "is there real participation behind
+  // what's happening right now, or is this move on thin air?"
+  const baseline = candles.slice(-60, -5);
+  const baselineAvg = baseline.length > 0 ? baseline.reduce((s, c) => s + c.volume, 0) / baseline.length : 0;
+  const current = candles.slice(-5);
+  const currentAvg = current.length > 0 ? current.reduce((s, c) => s + c.volume, 0) / current.length : 0;
+
+  const relativeVolume = baselineAvg > 0 ? currentAvg / baselineAvg : 1;
+  return { hasData: true, relativeVolume };
+}
+
 // ─── Breakout Detection ──────────────────────────────────────────────────────
 
 function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number): BreakoutEvent | null {
@@ -166,7 +195,10 @@ function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number)
         if (isBull && c < level.price - failDist) { failed = true; break; }
         if (isBear && c > level.price + failDist) { failed = true; break; }
       }
-      if (failed) return null;
+      // This candle+level pierce already failed — keep scanning older
+      // candles/other levels instead of abandoning the whole search, so a
+      // still-valid earlier breakout isn't discarded because of it.
+      if (failed) continue;
 
       return {
         level: level.price,
@@ -236,7 +268,7 @@ function calculateTradeSetup(
 
   const tpPoints = Math.abs(takeProfit - entryPrice);
   const rrRatio = parseFloat((tpPoints / slPoints).toFixed(2));
-  const rewardAmount = parseFloat((100 * rrRatio).toFixed(0));
+  const rewardAmount = parseFloat((ACCOUNT.riskPerTrade * rrRatio).toFixed(0));
 
   return { direction, entryPrice, stopLoss, takeProfit, slPoints, tpPoints, rrRatio, rewardAmount };
 }
@@ -297,6 +329,7 @@ export function runAnalysis(
 
   const levels = findLevels(candles, currentPrice);
   const trend  = detectTrend(candles);
+  const volume = analyzeVolume(candles);
   const timing = getMarketTiming(is24h);
 
   const resistances = levels.filter(l => l.type === "resistance").sort((a, b) => a.price - b.price);
@@ -351,7 +384,25 @@ export function runAnalysis(
     ?? 0;
   const rr = tradeSetup?.rrRatio ?? 0;
 
-  const probFactors: ProbFactor[] = [
+  // Volume only scores when the data source actually reports it (Yahoo:
+  // NASDAQ/Dow) — Twelve Data's forex/crypto feed (Gold, Bitcoin) has no
+  // volume, so those instruments keep the original weights unchanged rather
+  // than being scored against a fabricated "zero volume".
+  const volPoints = !volume.hasData ? 0
+    : volume.relativeVolume >= 1.4 ? 15
+    : volume.relativeVolume >= 1.0 ? 10
+    : volume.relativeVolume >= 0.6 ? 5
+    : 0;
+
+  const probFactors: ProbFactor[] = volume.hasData ? [
+    { label: "Breakout confirmado", max: 22, points: breakout ? 22 : 0 },
+    { label: "Tendencia alineada",      max: 18, points: trendAligned ? 18 : 0 },
+    { label: "Volumen",            max: 15, points: volPoints },
+    { label: "Momentum",           max: 12, points: trend.momentum === "strong" ? 12 : trend.momentum === "moderate" ? 7 : 2 },
+    { label: "Fuerza del nivel",     max: 12, points: lvlStrength >= 4 ? 12 : lvlStrength === 3 ? 9 : lvlStrength === 2 ? 6 : lvlStrength === 1 ? 3 : 0 },
+    { label: "Risk:Reward",        max: 12, points: rr >= 2 ? 12 : rr >= 1.5 ? 8 : rr >= 1 ? 5 : 2 },
+    { label: "Ventana de sesión",     max: 9,  points: timing.inSetupWindow ? 9 : 2 },
+  ] : [
     { label: "Breakout confirmado", max: 25, points: breakout ? 25 : 0 },
     { label: "Tendencia alineada",      max: 20, points: trendAligned ? 20 : 0 },
     { label: "Momentum",           max: 15, points: trend.momentum === "strong" ? 15 : trend.momentum === "moderate" ? 9 : 3 },
@@ -382,6 +433,18 @@ export function runAnalysis(
       });
       penalties.push({ label: "Whipsaw en nivel", points: -20, max: 0 });
     }
+  }
+
+  // Thin volume: real participation is running well below its recent
+  // baseline — a breakout on thin volume often lacks the conviction to
+  // survive a retest, so this is worth surfacing loudly.
+  if (volume.hasData && volume.relativeVolume < 0.6) {
+    warnings.push({
+      severity: "high",
+      title: "Volumen bajo",
+      detail: `Volumen actual es ~${Math.round(volume.relativeVolume * 100)}% del promedio reciente — poca participación real detrás del movimiento. Los breakouts con este perfil suelen fallar el retest. Piénsalo dos veces antes de entrar.`,
+    });
+    penalties.push({ label: "Volumen bajo", points: -12, max: 0 });
   }
 
   // Dead momentum: abrupt candles with no follow-through
@@ -452,6 +515,7 @@ export function runAnalysis(
     priceChangePct,
     tradeSetup,
     breakout,
+    volume,
     probability,
     probFactors,
     penalties,
