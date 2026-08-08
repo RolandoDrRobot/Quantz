@@ -137,7 +137,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                       className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[14px] items-center min-w-[520px]"
                       style={{ background: "var(--bg-card)", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
                     >
-                      <span style={{ color: "#8792a0" }}>
+                      <span style={{ color: "#9ba5b2" }}>
                         {new Date(r.time).toLocaleString("en-US", { timeZone: "America/Costa_Rica", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
                       </span>
                       <span className="font-bold" style={{ color: "#f2f5f8", fontFamily: "var(--font-display)" }}>{r.market}</span>
@@ -145,7 +145,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
                         {r.direction === "long" ? <FiArrowUpRight size={14} /> : <FiArrowDownRight size={14} />}
                         {r.direction === "long" ? "L" : "C"}
                       </span>
-                      <span style={{ color: "#8792a0", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
+                      <span style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>{r.entry.toFixed(2)} → {r.exit.toFixed(2)}</span>
                       <span>
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-black" style={{ background: `${oc.color}1a`, color: oc.color, border: `1px solid ${oc.color}40` }}>
                           {oc.label}

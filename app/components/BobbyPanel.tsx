@@ -18,7 +18,7 @@ const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; 
 };
 
 export const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
-  HUNTING:       { label: "BUSCANDO BREAKOUT",          color: "#8792a0", step: 0 },
+  HUNTING:       { label: "BUSCANDO BREAKOUT",          color: "#9ba5b2", step: 0 },
   AWAIT_RETEST:  { label: "BREAKOUT — ESPERANDO RETEST", color: "#c23b30", step: 1 },
   RETEST_ACTIVE: { label: "RETEST ACTIVO",              color: "#d9584b", step: 2 },
   CONFIRMED:     { label: "POSICIÓN ABIERTA",           color: "#1c7d4c", step: 3 },
@@ -228,7 +228,7 @@ function TradeCard({
 
       {/* Status + P/L */}
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-        <p className="text-[14px] leading-snug" style={{ color: "#8792a0" }}>{statusLine}</p>
+        <p className="text-[14px] leading-snug" style={{ color: "#9ba5b2" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
             <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
@@ -512,7 +512,7 @@ export default function BobbyPanel({
                     <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
                     <div className="text-[16px] leading-snug">
                       <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
-                      <span style={{ color: "#626c78" }}>{w.detail}</span>
+                      <span style={{ color: "#929ba7" }}>{w.detail}</span>
                     </div>
                   </div>
                 ))}
@@ -535,7 +535,7 @@ export default function BobbyPanel({
                     <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: `${c}26` }}>
                       <Icon size={18} color={c} />
                     </span>
-                    <span className="text-base leading-tight" style={{ color: "#8792a0" }}>{f.label}</span>
+                    <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{f.label}</span>
                     <span className="font-black text-3xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
                   </div>
                 );
@@ -549,7 +549,7 @@ export default function BobbyPanel({
                   <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: "rgba(138,47,42,0.15)" }}>
                     <FiAlertTriangle size={18} color="#8a2f2a" />
                   </span>
-                  <span className="text-base leading-tight" style={{ color: "#8792a0" }}>{p.label}</span>
+                  <span className="text-base leading-tight" style={{ color: "#9ba5b2" }}>{p.label}</span>
                   <span className="font-black text-3xl leading-none" style={{ color: "#8a2f2a", fontFamily: "var(--font-display)" }}>{p.points}</span>
                 </div>
               ))}
@@ -558,7 +558,7 @@ export default function BobbyPanel({
 
           <div className="rounded-2xl px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
             <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
-            <p className="text-lg leading-relaxed" style={{ color: "#8792a0" }}>{result.message}</p>
+            <p className="text-lg leading-relaxed" style={{ color: "#9ba5b2" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
               <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                 Ventana de setup abre en {result.minutesToOpen} min — este es el bias pre-open.

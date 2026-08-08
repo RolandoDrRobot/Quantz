@@ -334,7 +334,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                 <FiZap size={16} /> RETEST ACTIVO — {opportunity.level.toFixed(2)}
               </div>
-              <div className="text-sm mt-0.5" style={{ color: "#8792a0" }}>
+              <div className="text-sm mt-0.5" style={{ color: "#9ba5b2" }}>
                 {opportunity.direction === "long" ? "▲ LARGO" : "▼ CORTO"} · Confirma la vela antes de entrar
               </div>
             </div>

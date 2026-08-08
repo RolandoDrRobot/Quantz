@@ -430,7 +430,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
                   <div className="h-0.5 w-10 rounded" style={{ background: item.color }} />
                 )}
               </div>
-              <span className="text-sm" style={{ color: "#8792a0" }}>{item.label}</span>
+              <span className="text-sm" style={{ color: "#9ba5b2" }}>{item.label}</span>
             </div>
           ))}
         </div>

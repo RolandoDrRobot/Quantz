@@ -21,8 +21,8 @@
 
   /* ── Text ───────────────────────────────────────────────────── */
   --text-primary:   #f2f5f8;
-  --text-secondary: #8792a0;
-  --text-muted:     #4d5866;
+  --text-secondary: #9ba5b2;
+  --text-muted:     #929ba7;
 
   /* ── Fonts ──────────────────────────────────────────────────── */
   --font-display: var(--font-josefin), sans-serif;

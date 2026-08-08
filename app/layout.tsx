@@ -54,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style: {
               background: "#0d2338",
               border: "1px solid rgba(194,59,48,0.22)",
-              color: "#8792a0",
+              color: "#9ba5b2",
               fontSize: "11px",
               fontFamily: "var(--font-display)",
               letterSpacing: "0.03em",
