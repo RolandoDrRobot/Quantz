@@ -397,7 +397,8 @@ export default function Dashboard() {
           }}
         >
           <div className="flex items-center justify-between">
-            <span className="font-black text-lg tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>QUANTZ</span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
+            <img src="/quantz-logo-header.png" alt="Quantz" className="h-7 w-auto" />
             <Clock is24h={cfg.is24h} />
           </div>
           <div className="flex items-center gap-3">
@@ -534,7 +535,8 @@ export default function Dashboard() {
           style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--gold-border)" }}
         >
           <div className="flex items-center gap-4">
-            <span className="font-black text-2xl tracking-[0.3em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>QUANTZ</span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
+            <img src="/quantz-logo-header.png" alt="Quantz" className="h-9 w-auto" />
             <span className="text-sm tracking-[0.2em] hidden sm:block" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>PRIVATE TRADING HUB</span>
           </div>
           <Clock is24h={cfg.is24h} />
