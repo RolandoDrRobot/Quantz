@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight, FiCpu } from "react-icons/fi";
+import { FiBarChart2, FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+import { LuListChecks, LuBrainCircuit, LuNotebookPen } from "react-icons/lu";
 import AxeChart from "./AxeChart";
 import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
 import RecordsModal from "./RecordsModal";
+import PlaybookModal from "./PlaybookModal";
+import JournalModal from "./JournalModal";
 import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
@@ -48,6 +51,8 @@ export default function Dashboard() {
   const [chartLoading, setChartLoading] = useState(false);
   const [botMode, setBotMode] = useState(true);
   const [recordsOpen, setRecordsOpen] = useState(false);
+  const [playbookOpen, setPlaybookOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const [taylorOpen, setTaylorOpen] = useState(false);
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
   const [recordsVersion, setRecordsVersion] = useState(0);
@@ -360,6 +365,8 @@ export default function Dashboard() {
   return (
     <>
       <RecordsModal open={recordsOpen} onClose={() => setRecordsOpen(false)} refreshToken={recordsVersion} />
+      <PlaybookModal open={playbookOpen} onClose={() => setPlaybookOpen(false)} />
+      <JournalModal open={journalOpen} onClose={() => setJournalOpen(false)} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
           MOBILE LAYOUT  (< lg) — chart a pantalla completa
@@ -463,21 +470,48 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Botón Taylor */}
-          <button
-            onClick={() => setTaylorOpen(true)}
-            className="flex items-center gap-2 px-6 py-4 rounded-lg font-black text-base tracking-widest transition-all duration-150 active:scale-95"
-            style={{
-              background: "var(--gold-dim)",
-              color: "var(--gold)",
-              border: "1px solid var(--gold-border)",
-              boxShadow: "0 0 20px rgba(194,59,48,0.25)",
-              fontFamily: "var(--font-display)",
-              cursor: "pointer",
-            }}
-          >
-            <FiCpu size={15} /> TAYLOR
-          </button>
+          {/* Botones Journal + Playbook + Taylor */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setJournalOpen(true)}
+              className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-primary)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                cursor: "pointer",
+              }}
+              title="Journal — log your trades"
+            >
+              <LuNotebookPen size={20} />
+            </button>
+            <button
+              onClick={() => setPlaybookOpen(true)}
+              className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-primary)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                cursor: "pointer",
+              }}
+              title="Playbook — the 40 rules"
+            >
+              <LuListChecks size={20} />
+            </button>
+            <button
+              onClick={() => setTaylorOpen(true)}
+              className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-primary)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                cursor: "pointer",
+              }}
+              title="Taylor — open analysis"
+            >
+              <LuBrainCircuit size={20} />
+            </button>
+          </div>
         </div>
 
         {/* ── Taylor sheet — cubre pantalla completa ── */}
@@ -555,8 +589,34 @@ export default function Dashboard() {
           })}
           <span className="ml-3 text-[11px] whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{cfg.description}</span>
           <button
-            onClick={() => setRecordsOpen(true)}
+            onClick={() => setJournalOpen(true)}
             className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              color: "var(--text-primary)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            <LuNotebookPen size={13} /> JOURNAL
+          </button>
+          <button
+            onClick={() => setPlaybookOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              color: "var(--text-primary)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              cursor: "pointer",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            <LuListChecks size={13} /> RULES
+          </button>
+          <button
+            onClick={() => setRecordsOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider whitespace-nowrap shrink-0"
             style={{
               background: "rgba(255,255,255,0.06)",
               color: "var(--text-primary)",

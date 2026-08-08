@@ -60,7 +60,7 @@ export default function RecordsModal({ open, onClose, refreshToken }: { open: bo
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
           <div>
-            <div className="font-black text-xl tracking-[0.25em]" style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>TRADE HISTORY</div>
+            <div className="font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>TRADE HISTORY</div>
             <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>Per-trade performance · fixed risk ${ACCOUNT.riskPerTrade}</div>
           </div>
           <div className="flex items-center gap-2">
