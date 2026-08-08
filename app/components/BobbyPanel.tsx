@@ -10,6 +10,7 @@ import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
 import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
+import { fetchBinanceMarketData } from "../lib/binanceClient";
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
   GO_LONG:  { label: "LARGO",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
@@ -354,12 +355,21 @@ export default function BobbyPanel({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to fetch market data");
-      }
-      const data = await res.json();
+      // Bitcoin/Ethereum fetch straight from Binance in the browser — Binance
+      // blocks server-side requests from US-based IPs (regulatory
+      // compliance), which 502'd every crypto request through our own
+      // server route (Vercel's Hobby plan can't pin functions to a
+      // non-US region to work around it).
+      const data = market.binanceSymbol
+        ? await fetchBinanceMarketData(market.symbol, market.binanceSymbol)
+        : await (async () => {
+            const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
+            if (!res.ok) {
+              const err = await res.json();
+              throw new Error(err.error ?? "Failed to fetch market data");
+            }
+            return res.json();
+          })();
 
       // Scalping runs the analysis engine (levels, trend, breakout) on 1min
       // candles — much faster reads than the old 5min basis. Falls back to

@@ -13,6 +13,7 @@ import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/al
 import { toast } from "sonner";
 import { addRecord } from "../lib/records";
 import { ACCOUNT, tradeCostFor } from "../lib/markets";
+import { fetchBinanceMarketData } from "../lib/binanceClient";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
 
@@ -55,6 +56,7 @@ export default function Dashboard() {
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
   const symbolRef = useRef(cfg.symbol);
+  const binanceSymbolRef = useRef<string | null>(cfg.binanceSymbol);
   const botModeRef = useRef(botMode);
   const marketShortRef = useRef<string>(cfg.short);
   const livePriceRef = useRef<number | null>(null);
@@ -64,6 +66,7 @@ export default function Dashboard() {
   // recreated every render — synced here rather than during render.
   useEffect(() => { analysisRef.current = analysis; }, [analysis]);
   useEffect(() => { symbolRef.current = cfg.symbol; }, [cfg.symbol]);
+  useEffect(() => { binanceSymbolRef.current = cfg.binanceSymbol; }, [cfg.binanceSymbol]);
   useEffect(() => { botModeRef.current = botMode; }, [botMode]);
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
@@ -117,8 +120,14 @@ export default function Dashboard() {
     setChartLoading(true);
     let cancelled = false;
 
-    fetch(`/api/market?symbol=${encodeURIComponent(cfg.symbol)}`, { cache: "no-store" })
-      .then(r => r.json())
+    // Bitcoin/Ethereum fetch straight from Binance in the browser — Binance
+    // blocks server-side requests from US-based IPs (regulatory compliance),
+    // which 502'd every crypto request through our own server route.
+    const load = cfg.binanceSymbol
+      ? fetchBinanceMarketData(cfg.symbol, cfg.binanceSymbol)
+      : fetch(`/api/market?symbol=${encodeURIComponent(cfg.symbol)}`, { cache: "no-store" }).then(r => r.json());
+
+    load
       .then(data => {
         if (cancelled) return;
         const c1m: RawCandle[] = data.candles1m ?? [];
@@ -139,7 +148,7 @@ export default function Dashboard() {
       .finally(() => { if (!cancelled) setChartLoading(false); });
 
     return () => { cancelled = true; };
-  }, [cfg.symbol, cfg.slPoints, updateOpportunity]);
+  }, [cfg.symbol, cfg.slPoints, cfg.binanceSymbol, updateOpportunity]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
@@ -205,12 +214,16 @@ export default function Dashboard() {
     // markets while it was in flight and bail instead of applying a
     // wrong-market price to the current opportunity.
     const requestSymbol = symbolRef.current;
+    const requestBinanceSymbol = binanceSymbolRef.current;
     setCheckingOpportunity(true);
     try {
-      const res = await fetch(`/api/market?symbol=${encodeURIComponent(requestSymbol)}`, { cache: "no-store" });
-      if (symbolRef.current !== requestSymbol) return;
-      if (!res.ok) { toast.error("No se pudo verificar el mercado"); return; }
-      const data = await res.json();
+      const data = requestBinanceSymbol
+        ? await fetchBinanceMarketData(requestSymbol, requestBinanceSymbol)
+        : await (async () => {
+            const res = await fetch(`/api/market?symbol=${encodeURIComponent(requestSymbol)}`, { cache: "no-store" });
+            if (!res.ok) throw new Error("request failed");
+            return res.json();
+          })();
       if (symbolRef.current !== requestSymbol) return;
       if (typeof data.currentPrice === "number") {
         advancePrice(data.currentPrice, true);
