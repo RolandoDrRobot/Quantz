@@ -40,7 +40,7 @@ interface Props {
   breakout: BreakoutEvent | null;
   accentColor?: string;
   symbol: string;
-  tdSymbol: string;
+  tdSymbol: string | null;
   coinbaseProduct?: string | null;
   onTick?: (price: number) => void;
 }
@@ -410,10 +410,30 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       connect();
     }
 
+    // Fallback: markets with no free real-time WebSocket (Gold — Twelve
+    // Data's free XAU/USD feed was found frozen/stale) poll a lightweight
+    // server-side proxy for Yahoo's live price instead.
+    let pollId: ReturnType<typeof setInterval> | null = null;
+    if (!coinbaseProduct && !tdSymbol) {
+      const poll = async () => {
+        try {
+          const res = await fetch(`/api/tick?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (typeof data.price === "number" && isFinite(data.price)) {
+            applyTick(data.price, typeof data.time === "number" ? data.time : Math.floor(Date.now() / 1000));
+          }
+        } catch { /* skip — retried on next interval tick */ }
+      };
+      poll();
+      pollId = setInterval(poll, 5000);
+    }
+
     return () => {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (heartbeatId) clearInterval(heartbeatId);
+      if (pollId) clearInterval(pollId);
       ws?.close();
     };
   }, [symbol, tdSymbol, coinbaseProduct]);

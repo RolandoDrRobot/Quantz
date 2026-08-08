@@ -35,7 +35,12 @@ export const MARKETS = {
   },
   gold: {
     symbol: "GC=F",
-    tdSymbol: "XAU/USD",
+    // Twelve Data's free-tier XAU/USD feed (candles + WS) was found frozen
+    // for 40+ minutes at a time, $50+ stale vs. the real spot price — that's
+    // what was painting broken candles. Gold now sources candles from Yahoo's
+    // GC=F futures (same reliable path as NASDAQ/Dow) and polls /api/tick for
+    // its live price instead of a WebSocket (see AxeChart.tsx).
+    tdSymbol: null,
     coinbaseProduct: null,
     label: "Gold",
     short: "XAUUSD",

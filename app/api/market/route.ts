@@ -41,15 +41,6 @@ async function fetchCandles(symbol: string, interval: string, period1: number, p
   }
 }
 
-// Symbols whose candles come from Twelve Data instead of Yahoo, so that the
-// chart matches the real-time WebSocket ticks (spot price, not futures).
-// A Map (not a plain object) so a user-controlled symbol like "constructor"
-// can never resolve to an inherited Object.prototype value instead of
-// undefined.
-const TD_CANDLE_SOURCE = new Map<string, string>([
-  ["GC=F", "XAU/USD"],
-]);
-
 // Symbols sourced from Coinbase Exchange's public API instead — free, no
 // key, real trade volume, and (unlike Binance) Coinbase is a US-headquartered,
 // US-compliant exchange that doesn't block requests from US-based servers,
@@ -94,36 +85,6 @@ async function fetchCoinbaseCandles(product: string, granularitySec: number, tot
   return out.length > totalWanted ? out.slice(out.length - totalWanted) : out;
 }
 
-async function fetchTDCandles(tdSymbol: string, interval: string, outputsize: number): Promise<RawCandle[]> {
-  try {
-    const key = process.env.NEXT_PUBLIC_TWELVEDATA_API_KEY;
-    if (!key) return [];
-    const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&apikey=${key}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (data.status !== "ok" || !Array.isArray(data.values)) return [];
-
-    const candles: RawCandle[] = [];
-    for (const v of data.values) {
-      // One malformed row (e.g. a missing/unexpected-shape `datetime`) used
-      // to throw here and get caught by the outer try/catch, discarding
-      // every candle in the batch instead of just the bad row.
-      try {
-        const time = Math.floor(Date.parse(String(v.datetime).replace(" ", "T") + "Z") / 1000);
-        const o = parseFloat(v.open), h = parseFloat(v.high), l = parseFloat(v.low), c = parseFloat(v.close);
-        if (!isFinite(time) || !isFinite(o) || !isFinite(h) || !isFinite(l) || !isFinite(c)) continue;
-        candles.push({ time, open: o, high: h, low: l, close: c, volume: parseFloat(v.volume ?? "0") || 0 });
-      } catch {
-        continue;
-      }
-    }
-    return candles;
-  } catch {
-    return [];
-  }
-}
-
 function dedup(candles: RawCandle[]): RawCandle[] {
   const seen = new Set<number>();
   const out: RawCandle[] = [];
@@ -133,13 +94,13 @@ function dedup(candles: RawCandle[]): RawCandle[] {
   return out.sort((a, b) => a.time - b.time);
 }
 
-// Twelve Data's Gold (XAU/USD) spot feed occasionally prints a candle whose
-// high/low is 15-40x the surrounding bars' typical range — a bad tick from
-// their aggregation, not a real move. Left alone, one of these dominates the
-// chart's autoscale and squashes every other candle into a flat line ("las
-// velas se pintan mal"). Clamps the wick to the local neighborhood's range
-// instead of dropping the candle, so open/close stay chained to their
-// neighbors and no time gap opens up.
+// Defensive outlier guard: a source can occasionally print a candle whose
+// high/low is far outside the surrounding bars' typical range — a bad tick
+// from upstream aggregation, not a real move. Left alone, one of these
+// dominates the chart's autoscale and squashes every other candle into a
+// flat line. Clamps the wick to the local neighborhood's range instead of
+// dropping the candle, so open/close stay chained to their neighbors and no
+// time gap opens up.
 function sanitizeCandles(candles: RawCandle[]): RawCandle[] {
   const n = candles.length;
   if (n < 10) return candles;
@@ -181,7 +142,6 @@ export async function GET(request: Request) {
   let candles1m: RawCandle[];
 
   const coinbaseSource = COINBASE_SOURCE.get(symbol);
-  const tdSource = TD_CANDLE_SOURCE.get(symbol);
   if (coinbaseSource) {
     // Coinbase pages at 300/request — 2000x5m (~7 days) and 1500x1m (~25h)
     // comfortably covers every analysis window (findLevels/detectTrend/
@@ -193,16 +153,9 @@ export async function GET(request: Request) {
     ]);
     candles5m = dedup(cb5m);
     candles1m = dedup(cb1m);
-  } else if (tdSource) {
-    // Twelve Data: 5000 x 5min ≈ 17 days for analysis, 3000 x 1min ≈ 2 days for chart
-    const [td5m, td1m] = await Promise.all([
-      fetchTDCandles(tdSource, "5min", 5000),
-      fetchTDCandles(tdSource, "1min", 3000),
-    ]);
-    candles5m = sanitizeCandles(dedup(td5m));
-    candles1m = sanitizeCandles(dedup(td1m));
   } else {
-    // Yahoo: 5m (30 days, 4 chunks) + 1m (last 3 days)
+    // Yahoo: 5m (30 days, 4 chunks) + 1m (last 3 days). Used for indices and
+    // Gold (GC=F futures) — real volume, real-time price, no key required.
     const [w1, w2, w3, w4, raw1m] = await Promise.all([
       fetchCandles(symbol, "5m", now - 7  * DAY, now),
       fetchCandles(symbol, "5m", now - 14 * DAY, now - 7  * DAY),
@@ -210,8 +163,8 @@ export async function GET(request: Request) {
       fetchCandles(symbol, "5m", now - 30 * DAY, now - 21 * DAY),
       fetchCandles(symbol, "1m", now - 3  * DAY, now),
     ]);
-    candles5m = dedup([...w1, ...w2, ...w3, ...w4]);
-    candles1m = dedup(raw1m);
+    candles5m = sanitizeCandles(dedup([...w1, ...w2, ...w3, ...w4]));
+    candles1m = sanitizeCandles(dedup(raw1m));
   }
 
   if (candles5m.length === 0) {

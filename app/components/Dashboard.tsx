@@ -396,7 +396,7 @@ export default function Dashboard() {
                   <button
                     key={key}
                     onClick={() => handleMarketChange(key)}
-                    className="flex-1 py-2.5 rounded-md text-sm font-black tracking-wider transition-all duration-200"
+                    className="flex-1 py-4 rounded-md text-base font-black tracking-wider transition-all duration-200"
                     style={{
                       background: active ? "var(--gold-dim)" : "rgba(255,255,255,0.06)",
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
