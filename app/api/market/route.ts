@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 
+// Binance blocks requests from US-based IPs (regulatory compliance) — this
+// route calls Binance for Bitcoin/Ethereum, so it can't run in Vercel's
+// default us-east region (iad1) or every crypto request 502s with "No data
+// returned" while Yahoo/Twelve Data-backed markets keep working fine. São
+// Paulo is the closest Vercel region to Costa Rica that Binance doesn't block.
+export const preferredRegion = "gru1";
+
 export interface RawCandle {
   time: number;
   open: number;
