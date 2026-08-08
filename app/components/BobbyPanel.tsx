@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower,
-  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiMinus,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -40,24 +40,31 @@ function probLabel(p: number) {
   return "BAJA";
 }
 
+// ── Per-factor status: full check, partial dash, or missed × ────────────────
+function factorVisual(pct: number): { Icon: IconType; color: string } {
+  if (pct >= 100) return { Icon: FiCheck, color: "#1f9d5c" };
+  if (pct <= 0) return { Icon: FiX, color: "#c24545" };
+  return { Icon: FiMinus, color: "#a8862f" };
+}
+
 // ── Circular probability gauge ───────────────────────────────────────────────
 function ProbRing({ value }: { value: number }) {
   const c = probColor(value);
-  const R = 30;
+  const R = 34;
   const CIRC = 2 * Math.PI * R;
   return (
-    <div className="relative w-[76px] h-[76px] shrink-0">
-      <svg width="76" height="76" viewBox="0 0 76 76" className="-rotate-90">
-        <circle cx="38" cy="38" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+    <div className="relative w-[88px] h-[88px] shrink-0">
+      <svg width="88" height="88" viewBox="0 0 88 88" className="-rotate-90">
+        <circle cx="44" cy="44" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="7" />
         <circle
-          cx="38" cy="38" r={R} fill="none"
-          stroke={c} strokeWidth="6" strokeLinecap="round"
+          cx="44" cy="44" r={R} fill="none"
+          stroke={c} strokeWidth="7" strokeLinecap="round"
           strokeDasharray={`${(value / 100) * CIRC} ${CIRC}`}
           style={{ transition: "stroke-dasharray 0.6s ease" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
+        <span className="text-xl font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
       </div>
     </div>
   );
@@ -429,7 +436,7 @@ export default function BobbyPanel({
               onCloseTrade={onCloseTrade}
             />
           ) : (
-            <div className="rounded-2xl px-5 py-4 text-[13px]" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
+            <div className="rounded-2xl px-5 py-4 text-sm" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}>
               Sin setup tradeable — analiza de nuevo cuando el mercado se mueva.
             </div>
           )}
@@ -439,10 +446,10 @@ export default function BobbyPanel({
             <ProbRing value={result.probability} />
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <sig.Icon size={24} color={sig.color} />
-                <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
+                <sig.Icon size={26} color={sig.color} />
+                <span className="text-2xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
-              <div className="text-xs mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
+              <div className="text-sm mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
                 {probLabel(result.probability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factores
                 {result.penalties.length > 0 && ` · ${result.penalties.length} penalidad${result.penalties.length > 1 ? "es" : ""}`}
               </div>
@@ -452,14 +459,14 @@ export default function BobbyPanel({
           {/* Warnings — solo si existen */}
           {result.warnings.length > 0 && (
             <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(194,69,69,0.35)" }}>
-              <div className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black tracking-widest" style={{ background: "rgba(194,69,69,0.1)", color: "#c24545" }}>
-                <FiAlertTriangle size={12} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
+              <div className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-black tracking-widest" style={{ background: "rgba(194,69,69,0.1)", color: "#c24545" }}>
+                <FiAlertTriangle size={13} /> ADVERTENCIAS — LEE ANTES DE ENTRAR
               </div>
               <div className="flex flex-col">
                 {result.warnings.map((w, i) => (
-                  <div key={i} className="flex gap-2.5 px-4 py-2.5" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#c24545" : "#a8862f" }} />
-                    <div className="text-[13px] leading-snug">
+                  <div key={i} className="flex gap-2.5 px-4 py-3" style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-card)" }}>
+                    <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#c24545" : "#a8862f" }} />
+                    <div className="text-[15px] leading-snug">
                       <span className="font-bold" style={{ color: w.severity === "high" ? "#c24545" : "#a8862f" }}>{w.title}: </span>
                       <span style={{ color: "#7d848d" }}>{w.detail}</span>
                     </div>
@@ -471,41 +478,45 @@ export default function BobbyPanel({
 
           {/* Score factors */}
           <div className="rounded-2xl px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
-                const c = pct === 100 ? "#1f9d5c" : pct === 0 ? "#c24545" : "#1f9d5c";
+                const { Icon, color: c } = factorVisual(pct);
                 return (
-                  <div key={i}>
-                    <div className="flex items-center justify-between text-[12px] mb-1">
-                      <span style={{ color: "#9aa1ab" }}>{f.label}</span>
-                      <span className="font-bold" style={{ color: c, fontFamily: "var(--font-display)" }}>{f.points}/{f.max}</span>
-                    </div>
-                    <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c }} />
-                    </div>
+                  <div
+                    key={i}
+                    className="flex flex-col items-center text-center gap-2 rounded-xl px-3 py-4"
+                    style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${c}33` }}
+                  >
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: `${c}26` }}>
+                      <Icon size={18} color={c} />
+                    </span>
+                    <span className="text-sm leading-tight" style={{ color: "#9aa1ab" }}>{f.label}</span>
+                    <span className="font-black text-2xl leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
                   </div>
                 );
               })}
               {result.penalties.map((p, i) => (
-                <div key={`p${i}`}>
-                  <div className="flex items-center justify-between text-[12px] mb-1">
-                    <span className="flex items-center gap-1" style={{ color: "#9aa1ab" }}><FiAlertTriangle size={11} color="#c24545" /> {p.label}</span>
-                    <span className="font-bold" style={{ color: "#c24545", fontFamily: "var(--font-display)" }}>{p.points}</span>
-                  </div>
-                  <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(194,69,69,0.25)" }}>
-                    <div className="h-full rounded-full" style={{ width: "100%", background: "rgba(194,69,69,0.5)" }} />
-                  </div>
+                <div
+                  key={`p${i}`}
+                  className="flex flex-col items-center text-center gap-2 rounded-xl px-3 py-4"
+                  style={{ background: "rgba(194,69,69,0.06)", border: "1px solid rgba(194,69,69,0.35)" }}
+                >
+                  <span className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: "rgba(194,69,69,0.15)" }}>
+                    <FiAlertTriangle size={18} color="#c24545" />
+                  </span>
+                  <span className="text-sm leading-tight" style={{ color: "#9aa1ab" }}>{p.label}</span>
+                  <span className="font-black text-2xl leading-none" style={{ color: "#c24545", fontFamily: "var(--font-display)" }}>{p.points}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="rounded-2xl px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
-            <div className="text-[10px] font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
-            <p className="text-[13px] leading-relaxed" style={{ color: "#9aa1ab" }}>{result.message}</p>
+            <div className="text-xs font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
+            <p className="text-base leading-relaxed" style={{ color: "#9aa1ab" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-              <div className="mt-2 pt-2 text-xs" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+              <div className="mt-2 pt-2 text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                 Ventana de setup abre en {result.minutesToOpen} min — este es el bias pre-open.
               </div>
             )}

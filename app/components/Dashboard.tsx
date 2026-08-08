@@ -425,7 +425,7 @@ export default function Dashboard() {
           }}
         >
           {/* Contenido scrollable */}
-          <div className="flex-1 overflow-y-auto pb-8">
+          <div className="flex-1 overflow-y-auto pb-10">
             <BobbyPanel
               market={MARKETS[market]}
               analysis={analysis}

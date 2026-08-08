@@ -313,7 +313,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {/* Live price badge */}
       {livePrice !== null && (
         <div
-          className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded"
+          className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-xl"
           style={{ background: "rgba(3,4,5,0.92)", border: "1px solid rgba(168,134,47,0.3)" }}
         >
           <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#a8862f" }} />
@@ -326,7 +326,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {/* Legend toggle */}
       <button
         onClick={() => setShowLegend(v => !v)}
-        className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold tracking-wider"
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wider"
         style={{ background: "rgba(3,4,5,0.92)", border: "1px solid rgba(168,134,47,0.2)", color: "#a8862f", cursor: "pointer" }}
       >
         {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEYENDA
@@ -335,7 +335,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {/* Legend panel */}
       {showLegend && (
         <div
-          className="absolute top-12 right-3 rounded p-4 flex flex-col gap-3"
+          className="absolute top-14 right-4 rounded-xl p-5 flex flex-col gap-4"
           style={{ background: "rgba(3,4,5,0.96)", border: "1px solid rgba(168,134,47,0.25)", minWidth: 210 }}
         >
           <div className="text-xs font-bold tracking-widest mb-1" style={{ color: "#a8862f" }}>QUÉ SIGNIFICA CADA LÍNEA</div>
