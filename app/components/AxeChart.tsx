@@ -176,9 +176,9 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
           },
         });
 
-        // Twelve Data's forex/crypto feed (Gold, Bitcoin) never reports
-        // volume — skip the histogram entirely rather than draw a flat,
-        // meaningless zero pane for those instruments.
+        // Not every source reports volume (e.g. a forex/index feed can come
+        // back all-zero) — skip the histogram entirely rather than draw a
+        // flat, meaningless zero pane for those instruments.
         const hasVolumeData = candles.some(c => c.volume > 0);
         if (hasVolumeData) {
           const vs = chart.addSeries(LW.HistogramSeries, {

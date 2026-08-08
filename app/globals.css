@@ -37,6 +37,16 @@ html, body {
   font-family: var(--font-body);
 }
 
+/* Ticker — content is duplicated once in the markup, so a 50% translate
+   loops seamlessly with no reset jump. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 22s linear infinite;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

@@ -16,7 +16,7 @@ import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeT
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
 import { addRecord } from "../lib/records";
-import { ACCOUNT, tradeCostFor } from "../lib/markets";
+import { ACCOUNT, tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
@@ -230,6 +230,29 @@ export default function Dashboard() {
     }
   }, [advancePrice]);
 
+  // Automatic safety-net poll: the opportunity already advances on every
+  // live WS tick (handleTick -> advancePrice, silent), but that only helps
+  // while the tick stream itself is healthy. This is a second, independent
+  // price source (the lightweight /api/tick proxy, ~1KB/~200ms) that keeps
+  // nudging the state machine even if a market's WS/poll feed stalls or
+  // disconnects — so the opportunity never goes stale and "check opportunity"
+  // never has to be pressed manually just to keep things moving.
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const requestSymbol = symbolRef.current;
+      try {
+        const res = await fetch(`/api/tick?symbol=${encodeURIComponent(requestSymbol)}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (symbolRef.current !== requestSymbol) return; // market changed mid-flight
+        if (typeof data.price === "number" && isFinite(data.price)) {
+          advancePrice(data.price, false);
+        }
+      } catch { /* skip — retried on the next interval tick */ }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [advancePrice]);
+
   const handleMarketChange = useCallback((key: MarketKey) => {
     setMarket(key);
     try { localStorage.setItem(STORAGE_MARKET, key); } catch { /* ignore */ }
@@ -308,6 +331,30 @@ export default function Dashboard() {
   const displayPrice = livePrice ?? analysis?.currentPrice ?? null;
   const priceUp = (analysis?.priceChange ?? 0) >= 0;
   const trendDir = analysis?.trend.direction ?? null;
+
+  // ── Mobile ticker: the opportunity at a glance, no need to open Taylor ──────
+  const tickerItems: { text: string; color: string }[] = useMemo(() => {
+    if (!analysis) return [];
+    const items: { text: string; color: string }[] = [];
+    const sigColor = analysis.signal === "GO_LONG" ? "#1c7d4c" : analysis.signal === "GO_SHORT" ? "#8a2f2a" : "#c23b30";
+    const sigLabel = analysis.signal === "GO_LONG" ? "LONG" : analysis.signal === "GO_SHORT" ? "SHORT" : "WAIT";
+    items.push({ text: `${sigLabel} · ${analysis.probability}% PROB`, color: sigColor });
+    if (opportunity) {
+      const meta = PHASE_META[opportunity.phase];
+      items.push({ text: meta.label, color: meta.color });
+      items.push({ text: `${opportunity.direction === "long" ? "▲" : "▼"} ENTRY ${opportunity.entry.toFixed(2)}`, color: "var(--text-secondary)" });
+      items.push({ text: `SL ${opportunity.sl.toFixed(2)}`, color: "#8a2f2a" });
+      items.push({ text: `TP ${opportunity.tp.toFixed(2)}`, color: "#1c7d4c" });
+    }
+    items.push({ text: `${lotsFor(cfg).toFixed(2)} LOTS`, color: "var(--text-secondary)" });
+    if (analysis.tradeSetup) {
+      items.push({ text: `R:R ${analysis.tradeSetup.rrRatio.toFixed(2)}`, color: "var(--text-secondary)" });
+    }
+    if (analysis.warnings.length > 0) {
+      items.push({ text: `${analysis.warnings.length} WARNING${analysis.warnings.length > 1 ? "S" : ""}`, color: "#c23b30" });
+    }
+    return items;
+  }, [analysis, opportunity, cfg]);
 
   // ── Shared chart block ───────────────────────────────────────────────────────
   const chartBlock = (
@@ -448,15 +495,16 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Overlay inferior: precio + botón Taylor ── */}
+        {/* ── Overlay inferior: precio + botón Taylor + ticker de oportunidad ── */}
         <div
-          className="absolute bottom-0 left-0 right-0 z-10 flex items-end justify-between px-5 pt-16"
+          className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-3 px-5 pt-16"
           style={{
             background: "linear-gradient(to top, rgba(5,14,26,0.92) 50%, transparent 100%)",
             // Clears the home-indicator gesture bar on notched iOS devices.
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.25rem)",
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)",
           }}
         >
+        <div className="flex items-end justify-between">
           {/* Precio en vivo */}
           <div>
             <AnimatePresence mode="wait">
@@ -540,6 +588,35 @@ export default function Dashboard() {
               <LuBrainCircuit size={20} />
             </button>
           </div>
+        </div>
+
+          {/* Ticker — resumen de la oportunidad, sin abrir Taylor */}
+          <AnimatePresence>
+            {tickerItems.length > 0 && (
+              <motion.div
+                className="overflow-hidden rounded-md"
+                style={{ background: "rgba(5,14,26,0.7)", border: "1px solid rgba(255,255,255,0.08)" }}
+                variants={fadeVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={TRANSITION_FAST}
+              >
+                <div className="flex w-max py-2 animate-marquee">
+                  {[...tickerItems, ...tickerItems].map((item, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center shrink-0 text-sm font-bold pl-4"
+                      style={{ color: item.color, fontFamily: "var(--font-display)" }}
+                    >
+                      {item.text}
+                      <span className="pl-4 opacity-25" style={{ color: "var(--text-secondary)" }}>•</span>
+                    </span>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Taylor sheet — cubre pantalla completa ── */}
