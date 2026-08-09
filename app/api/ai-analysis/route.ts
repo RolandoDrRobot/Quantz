@@ -96,7 +96,12 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(take);
-  } catch {
-    return NextResponse.json({ error: "AI request failed" }, { status: 502 });
+  } catch (e: unknown) {
+    // Distinguishes "Claude is temporarily overloaded/rate-limited — worth
+    // retrying" from a harder failure, so the UI can say something more
+    // useful than one generic "unavailable" for every kind of failure.
+    const status = typeof e === "object" && e !== null && "status" in e ? (e as { status?: unknown }).status : undefined;
+    const retryable = status === 429 || status === 529;
+    return NextResponse.json({ error: "AI request failed", retryable }, { status: 502 });
   }
 }

@@ -254,6 +254,14 @@ export default function Dashboard() {
       const saved = localStorage.getItem(STORAGE_MARKET) as MarketKey | null;
       if (saved && MARKETS[saved]) setMarket(saved);
     } catch { /* storage unavailable */ }
+    // One-time tidy-up of keys the trade-execution pivot orphaned — nothing
+    // reads or writes these anymore, they're just dead bytes in a real
+    // user's browser storage otherwise.
+    try {
+      localStorage.removeItem("axe-trade-records");
+      localStorage.removeItem("axe-journal-entries");
+      localStorage.removeItem("axe-bot-mode");
+    } catch { /* storage unavailable */ }
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 

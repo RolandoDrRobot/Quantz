@@ -1,4 +1,4 @@
-import type { AnalysisResult, Level } from "./analysis";
+import { computeTakeProfit, type AnalysisResult, type Level } from "./analysis";
 import { ACCOUNT } from "./markets";
 
 // Live-tracked opportunity, advanced tick by tick:
@@ -70,20 +70,6 @@ export function createOpportunity(a: AnalysisResult, slPoints: number, cost: num
   };
 }
 
-// TP: next opposite level at least 1.5R away, else fixed 2R
-function computeTp(direction: "long" | "short", entry: number, slPoints: number, levels: Level[]): number {
-  if (direction === "long") {
-    const next = levels
-      .filter(l => l.type === "resistance" && l.price >= entry + slPoints * 1.5)
-      .sort((a, b) => a.price - b.price)[0];
-    return next?.price ?? entry + slPoints * 2;
-  }
-  const next = levels
-    .filter(l => l.type === "support" && l.price <= entry - slPoints * 1.5)
-    .sort((a, b) => b.price - a.price)[0];
-  return next?.price ?? entry - slPoints * 2;
-}
-
 // `levels` enables dynamic re-anchoring: if price runs away from a broken
 // level without retesting, the opportunity jumps to the nearest freshly-
 // broken level. A held retest always confirms — there's no bot/manual
@@ -131,7 +117,7 @@ export function advanceOpportunity(o: Opportunity, price: number, levels: Level[
             anchorLevel: newLevel,
             entry: newLevel,
             sl: dirUp ? newLevel - o.slPoints : newLevel + o.slPoints,
-            tp: computeTp(o.direction, newLevel, o.slPoints, levels),
+            tp: computeTakeProfit(o.direction, newLevel, o.slPoints, levels),
             updatedAt: now,
           };
         }

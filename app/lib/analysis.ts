@@ -298,6 +298,23 @@ function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number)
 
 // ─── Trade Setup ─────────────────────────────────────────────────────────────
 
+// Shared TP rule: next opposite level at least 1.5R away, else fixed 2R.
+// Used both for the initial trade setup below and by opportunity.ts when a
+// live opportunity re-anchors to a new level — kept in one place so the two
+// can never quietly drift out of sync with each other.
+export function computeTakeProfit(direction: "long" | "short", entryPrice: number, slPoints: number, levels: Level[]): number {
+  if (direction === "long") {
+    const next = levels
+      .filter(l => l.type === "resistance" && l.price >= entryPrice + slPoints * 1.5)
+      .sort((a, b) => a.price - b.price)[0];
+    return next?.price ?? entryPrice + slPoints * 2;
+  }
+  const next = levels
+    .filter(l => l.type === "support" && l.price <= entryPrice - slPoints * 1.5)
+    .sort((a, b) => b.price - a.price)[0];
+  return next?.price ?? entryPrice - slPoints * 2;
+}
+
 function calculateTradeSetup(
   signal: Signal,
   currentPrice: number,
@@ -340,14 +357,7 @@ function calculateTradeSetup(
 
   // TP: next opposite level, but never accept less than 1.5R — a trade that
   // risks $100 to make less than $150 is not part of the playbook
-  let takeProfit: number;
-  if (direction === "long") {
-    const next = resistances.find(r => r.price >= entryPrice + slPoints * 1.5);
-    takeProfit = next?.price ?? entryPrice + slPoints * 2;
-  } else {
-    const next = supports.find(s => s.price <= entryPrice - slPoints * 1.5);
-    takeProfit = next?.price ?? entryPrice - slPoints * 2;
-  }
+  const takeProfit = computeTakeProfit(direction, entryPrice, slPoints, levels);
 
   const tpPoints = Math.abs(takeProfit - entryPrice);
   const rrRatio = parseFloat((tpPoints / slPoints).toFixed(2));

@@ -316,7 +316,11 @@ export default function BobbyPanel({
   const [aiTake, setAiTake] = useState<AiTake | null>(null);
   const [aiProfile, setAiProfile] = useState<PredictionProfileSummary | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiUnavailable, setAiUnavailable] = useState(false);
+  // Holds the message to show, not just a flag — lets a rate-limited/
+  // overloaded response ("try again shortly") read differently from a
+  // harder failure, instead of every kind of AI failure collapsing into one
+  // generic "unavailable" string.
+  const [aiUnavailable, setAiUnavailable] = useState<string | null>(null);
 
   // Per-market cache (session-only, not localStorage) so switching over to
   // check another instrument and back restores the take instead of losing
@@ -355,7 +359,7 @@ export default function BobbyPanel({
     const cached = aiCacheRef.current[market.symbol];
     setAiTake(cached?.take ?? null);
     setAiProfile(cached?.profile ?? null);
-    setAiUnavailable(false);
+    setAiUnavailable(null);
     prevSymbolForCacheRef.current = market.symbol;
   }, [market.symbol]);
 
@@ -364,7 +368,7 @@ export default function BobbyPanel({
   // timing and the AI take pops into its card whenever it lands.
   const fetchAiTake = useCallback(async (fresh: AnalysisResult, candles: RawCandle[], requestSymbol: string) => {
     setAiLoading(true);
-    setAiUnavailable(false);
+    setAiUnavailable(null);
     // Free, synchronous localStorage read — captured once here so the request
     // payload and whatever the UI later shows ("Your record: ...") are always
     // the exact same snapshot, never two different reads that could disagree.
@@ -378,7 +382,9 @@ export default function BobbyPanel({
       });
       if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
       if (!res.ok) {
-        setAiUnavailable(true);
+        let retryable = false;
+        try { retryable = (await res.json())?.retryable === true; } catch { /* body wasn't JSON */ }
+        setAiUnavailable(retryable ? "Taylor's overloaded right now — try again in a bit." : "Taylor's not available this round.");
         return;
       }
       const take: AiTake = await res.json();
@@ -386,7 +392,7 @@ export default function BobbyPanel({
       setAiProfile(profile);
       aiCacheRef.current[requestSymbol] = { take, profile };
     } catch {
-      if (marketSymbolRef.current === requestSymbol) setAiUnavailable(true);
+      if (marketSymbolRef.current === requestSymbol) setAiUnavailable("Taylor's not available this round.");
     } finally {
       if (marketSymbolRef.current === requestSymbol) setAiLoading(false);
     }
@@ -404,7 +410,7 @@ export default function BobbyPanel({
     // only here, besides an explicit generateComment() overwrite).
     setAiTake(null);
     setAiProfile(null);
-    setAiUnavailable(false);
+    setAiUnavailable(null);
     delete aiCacheRef.current[requestSymbol];
     try {
       const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
@@ -450,7 +456,7 @@ export default function BobbyPanel({
     if (!result || loading || aiLoading) return;
     const requestSymbol = market.symbol;
     setAiLoading(true);
-    setAiUnavailable(false);
+    setAiUnavailable(null);
     setAiTake(null);
     setAiProfile(null);
     delete aiCacheRef.current[requestSymbol]; // avoid resurrecting a stale take if this attempt fails
@@ -464,7 +470,7 @@ export default function BobbyPanel({
       await fetchAiTake(result, candles, requestSymbol);
     } catch {
       if (marketSymbolRef.current === requestSymbol) {
-        setAiUnavailable(true);
+        setAiUnavailable("Taylor's not available this round.");
         setAiLoading(false);
       }
     }
@@ -712,7 +718,7 @@ export default function BobbyPanel({
                 style={{ color: "var(--text-muted)" }}
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
-                Taylor&apos;s not available this round.
+                {aiUnavailable}
               </motion.div>
             ) : null}
           </AnimatePresence>

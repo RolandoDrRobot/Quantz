@@ -106,7 +106,10 @@ export const MARKETS = {
     slPoints: 0.00005,
     slLabel: "0.00005 BTC (~$3)",
     contractSize: 65000,
-    spreadPoints: 0.00001,
+    // Live Coinbase spread runs ~0.000006-0.000007 BTC; this keeps a bit of
+    // retail-broker markup above that (same logic as every other market's
+    // spreadPoints here) without being ~2x it like the original guess was.
+    spreadPoints: 0.000008,
     color: "#22d3ee",
   },
 } as const;
