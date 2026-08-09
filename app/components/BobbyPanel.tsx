@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle,
-  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiSend,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -28,6 +28,26 @@ const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string; bg: st
   REJECT:  { label: "TAYLOR: REJECT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
 };
 
+// One message in Taylor's chat thread. `verdict` is only set on the
+// auto-generated "take" message (from the CONFIRM/CAUTION/REJECT button) so
+// it can borrow the same color coding as before; free-form Q&A replies have
+// no verdict and render in a neutral color.
+interface ChatMessage {
+  id: string;
+  role: "user" | "taylor";
+  text: string;
+  verdict?: AiVerdict;
+}
+
+function composeTakeMessage(take: AiTake, profile: PredictionProfileSummary | null): string {
+  const delta = take.confidenceDelta !== 0 ? ` (${take.confidenceDelta > 0 ? "+" : ""}${take.confidenceDelta})` : "";
+  const risk = take.keyRisk ? `\n\nKey risk: ${take.keyRisk}` : "";
+  const record = profile?.hasHistory
+    ? `\n\nTaylor's record: ${profile.resolvedCount} resolved calls · ${profile.hitRate}% hit rate${profile.invalidatedRate > 0 ? ` · ${profile.invalidatedRate}% invalidated` : ""}`
+    : "";
+  return `${AI_VERDICT_STYLE[take.verdict].label}${delta} — ${take.note}${risk}${record}`;
+}
+
 export const PHASE_META: Record<OppPhase, { label: string; color: string }> = {
   HUNTING:       { label: "HUNTING BREAKOUT",           color: "#9ba5b2" },
   AWAIT_RETEST:  { label: "BREAKOUT — AWAITING RETEST", color: "#c23b30" },
@@ -48,6 +68,13 @@ function probLabel(p: number) {
   if (p >= 70) return "HIGH";
   if (p >= 45) return "MEDIUM";
   return "LOW";
+}
+
+function formatElapsed(ms: number): string {
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  return `${Math.floor(min / 60)}h ago`;
 }
 
 // ── Circular probability gauge ───────────────────────────────────────────────
@@ -195,7 +222,6 @@ function OpportunityCard({
     <div
       className="rounded-lg overflow-hidden"
       style={{
-        border: `1px solid ${meta.color}55`,
         background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-panel)`,
         boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33` : "none",
       }}
@@ -251,9 +277,47 @@ function OpportunityCard({
             <div className="text-[12px] lg:text-[11px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
               {opp.phase === "CONFIRMED" ? "LIVE P/L" : "RESULT"}
             </div>
+            {/* Nothing is ever placed by the app — this line exists so the big
+                dollar figure never reads as "a transaction just happened". */}
+            <div className="text-[10px] lg:text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+              {opp.phase === "CONFIRMED" ? "reference only — not a placed trade" : "tracked outcome — no trade executed"}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Live TP/SL progress — the visual heartbeat of the card: moves with
+          every price tick from the moment the retest confirms, so the trader
+          can see the call actually playing out instead of a frozen snapshot. */}
+      {(opp.phase === "CONFIRMED" || opp.phase === "TP_HIT" || opp.phase === "SL_HIT") && (() => {
+        const dirUp = opp.direction === "long";
+        const trackPrice = opp.phase === "TP_HIT" ? opp.tp : opp.phase === "SL_HIT" ? opp.sl : (price ?? opp.entry);
+        const lo = dirUp ? opp.sl : opp.tp;
+        const hi = dirUp ? opp.tp : opp.sl;
+        const range = hi - lo || 1;
+        const dotPct = Math.max(0, Math.min(100, ((trackPrice - lo) / range) * 100));
+        const entryPct = Math.max(0, Math.min(100, ((opp.entry - lo) / range) * 100));
+        const toTargetPct = Math.round(Math.max(-100, Math.min(100,
+          dirUp ? ((trackPrice - opp.entry) / (opp.tp - opp.entry)) * 100 : ((opp.entry - trackPrice) / (opp.entry - opp.tp)) * 100
+        )));
+        const dotColor = pnl !== null && pnl >= 0 ? "#1c7d4c" : "#8a2f2a";
+        return (
+          <div className="px-5 pb-4">
+            <div className="relative h-2 rounded-full" style={{ background: "linear-gradient(90deg, #8a2f2a55 0%, #8a2f2a22 45%, #1c7d4c22 55%, #1c7d4c55 100%)" }}>
+              <div className="absolute top-1/2 w-px h-3.5 -translate-y-1/2" style={{ left: `${entryPct}%`, background: "#d4a72c" }} />
+              <div
+                className="absolute top-1/2 rounded-full transition-all duration-500"
+                style={{ left: `${dotPct}%`, width: 11, height: 11, marginLeft: -5.5, transform: "translateY(-50%)", background: dotColor, boxShadow: `0 0 8px ${dotColor}` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-1.5 text-[11px] lg:text-[10px] font-bold tracking-wide" style={{ color: "var(--text-muted)" }}>
+              <span>SL</span>
+              <span style={{ color: toTargetPct >= 0 ? "#1c7d4c" : "#8a2f2a" }}>{toTargetPct >= 0 ? toTargetPct : Math.abs(toTargetPct)}% {toTargetPct >= 0 ? "to target" : "toward stop"}</span>
+              <span>TP</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -291,6 +355,18 @@ export default function BobbyPanel({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Ticks the "entry-time read · Xm ago" caption forward without calling
+  // Date.now() during render (React forbids impure calls mid-render).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // When the current `result` object last changed — used as the "entry-time
+  // read" caption's fallback timestamp when there's no opportunity yet (pure
+  // WAIT, nothing to anchor to opportunity.startedAt).
   const result = analysis; // analysis state lives in Dashboard (persisted across reloads)
 
   // AI second-opinion layer — purely advisory, never gates a trade. Tracks
@@ -307,6 +383,21 @@ export default function BobbyPanel({
   // generic "unavailable" string.
   const [aiUnavailable, setAiUnavailable] = useState<string | null>(null);
 
+  // Taylor's chat thread — starts with the "take" message (same analysis the
+  // button always ran, just shown as the first chat bubble instead of a
+  // standalone card) and grows with whatever the trader types below. Cached
+  // per market the same way aiTake is, cleared on a fresh "New Analysis"
+  // since a new opportunity makes the old conversation's context stale.
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Last candles fetched by either analyze() or generateComment() — reused
+  // for chat replies so every message doesn't need its own market fetch;
+  // "good enough" recency for a follow-up question about the same setup.
+  const lastCandlesRef = useRef<RawCandle[]>([]);
+
   // Per-market cache (session-only, not localStorage) so switching over to
   // check another instrument and back restores the take instead of losing
   // it. Refs can't be read or written during render, so both the mirror
@@ -316,6 +407,12 @@ export default function BobbyPanel({
   useEffect(() => {
     currentTakeRef.current = aiTake ? { take: aiTake, profile: aiProfile } : null;
   }, [aiTake, aiProfile]);
+
+  const chatCacheRef = useRef<Record<string, ChatMessage[]>>({});
+  const currentChatRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    currentChatRef.current = chatMessages;
+  }, [chatMessages]);
 
   // Clear a stale error from the previous market as soon as the market
   // changes, without waiting for a post-render effect.
@@ -345,6 +442,11 @@ export default function BobbyPanel({
     setAiTake(cached?.take ?? null);
     setAiProfile(cached?.profile ?? null);
     setAiUnavailable(null);
+
+    if (currentChatRef.current.length > 0) chatCacheRef.current[prevSymbol] = currentChatRef.current;
+    else delete chatCacheRef.current[prevSymbol];
+    setChatMessages(chatCacheRef.current[market.symbol] ?? []);
+
     prevSymbolForCacheRef.current = market.symbol;
   }, [market.symbol]);
 
@@ -376,6 +478,12 @@ export default function BobbyPanel({
       setAiTake(take);
       setAiProfile(profile);
       aiCacheRef.current[requestSymbol] = { take, profile };
+      lastCandlesRef.current = candles;
+      setChatMessages(prev => {
+        const next = [...prev, { id: `take-${Date.now()}`, role: "taylor" as const, text: composeTakeMessage(take, profile), verdict: take.verdict }];
+        chatCacheRef.current[requestSymbol] = next;
+        return next;
+      });
     } catch {
       if (marketSymbolRef.current === requestSymbol) setAiUnavailable("Taylor's not available this round.");
     } finally {
@@ -397,6 +505,10 @@ export default function BobbyPanel({
     setAiProfile(null);
     setAiUnavailable(null);
     delete aiCacheRef.current[requestSymbol];
+    // A fresh setup means the old conversation was about a call that no
+    // longer exists — retire the whole thread along with the take.
+    setChatMessages([]);
+    delete chatCacheRef.current[requestSymbol];
     try {
       const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
       if (!res.ok) {
@@ -410,6 +522,7 @@ export default function BobbyPanel({
       // 5min only if 1min data is too thin to trust (e.g. a gappy session).
       const candles1m: RawCandle[] = data.candles1m ?? [];
       const analysisCandles = candles1m.length >= 60 ? candles1m : data.candles5m;
+      lastCandlesRef.current = analysisCandles;
 
       const { runAnalysis } = await import("../lib/analysis");
       const fresh = runAnalysis(
@@ -461,6 +574,58 @@ export default function BobbyPanel({
     }
   }, [result, market, loading, aiLoading, fetchAiTake]);
 
+  // Free-form follow-up in the chat bar — separate from the take/comment
+  // flows above (still exactly one Claude call per send, only ever
+  // triggered by the trader hitting Enter/Send, never automatically).
+  // Reuses the last known analysis + candles rather than re-fetching market
+  // data on every message, so replies stay fast.
+  const sendChatMessage = useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text || !result || chatSending || aiLoading) return;
+    const requestSymbol = market.symbol;
+    setChatInput("");
+    setAiUnavailable(null);
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text };
+    const historyForRequest = chatMessages.map(m => ({ role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant", content: m.text }));
+    setChatMessages(prev => {
+      const next = [...prev, userMsg];
+      chatCacheRef.current[requestSymbol] = next;
+      return next;
+    });
+    setChatSending(true);
+    try {
+      const profile = buildPredictionProfileSummary();
+      const context = buildAiAnalysisRequest(result, market, lastCandlesRef.current, profile);
+      const res = await fetch("/api/taylor-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context, history: historyForRequest, message: text }),
+      });
+      if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
+      if (!res.ok) {
+        let retryable = false;
+        try { retryable = (await res.json())?.retryable === true; } catch { /* body wasn't JSON */ }
+        setAiUnavailable(retryable ? "Taylor's overloaded right now — try again in a bit." : "Taylor's not available this round.");
+        return;
+      }
+      const data: { reply: string } = await res.json();
+      setChatMessages(prev => {
+        const next = [...prev, { id: `t-${Date.now()}`, role: "taylor" as const, text: data.reply }];
+        chatCacheRef.current[requestSymbol] = next;
+        return next;
+      });
+    } catch {
+      if (marketSymbolRef.current === requestSymbol) setAiUnavailable("Taylor's not available this round.");
+    } finally {
+      if (marketSymbolRef.current === requestSymbol) setChatSending(false);
+    }
+  }, [chatInput, chatMessages, result, market, chatSending, aiLoading]);
+
+  // Auto-scroll the chat thread into view as new messages land.
+  useEffect(() => {
+    chatScrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chatMessages, aiLoading, chatSending]);
+
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
   const lots = lotsFor(market);
 
@@ -472,6 +637,96 @@ export default function BobbyPanel({
     : result?.probability ?? 0;
   const isBlended = !!(result && aiTake && aiTake.confidenceDelta !== 0);
 
+  // Nearest level to live price, for the "watching" strip — keeps the no-setup
+  // state showing something that actually moves (live price + live distance)
+  // instead of a flat sentence, even though there's no formal Opportunity yet.
+  const nearestLevel = result && livePrice !== null && result.levels.length > 0
+    ? result.levels.reduce((a, b) => Math.abs(b.price - livePrice) < Math.abs(a.price - livePrice) ? b : a)
+    : null;
+
+  // Shared controls (compact analyze/take buttons + Taylor chat bar) — placed
+  // differently depending on where BobbyPanel is mounted: pinned to the
+  // bottom on the mobile sheet (thumb reach), inline right under Taylor's
+  // chat thread on the desktop aside (onClose is only ever passed on mobile,
+  // so it doubles as the mobile/desktop switch here).
+  const footerControls = (
+    <>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={analyze}
+          disabled={loading || aiLoading}
+          className="flex-1 px-2 py-1.5 rounded-md font-black text-[10px] sm:text-xs tracking-tight transition-all duration-150"
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            cursor: loading || aiLoading ? "not-allowed" : "pointer",
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span className="flex items-center justify-center gap-1 whitespace-nowrap">
+            {loading ? <FiRefreshCw size={11} className="animate-spin shrink-0" /> : <FiRefreshCw size={11} className="shrink-0" />}
+            {loading ? "LOADING..." : "NEW ANALYSIS"}
+          </span>
+        </button>
+        <button
+          onClick={generateComment}
+          disabled={!result || loading || aiLoading}
+          title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
+          className="flex-1 px-2 py-1.5 rounded-md font-black text-[10px] sm:text-xs tracking-tight transition-all duration-150"
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
+            opacity: !result ? 0.5 : 1,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span className="flex items-center justify-center gap-1 whitespace-nowrap">
+            {aiLoading ? <FiCpu size={11} className="animate-pulse shrink-0" /> : <FiCpu size={11} className="shrink-0" />}
+            {aiLoading ? "THINKING..." : "TAYLOR'S TAKE"}
+          </span>
+        </button>
+      </div>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
+        className="flex items-center gap-2"
+      >
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          disabled={!result || chatSending || aiLoading}
+          placeholder={result ? "Ask Taylor about this setup…" : "Run an analysis first"}
+          className="flex-1 min-w-0 px-3.5 py-2.5 rounded-md text-base lg:text-sm outline-none"
+          style={{
+            background: "rgba(255,255,255,0.07)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            opacity: !result ? 0.6 : 1,
+          }}
+        />
+        <button
+          type="submit"
+          disabled={!chatInput.trim() || !result || chatSending || aiLoading}
+          title="Send"
+          className="flex items-center justify-center w-11 h-11 rounded-md shrink-0 transition-all duration-150"
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            cursor: !chatInput.trim() || !result || chatSending || aiLoading ? "not-allowed" : "pointer",
+            opacity: !chatInput.trim() || !result ? 0.5 : 1,
+          }}
+        >
+          <FiSend size={16} />
+        </button>
+      </form>
+    </>
+  );
+
   return (
     <div className="flex flex-col h-full bg-[var(--bg)] lg:bg-[var(--bg-panel)]">
 
@@ -481,7 +736,7 @@ export default function BobbyPanel({
           desktop lg:order-first pulls that footer back up to where this row used to be, and
           this row hides there since onClose is only passed for the mobile sheet. */}
       {onClose && (
-        <div className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+        <div className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden">
           <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto" />
           <button
             onClick={onClose}
@@ -495,7 +750,7 @@ export default function BobbyPanel({
 
       <div className="flex-1 overflow-y-auto">
       {/* Account chips — only market-variable values */}
-      <div className="flex items-center gap-2.5 px-6 py-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+      <div className="flex items-center gap-2.5 px-6 py-3 overflow-x-auto">
         {[
           ["SL", market.slLabel, "#f2f5f8"],
           ["LOTS", fmtLots(lots), "#f2f5f8"],
@@ -545,36 +800,72 @@ export default function BobbyPanel({
             ) : (
               <motion.div
                 key="no-setup"
-                className="rounded-lg px-5 py-4 text-lg lg:text-base"
-                style={{ background: "var(--bg-panel)", color: "var(--text-primary)" }}
+                className="rounded-lg overflow-hidden"
+                style={{ background: "var(--bg-panel)" }}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
                 exit="hidden"
                 transition={TRANSITION_FAST}
               >
-                No tradeable setup — run a new analysis once the market moves.
+                <div className="flex items-center gap-2 px-5 pt-4">
+                  <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: "#9ba5b2" }} />
+                  <span className="font-black text-lg lg:text-base tracking-wider" style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>
+                    NO SETUP YET
+                  </span>
+                </div>
+                <div className="px-5 py-3.5 text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-primary)" }}>
+                  {nearestLevel
+                    ? `Watching ${nearestLevel.type} at ${fmtPrice(nearestLevel.price)} · ${fmtPrice(Math.abs(livePrice! - nearestLevel.price))} pts away`
+                    : "No tradeable setup — run a new analysis once the market moves."}
+                </div>
+                {livePrice !== null && (
+                  <div className="flex items-center gap-1.5 px-5 pb-4 text-[12px] lg:text-[11px] font-bold tracking-widest" style={{ color: "var(--text-secondary)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#1c7d4c" }} />
+                    LIVE · {fmtPrice(livePrice)}
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Signal + probability gauge */}
-          <div className="rounded-lg flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)" }}>
-            <ProbRing value={displayProbability} adjusted={isBlended} />
-            <div className="flex-1">
+          {/* Signal + probability gauge — the verdict itself is a snapshot (see the
+              "entry-time read" caption below), but the box is never just sitting
+              there: the live price + elapsed-time caption both tick every update. */}
+          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-panel)" }}>
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <sig.Icon size={26} color={sig.color} />
+                <sig.Icon size={22} color={sig.color} />
                 <span className="text-3xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
-              <div className="text-lg lg:text-base mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
-                {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
-                {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
-              </div>
-              {isBlended && aiTake && (
-                <div className="text-base lg:text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
+              {livePrice !== null && (
+                <div className="flex items-center gap-1.5 text-[12px] lg:text-[11px] font-bold tracking-widest shrink-0" style={{ color: "var(--text-secondary)" }}>
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#1c7d4c" }} />
+                  LIVE · {fmtPrice(livePrice)}
                 </div>
               )}
+            </div>
+            <div className="flex items-center gap-5 mt-3">
+              <ProbRing value={displayProbability} adjusted={isBlended} />
+              <div className="flex-1">
+                <div className="text-lg lg:text-base font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
+                  {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
+                </div>
+                {isBlended && aiTake && (
+                  <div className="text-base lg:text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
+                  </div>
+                )}
+                {/* This verdict is a snapshot from when the analysis ran — it never
+                    recomputes on its own. The opportunity card (or the watching strip
+                    above, before one exists) is the live piece that ticks with price. */}
+                {opportunity && (
+                  <div className="text-sm lg:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    Entry-time read · {formatElapsed(now - opportunity.startedAt)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -584,58 +875,72 @@ export default function BobbyPanel({
             </div>
           )}
 
-          <AnimatePresence mode="wait">
-            {aiLoading ? (
-              <motion.div
-                key="ai-loading"
-                className="rounded-lg px-5 py-4 flex items-center gap-2.5"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-                variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
-              >
-                <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
-                <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>Taylor&apos;s taking a look…</span>
-              </motion.div>
-            ) : aiTake ? (
-              <motion.div
-                key="ai-take"
-                className="rounded-lg px-5 py-4"
-                style={{ background: AI_VERDICT_STYLE[aiTake.verdict].bg }}
-                variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-1.5 text-base lg:text-sm font-black tracking-[0.2em]" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color }}>
-                    <FiCpu size={13} /> {AI_VERDICT_STYLE[aiTake.verdict].label}
+          {/* Taylor's chat thread — the "take" (from the button) lands as the first
+              bubble, then whatever the trader types in the footer bar keeps the
+              conversation going. Everything here is grounded in the same market
+              context the take used (see buildAiAnalysisRequest in sendChatMessage). */}
+          {(chatMessages.length > 0 || aiLoading || chatSending || aiUnavailable) && (
+            <div className="flex flex-col gap-3">
+              {chatMessages.map(m => (
+                <motion.div
+                  key={m.id}
+                  className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+                  variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
+                >
+                  <div
+                    className="rounded-lg px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
+                    style={
+                      m.role === "user"
+                        ? { background: "rgba(255,255,255,0.07)", color: "var(--text-primary)" }
+                        : { background: m.verdict ? AI_VERDICT_STYLE[m.verdict].bg : "rgba(255,255,255,0.03)", color: "var(--text-primary)" }
+                    }
+                  >
+                    {m.role === "taylor" && (
+                      <div
+                        className="flex items-center gap-1.5 mb-1 text-sm lg:text-xs font-black tracking-[0.15em]"
+                        style={{ color: m.verdict ? AI_VERDICT_STYLE[m.verdict].color : "var(--text-muted)" }}
+                      >
+                        <FiCpu size={11} /> {m.verdict ? AI_VERDICT_STYLE[m.verdict].label : "TAYLOR"}
+                      </div>
+                    )}
+                    {m.text}
                   </div>
-                  {aiTake.confidenceDelta !== 0 && (
-                    <span className="text-base lg:text-sm font-black" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color, fontFamily: "var(--font-display)" }}>
-                      {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xl lg:text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{aiTake.note}</p>
-                {aiTake.keyRisk && (
-                  <div className="mt-2 pt-2 text-lg lg:text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                    Key risk: {aiTake.keyRisk}
-                  </div>
+                </motion.div>
+              ))}
+
+              <AnimatePresence>
+                {(aiLoading || chatSending) && (
+                  <motion.div
+                    key="taylor-typing"
+                    className="flex justify-start"
+                    variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
+                  >
+                    <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: "rgba(255,255,255,0.03)" }}>
+                      <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
+                      <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>
+                        {aiLoading ? "Taylor's taking a look…" : "Taylor's typing…"}
+                      </span>
+                    </div>
+                  </motion.div>
                 )}
-                {aiProfile?.hasHistory && (
-                  <div className="mt-2 pt-2 text-base lg:text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>
-                    Taylor&apos;s record: {aiProfile.resolvedCount} resolved calls · {aiProfile.hitRate}% hit rate
-                    {aiProfile.invalidatedRate > 0 && ` · ${aiProfile.invalidatedRate}% invalidated`}
-                  </div>
-                )}
-              </motion.div>
-            ) : aiUnavailable ? (
-              <motion.div
-                key="ai-unavailable"
-                className="px-2 text-base lg:text-sm"
-                style={{ color: "var(--text-muted)" }}
-                variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
-              >
-                {aiUnavailable}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+              </AnimatePresence>
+
+              {aiUnavailable && !aiLoading && !chatSending && (
+                <div className="px-2 text-base lg:text-sm" style={{ color: "var(--text-muted)" }}>{aiUnavailable}</div>
+              )}
+
+              <div ref={chatScrollRef} />
+            </div>
+          )}
+
+          {/* Desktop only (no onClose = the desktop aside, not the mobile sheet) — the
+              analyze/take buttons + chat bar sit right under Taylor's thread instead of
+              pinned to the panel edge, since there's no thumb-reach constraint here. */}
+          {!onClose && (
+            <div className="rounded-lg px-5 py-4 flex flex-col gap-3" style={{ background: "var(--bg-panel)" }}>
+              {footerControls}
+            </div>
+          )}
 
           {/* Warnings — solo si existen */}
           <AnimatePresence>
@@ -686,53 +991,17 @@ export default function BobbyPanel({
 
       </div>
 
-      {/* Footer: analyze + generate-comment buttons, pinned to the bottom so they're in
-          thumb reach on mobile (lg:order-first puts them back at the top on desktop, where
-          the row above this used to live). Tighter tracking + smaller mobile font than the
-          old header row so "TAYLOR'S TAKE" / "NEW ANALYSIS" fit on one line at narrow widths. */}
-      <div
-        className="flex items-center gap-2 px-4 py-3 shrink-0 lg:order-first lg:px-6 lg:py-4"
-        style={{ borderTop: "1px solid var(--gold-border)", paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-      >
-        <button
-          onClick={analyze}
-          disabled={loading || aiLoading}
-          className="flex-1 px-3 sm:px-5 py-2.5 rounded-md font-black text-[11px] sm:text-sm tracking-tight sm:tracking-widest transition-all duration-150"
-          style={{
-            background: "rgba(255,255,255,0.10)",
-            color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
-            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
-            cursor: loading || aiLoading ? "not-allowed" : "pointer",
-            fontFamily: "var(--font-display)",
-          }}
+      {/* Mobile only — pinned to the bottom so the controls stay in thumb reach.
+          Desktop renders the same footerControls inline, right under Taylor's
+          thread instead (see the block right before the Warnings section). */}
+      {onClose && (
+        <div
+          className="flex flex-col gap-2 px-4 py-3 shrink-0"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
         >
-          <span className="flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
-            {loading ? <FiRefreshCw size={13} className="animate-spin shrink-0" /> : <FiRefreshCw size={13} className="shrink-0" />}
-            {loading ? "LOADING..." : "NEW ANALYSIS"}
-          </span>
-        </button>
-        <button
-          onClick={generateComment}
-          disabled={!result || loading || aiLoading}
-          title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
-          className="flex-1 px-3 sm:px-5 py-2.5 rounded-md font-black text-[11px] sm:text-sm tracking-tight sm:tracking-widest transition-all duration-150"
-          style={{
-            background: "rgba(255,255,255,0.10)",
-            color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
-            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
-            cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
-            opacity: !result ? 0.5 : 1,
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          <span className="flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
-            {aiLoading ? <FiCpu size={13} className="animate-pulse shrink-0" /> : <FiCpu size={13} className="shrink-0" />}
-            {aiLoading ? "TAYLOR THINKING..." : "TAYLOR'S TAKE"}
-          </span>
-        </button>
-      </div>
+          {footerControls}
+        </div>
+      )}
     </div>
   );
 }
