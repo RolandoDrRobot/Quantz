@@ -768,8 +768,8 @@ export default function Dashboard() {
           initial={false}
           transition={TRANSITION_SHEET}
         >
-          {/* Contenido scrollable */}
-          <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.5rem)" }}>
+          {/* BobbyPanel maneja su propio scroll interno — su tab bar vive fija abajo como menú */}
+          <div className="flex-1 overflow-hidden">
             <BobbyPanel
               market={MARKETS[market]}
               analysis={analysis}
@@ -886,9 +886,9 @@ export default function Dashboard() {
             {chartBlock}
           </div>
 
-          {/* Taylor + Bobby panel */}
+          {/* Taylor + Bobby panel — BobbyPanel manages its own internal scroll now */}
           <aside
-            className="shrink-0 overflow-y-auto flex flex-col"
+            className="shrink-0 overflow-hidden flex flex-col"
             style={{ width: "46%", borderLeft: "1px solid rgba(28,125,76,0.2)" }}
           >
             <BobbyPanel

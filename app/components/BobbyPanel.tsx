@@ -14,6 +14,7 @@ import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
+import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
 import JournalPanel from "./JournalPanel";
 import PlaybookPanel from "./PlaybookPanel";
 import RecordsPanel from "./RecordsPanel";
@@ -31,6 +32,12 @@ const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; 
   GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
   GO_SHORT: { label: "SHORT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.07)",    border: "rgba(138,47,42,0.35)",    Icon: FiTrendingDown },
   WAIT:     { label: "WAIT", color: "#c23b30", bg: "rgba(194,59,48,0.07)",  border: "rgba(194,59,48,0.30)",  Icon: FiPauseCircle },
+};
+
+const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string; bg: string; border: string }> = {
+  CONFIRM: { label: "AI CONFIRMS",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",  border: "rgba(28,125,76,0.35)" },
+  CAUTION: { label: "AI: CAUTION",  color: "#c23b30", bg: "rgba(194,59,48,0.07)",  border: "rgba(194,59,48,0.30)" },
+  REJECT:  { label: "AI: REJECT",   color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
 };
 
 export const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
@@ -385,12 +392,21 @@ export default function BobbyPanel({
   const [error, setError] = useState("");
   const result = analysis; // analysis state lives in Dashboard (persisted across reloads)
 
+  // AI second-opinion layer — purely advisory, never gates a trade. Lives
+  // only in this component (not persisted like `analysis`) since it's cheap
+  // to re-request and shouldn't survive a reload as stale advice.
+  const [aiTake, setAiTake] = useState<AiTake | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
+
   // Clear a stale error from the previous market as soon as the market
   // changes, without waiting for a post-render effect.
   const [prevMarket, setPrevMarket] = useState(market);
   if (market !== prevMarket) {
     setPrevMarket(market);
     setError("");
+    setAiTake(null);
+    setAiUnavailable(false);
   }
 
   // Tracks which symbol is currently selected so an in-flight analyze()
@@ -399,10 +415,43 @@ export default function BobbyPanel({
   const marketSymbolRef = useRef(market.symbol);
   useEffect(() => { marketSymbolRef.current = market.symbol; }, [market.symbol]);
 
+  // Fire-and-forget from analyze() — runs after the deterministic engine
+  // already has a result, so the "NEW ANALYSIS" spinner clears on its own
+  // timing and the AI take pops into its card whenever it lands.
+  const fetchAiTake = useCallback(async (fresh: AnalysisResult, candles: RawCandle[], requestSymbol: string) => {
+    setAiLoading(true);
+    setAiUnavailable(false);
+    try {
+      const payload = buildAiAnalysisRequest(fresh, market, candles);
+      const res = await fetch("/api/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
+      if (!res.ok) {
+        setAiUnavailable(true);
+        return;
+      }
+      const take: AiTake = await res.json();
+      setAiTake(take);
+    } catch {
+      if (marketSymbolRef.current === requestSymbol) setAiUnavailable(true);
+    } finally {
+      if (marketSymbolRef.current === requestSymbol) setAiLoading(false);
+    }
+  }, [market]);
+
   const analyze = useCallback(async () => {
+    // Hard credit-safety guard: Claude is billed per call, so a rapid
+    // double-tap must never fire a second request while the first one from
+    // this click cycle is still in flight — one click, at most one call.
+    if (loading || aiLoading) return;
     const requestSymbol = market.symbol;
     setLoading(true);
     setError("");
+    setAiTake(null);
+    setAiUnavailable(false);
     try {
       const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
       if (!res.ok) {
@@ -428,6 +477,7 @@ export default function BobbyPanel({
       );
       if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
       onAnalysis(fresh, data.candles5m, candles1m);
+      void fetchAiTake(fresh, analysisCandles, requestSymbol);
     } catch (e: unknown) {
       if (marketSymbolRef.current !== requestSymbol) return;
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -436,16 +486,20 @@ export default function BobbyPanel({
       // analysis/error *data* is guarded against staleness above.
       setLoading(false);
     }
-  }, [market, onAnalysis]);
+  }, [market, onAnalysis, fetchAiTake, loading, aiLoading]);
 
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
   const lots = lotsFor(market);
 
   return (
-    <div className="flex flex-col" style={{ background: "var(--bg-panel)" }}>
+    <div className="flex flex-col h-full" style={{ background: "var(--bg-panel)" }}>
 
-      {/* Tab bar — the panel's own menu, replaces separate modals for Journal/Rules/History */}
-      <div className="flex items-center justify-between gap-2 px-6 py-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+      {/* Tab bar — the panel's own menu, replaces separate modals for Journal/Rules/History.
+          On mobile it sits like a bottom nav bar (order-3, last); on desktop it stays on top. */}
+      <div
+        className="flex items-center justify-between gap-2 px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-3 overflow-x-auto shrink-0 order-3 lg:order-1"
+        style={{ borderTop: "1px solid var(--gold-border)", borderBottom: "1px solid var(--gold-border)", background: "var(--bg-panel)" }}
+      >
         <div className="flex items-center gap-2">
           {TABS.map(({ key, label, Icon }) => {
             const active = activeTab === key;
@@ -475,6 +529,7 @@ export default function BobbyPanel({
         )}
       </div>
 
+      <div className="flex-1 overflow-y-auto order-1 lg:order-2">
       <AnimatePresence mode="wait">
       {activeTab === "journal" ? (
         <motion.div key="journal" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
@@ -495,19 +550,20 @@ export default function BobbyPanel({
       <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <button
           onClick={analyze}
-          disabled={loading}
+          disabled={loading || aiLoading}
           className="px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
           style={{
-            background: "transparent",
-            color: "#1c7d4c",
-            border: "1px solid rgba(28,125,76,0.5)",
-            cursor: loading ? "not-allowed" : "pointer",
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
+            cursor: loading || aiLoading ? "not-allowed" : "pointer",
             fontFamily: "var(--font-display)",
           }}
         >
           <span className="flex items-center gap-2">
-            {loading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiRefreshCw size={13} />}
-            {loading ? "LOADING..." : "NEW ANALYSIS"}
+            {loading || aiLoading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiRefreshCw size={13} />}
+            {loading ? "LOADING..." : aiLoading ? "AI THINKING..." : "NEW ANALYSIS"}
           </span>
         </button>
       </div>
@@ -685,6 +741,53 @@ export default function BobbyPanel({
             )}
           </div>
 
+          <AnimatePresence mode="wait">
+            {aiLoading ? (
+              <motion.div
+                key="ai-loading"
+                className="rounded-lg px-5 py-4 flex items-center gap-2.5"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
+              >
+                <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
+                <span className="text-base" style={{ color: "var(--text-muted)" }}>Getting a second opinion from Claude…</span>
+              </motion.div>
+            ) : aiTake ? (
+              <motion.div
+                key="ai-take"
+                className="rounded-lg px-5 py-4"
+                style={{ background: AI_VERDICT_STYLE[aiTake.verdict].bg, border: `1px solid ${AI_VERDICT_STYLE[aiTake.verdict].border}` }}
+                variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-1.5 text-sm font-black tracking-[0.2em]" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color }}>
+                    <FiCpu size={13} /> {AI_VERDICT_STYLE[aiTake.verdict].label}
+                  </div>
+                  {aiTake.confidenceDelta !== 0 && (
+                    <span className="text-sm font-black" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color, fontFamily: "var(--font-display)" }}>
+                      {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
+                    </span>
+                  )}
+                </div>
+                <p className="text-lg leading-relaxed" style={{ color: "#9ba5b2" }}>{aiTake.note}</p>
+                {aiTake.keyRisk && (
+                  <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                    Key risk: {aiTake.keyRisk}
+                  </div>
+                )}
+              </motion.div>
+            ) : aiUnavailable ? (
+              <motion.div
+                key="ai-unavailable"
+                className="px-2 text-sm"
+                style={{ color: "var(--text-muted)" }}
+                variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
+              >
+                AI second opinion unavailable this round.
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
         </motion.div>
       ) : !loading && !error ? (
         <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
@@ -698,6 +801,7 @@ export default function BobbyPanel({
       </motion.div>
       )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
