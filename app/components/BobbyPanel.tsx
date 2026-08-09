@@ -209,7 +209,7 @@ function OpportunityCard({
               {opp.phase === "TP_HIT" ? <FiCheck size={11} /> : opp.phase === "SL_HIT" ? <FiX size={11} /> : <FiAlertTriangle size={10} />}
             </span>
           )}
-          <span className="font-black text-base tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
+          <span className="font-black text-lg lg:text-base tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
             {meta.label}
           </span>
         </div>
@@ -231,7 +231,7 @@ function OpportunityCard({
             </button>
           )}
           <span
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-black tracking-wider whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[13px] lg:text-[12px] font-black tracking-wider whitespace-nowrap"
             style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
           >
             {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
@@ -242,13 +242,13 @@ function OpportunityCard({
 
       {/* Status + P/L */}
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-        <p className="text-[14px] leading-snug" style={{ color: "var(--text-primary)" }}>{statusLine}</p>
+        <p className="text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-primary)" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
             <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
               {fmtSignedMoney(pnl)}
             </div>
-            <div className="text-[11px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            <div className="text-[12px] lg:text-[11px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
               {opp.phase === "CONFIRMED" ? "LIVE P/L" : "RESULT"}
             </div>
           </div>
@@ -258,16 +258,16 @@ function OpportunityCard({
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="px-5 py-3.5">
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
-          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
+          <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
+          <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · {fmtSignedMoney(-ACCOUNT.riskPerTrade)}</div>
-          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
+          <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · {fmtSignedMoney(-ACCOUNT.riskPerTrade)}</div>
+          <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
         </div>
         <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · {fmtSignedMoney(reward)}</div>
-          <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
+          <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · {fmtSignedMoney(reward)}</div>
+          <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
         </div>
       </div>
     </div>
@@ -473,52 +473,16 @@ export default function BobbyPanel({
   const isBlended = !!(result && aiTake && aiTake.confidenceDelta !== 0);
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "var(--bg-panel)" }}>
+    <div className="flex flex-col h-full bg-[var(--bg)] lg:bg-[var(--bg-panel)]">
 
-      {/* Header: analyze + generate-comment buttons — 50/50 width so both stay reachable on
-          mobile — plus the close button on the mobile sheet. No tab bar anymore: this used to
-          switch between Analysis/Journal/Rules, but Journal and Rules were removed and Analysis
-          was the only thing left, making the whole menu pointless chrome around a single view. */}
-      <div className="flex items-center gap-2 px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
-        <button
-          onClick={analyze}
-          disabled={loading || aiLoading}
-          className="flex-1 px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
-          style={{
-            background: "rgba(255,255,255,0.10)",
-            color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
-            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
-            cursor: loading || aiLoading ? "not-allowed" : "pointer",
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          <span className="flex items-center justify-center gap-2">
-            {loading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiRefreshCw size={13} />}
-            {loading ? "LOADING..." : "NEW ANALYSIS"}
-          </span>
-        </button>
-        <button
-          onClick={generateComment}
-          disabled={!result || loading || aiLoading}
-          title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
-          className="flex-1 px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
-          style={{
-            background: "rgba(255,255,255,0.10)",
-            color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
-            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
-            cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
-            opacity: !result ? 0.5 : 1,
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          <span className="flex items-center justify-center gap-2">
-            {aiLoading ? <FiCpu size={13} className="animate-pulse" /> : <FiCpu size={13} />}
-            {aiLoading ? "TAYLOR THINKING..." : "TAYLOR'S TAKE"}
-          </span>
-        </button>
-        {onClose && (
+      {/* Logo + close button — mobile sheet only; the analyze/generate-comment buttons used
+          to live in this same row, but on narrow screens their tracked-out labels wrapped to
+          two lines, so they now live in a footer row pinned to the bottom (thumb reach). On
+          desktop lg:order-first pulls that footer back up to where this row used to be, and
+          this row hides there since onClose is only passed for the mobile sheet. */}
+      {onClose && (
+        <div className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+          <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto" />
           <button
             onClick={onClose}
             className="p-2.5 rounded-md shrink-0"
@@ -526,8 +490,8 @@ export default function BobbyPanel({
           >
             <FiX size={18} />
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
       {/* Account chips — only market-variable values */}
@@ -538,7 +502,7 @@ export default function BobbyPanel({
           ["SPREAD", `~${fmtMoney2(tradeCostFor(market))}`, "#c23b30"],
           ["RISK", fmtMoney(ACCOUNT.riskPerTrade), "#8a2f2a"],
         ].map(([k, v, c]) => (
-          <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap"
+          <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm lg:text-[12px] font-bold whitespace-nowrap"
             style={{ background: "var(--bg-elevated)" }}>
             <span style={{ color: "var(--text-muted)" }}>{k}</span>
             <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
@@ -550,7 +514,7 @@ export default function BobbyPanel({
       <AnimatePresence>
         {error && (
           <motion.div
-            className="mx-6 mt-5 p-4 rounded-md text-base"
+            className="mx-6 mt-5 p-4 rounded-md text-lg lg:text-base"
             style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}
             variants={fadeUpVariants}
             initial="hidden"
@@ -581,7 +545,7 @@ export default function BobbyPanel({
             ) : (
               <motion.div
                 key="no-setup"
-                className="rounded-lg px-5 py-4 text-base"
+                className="rounded-lg px-5 py-4 text-lg lg:text-base"
                 style={{ background: "var(--bg-panel)", color: "var(--text-primary)" }}
                 variants={fadeVariants}
                 initial="hidden"
@@ -602,12 +566,12 @@ export default function BobbyPanel({
                 <sig.Icon size={26} color={sig.color} />
                 <span className="text-3xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
-              <div className="text-base mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
+              <div className="text-lg lg:text-base mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
                 {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
                 {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
               </div>
               {isBlended && aiTake && (
-                <div className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <div className="text-base lg:text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
                   Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
                 </div>
               )}
@@ -615,7 +579,7 @@ export default function BobbyPanel({
           </div>
 
           {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-            <div className="rounded-lg px-5 py-3 text-base" style={{ background: "var(--bg-panel)", color: "var(--text-secondary)" }}>
+            <div className="rounded-lg px-5 py-3 text-lg lg:text-base" style={{ background: "var(--bg-panel)", color: "var(--text-secondary)" }}>
               Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
             </div>
           )}
@@ -629,7 +593,7 @@ export default function BobbyPanel({
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
                 <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
-                <span className="text-base" style={{ color: "var(--text-muted)" }}>Taylor&apos;s taking a look…</span>
+                <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>Taylor&apos;s taking a look…</span>
               </motion.div>
             ) : aiTake ? (
               <motion.div
@@ -639,23 +603,23 @@ export default function BobbyPanel({
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-1.5 text-sm font-black tracking-[0.2em]" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color }}>
+                  <div className="flex items-center gap-1.5 text-base lg:text-sm font-black tracking-[0.2em]" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color }}>
                     <FiCpu size={13} /> {AI_VERDICT_STYLE[aiTake.verdict].label}
                   </div>
                   {aiTake.confidenceDelta !== 0 && (
-                    <span className="text-sm font-black" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color, fontFamily: "var(--font-display)" }}>
+                    <span className="text-base lg:text-sm font-black" style={{ color: AI_VERDICT_STYLE[aiTake.verdict].color, fontFamily: "var(--font-display)" }}>
                       {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
                     </span>
                   )}
                 </div>
-                <p className="text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{aiTake.note}</p>
+                <p className="text-xl lg:text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{aiTake.note}</p>
                 {aiTake.keyRisk && (
-                  <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                  <div className="mt-2 pt-2 text-lg lg:text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                     Key risk: {aiTake.keyRisk}
                   </div>
                 )}
                 {aiProfile?.hasHistory && (
-                  <div className="mt-2 pt-2 text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>
+                  <div className="mt-2 pt-2 text-base lg:text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>
                     Taylor&apos;s record: {aiProfile.resolvedCount} resolved calls · {aiProfile.hitRate}% hit rate
                     {aiProfile.invalidatedRate > 0 && ` · ${aiProfile.invalidatedRate}% invalidated`}
                   </div>
@@ -664,7 +628,7 @@ export default function BobbyPanel({
             ) : aiUnavailable ? (
               <motion.div
                 key="ai-unavailable"
-                className="px-2 text-sm"
+                className="px-2 text-base lg:text-sm"
                 style={{ color: "var(--text-muted)" }}
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
@@ -684,7 +648,7 @@ export default function BobbyPanel({
                 exit="hidden"
                 transition={TRANSITION_BASE}
               >
-                <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "var(--text-primary)" }}>
+                <div className="flex items-center gap-1.5 py-2.5 text-base lg:text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "var(--text-primary)" }}>
                   <FiAlertTriangle size={13} color="#8a2f2a" /> WARNINGS — READ BEFORE ENTERING
                 </div>
                 <div className="flex flex-col">
@@ -699,7 +663,7 @@ export default function BobbyPanel({
                       transition={{ ...TRANSITION_FAST, delay: i * 0.04 }}
                     >
                       <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
-                      <div className="text-[16px] leading-snug">
+                      <div className="text-[18px] lg:text-[16px] leading-snug">
                         <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
                         <span style={{ color: "var(--text-primary)" }}>{w.detail}</span>
                       </div>
@@ -714,12 +678,60 @@ export default function BobbyPanel({
       ) : !loading && !error ? (
         <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-primary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
           <FiZap size={48} className="mb-4 opacity-15" />
-          <p className="text-lg">Press <strong style={{ color: "var(--gold)" }}>New Analysis</strong> to analyze {market.label}.</p>
-          <p className="text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>
+          <p className="text-xl lg:text-lg">Press <strong style={{ color: "var(--gold)" }}>New Analysis</strong> to analyze {market.label}.</p>
+          <p className="text-lg lg:text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>
         </motion.div>
       ) : null}
       </AnimatePresence>
 
+      </div>
+
+      {/* Footer: analyze + generate-comment buttons, pinned to the bottom so they're in
+          thumb reach on mobile (lg:order-first puts them back at the top on desktop, where
+          the row above this used to live). Tighter tracking + smaller mobile font than the
+          old header row so "TAYLOR'S TAKE" / "NEW ANALYSIS" fit on one line at narrow widths. */}
+      <div
+        className="flex items-center gap-2 px-4 py-3 shrink-0 lg:order-first lg:px-6 lg:py-4"
+        style={{ borderTop: "1px solid var(--gold-border)", paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+      >
+        <button
+          onClick={analyze}
+          disabled={loading || aiLoading}
+          className="flex-1 px-3 sm:px-5 py-2.5 rounded-md font-black text-[11px] sm:text-sm tracking-tight sm:tracking-widest transition-all duration-150"
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
+            cursor: loading || aiLoading ? "not-allowed" : "pointer",
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span className="flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
+            {loading ? <FiRefreshCw size={13} className="animate-spin shrink-0" /> : <FiRefreshCw size={13} className="shrink-0" />}
+            {loading ? "LOADING..." : "NEW ANALYSIS"}
+          </span>
+        </button>
+        <button
+          onClick={generateComment}
+          disabled={!result || loading || aiLoading}
+          title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
+          className="flex-1 px-3 sm:px-5 py-2.5 rounded-md font-black text-[11px] sm:text-sm tracking-tight sm:tracking-widest transition-all duration-150"
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
+            cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
+            opacity: !result ? 0.5 : 1,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span className="flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap">
+            {aiLoading ? <FiCpu size={13} className="animate-pulse shrink-0" /> : <FiCpu size={13} className="shrink-0" />}
+            {aiLoading ? "TAYLOR THINKING..." : "TAYLOR'S TAKE"}
+          </span>
+        </button>
       </div>
     </div>
   );
