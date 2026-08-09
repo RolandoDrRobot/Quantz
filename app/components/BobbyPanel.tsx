@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower, FiBarChart2,
-  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiMinus,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX,
 } from "react-icons/fi";
 import { LuBrainCircuit, LuNotebookPen, LuListChecks } from "react-icons/lu";
 import type { RawCandle } from "../api/market/route";
@@ -62,13 +62,6 @@ function probLabel(p: number) {
   if (p >= 70) return "HIGH";
   if (p >= 45) return "MEDIUM";
   return "LOW";
-}
-
-// ── Per-factor status: full check, partial dash, or missed × ────────────────
-function factorVisual(pct: number): { Icon: IconType; color: string } {
-  if (pct >= 100) return { Icon: FiCheck, color: "#1c7d4c" };
-  if (pct <= 0) return { Icon: FiX, color: "#8a2f2a" };
-  return { Icon: FiMinus, color: "#c23b30" };
 }
 
 // ── Circular probability gauge ───────────────────────────────────────────────
@@ -456,9 +449,8 @@ export default function BobbyPanel({
   }, [market]);
 
   const analyze = useCallback(async () => {
-    // Hard credit-safety guard: Claude is billed per call, so a rapid
-    // double-tap must never fire a second request while the first one from
-    // this click cycle is still in flight — one click, at most one call.
+    // Don't stomp an in-flight Taylor comment (analyze() clears aiTake/
+    // aiProfile below, which would otherwise race a generateComment() call).
     if (loading || aiLoading) return;
     const requestSymbol = market.symbol;
     setLoading(true);
@@ -491,7 +483,6 @@ export default function BobbyPanel({
       );
       if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
       onAnalysis(fresh, data.candles5m, candles1m);
-      void fetchAiTake(fresh, analysisCandles, requestSymbol);
     } catch (e: unknown) {
       if (marketSymbolRef.current !== requestSymbol) return;
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -500,7 +491,35 @@ export default function BobbyPanel({
       // analysis/error *data* is guarded against staleness above.
       setLoading(false);
     }
-  }, [market, onAnalysis, fetchAiTake, loading, aiLoading]);
+  }, [market, onAnalysis, loading, aiLoading]);
+
+  // Separate, explicit trigger for Taylor's comment — decoupled from
+  // analyze() so a Claude call only happens when the user asks for it, not
+  // on every "New Analysis" tap. Re-fetches live market data itself (so the
+  // comment reflects price action right now) but reuses the current
+  // deterministic `result` rather than re-running the analysis engine.
+  const generateComment = useCallback(async () => {
+    if (!result || loading || aiLoading) return;
+    const requestSymbol = market.symbol;
+    setAiLoading(true);
+    setAiUnavailable(false);
+    setAiTake(null);
+    setAiProfile(null);
+    try {
+      const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch market data");
+      const data = await res.json();
+      const candles1m: RawCandle[] = data.candles1m ?? [];
+      const candles = candles1m.length >= 60 ? candles1m : data.candles5m;
+      if (marketSymbolRef.current !== requestSymbol) { setAiLoading(false); return; }
+      await fetchAiTake(result, candles, requestSymbol);
+    } catch {
+      if (marketSymbolRef.current === requestSymbol) {
+        setAiUnavailable(true);
+        setAiLoading(false);
+      }
+    }
+  }, [result, market, loading, aiLoading, fetchAiTake]);
 
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
   const lots = lotsFor(market);
@@ -568,12 +587,12 @@ export default function BobbyPanel({
       ) : (
       <motion.div key="analysis" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
 
-      {/* Header: analyze button */}
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+      {/* Header: analyze + generate-comment buttons — 50/50 width so both stay reachable on mobile */}
+      <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid var(--gold-border)" }}>
         <button
           onClick={analyze}
           disabled={loading || aiLoading}
-          className="px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
+          className="flex-1 px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
           style={{
             background: "rgba(255,255,255,0.10)",
             color: "var(--text-primary)",
@@ -583,9 +602,28 @@ export default function BobbyPanel({
             fontFamily: "var(--font-display)",
           }}
         >
-          <span className="flex items-center gap-2">
-            {loading || aiLoading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiRefreshCw size={13} />}
-            {loading ? "LOADING..." : aiLoading ? "AI THINKING..." : "NEW ANALYSIS"}
+          <span className="flex items-center justify-center gap-2">
+            {loading ? <FiRefreshCw size={13} className="animate-spin" /> : <FiRefreshCw size={13} />}
+            {loading ? "LOADING..." : "NEW ANALYSIS"}
+          </span>
+        </button>
+        <button
+          onClick={generateComment}
+          disabled={!result || loading || aiLoading}
+          title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
+          className="flex-1 px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
+          style={{
+            background: "var(--gold-dim)",
+            color: !result ? "var(--text-muted)" : "var(--gold)",
+            border: `1px solid ${!result ? "rgba(255,255,255,0.08)" : "var(--gold-border)"}`,
+            cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
+            opacity: !result ? 0.5 : 1,
+            fontFamily: "var(--font-display)",
+          }}
+        >
+          <span className="flex items-center justify-center gap-2">
+            {aiLoading ? <FiCpu size={13} className="animate-pulse" /> : <FiCpu size={13} />}
+            {aiLoading ? "TAYLOR THINKING..." : "TAYLOR'S TAKE"}
           </span>
         </button>
       </div>
@@ -680,83 +718,6 @@ export default function BobbyPanel({
             </div>
           </div>
 
-          {/* Warnings — solo si existen */}
-          <AnimatePresence>
-            {result.warnings.length > 0 && (
-              <motion.div
-                className="rounded-lg overflow-hidden"
-                variants={fadeUpVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                transition={TRANSITION_BASE}
-              >
-                <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "var(--text-primary)" }}>
-                  <FiAlertTriangle size={13} color="#8a2f2a" /> WARNINGS — READ BEFORE ENTERING
-                </div>
-                <div className="flex flex-col">
-                  {result.warnings.map((w, i) => (
-                    <motion.div
-                      key={i}
-                      className="flex gap-2.5 py-3"
-                      style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-elevated)" }}
-                      variants={fadeUpVariants}
-                      initial="hidden"
-                      animate="visible"
-                      transition={{ ...TRANSITION_FAST, delay: i * 0.04 }}
-                    >
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
-                      <div className="text-[16px] leading-snug">
-                        <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
-                        <span style={{ color: "var(--text-primary)" }}>{w.detail}</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Score factors */}
-          <div className="rounded-lg py-4 lg:px-5" style={{ background: "var(--bg-panel)" }}>
-            <div className="grid grid-cols-2 gap-2">
-              {result.probFactors.map((f, i) => {
-                const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
-                const { Icon, color: c } = factorVisual(pct);
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center text-left gap-2 rounded-md px-3 py-2 w-full lg:flex-col lg:items-center lg:text-center lg:gap-1.5"
-                    style={{ background: "var(--bg-elevated)" }}
-                  >
-                    <span className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: `${c}26` }}>
-                      <Icon size={14} color={c} />
-                    </span>
-                    <div className="flex flex-col lg:contents">
-                      <span className="text-xs leading-tight" style={{ color: "#9ba5b2" }}>{f.label}</span>
-                      <span className="font-black text-lg leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{Math.round(pct)}%</span>
-                    </div>
-                  </div>
-                );
-              })}
-              {result.penalties.map((p, i) => (
-                <div
-                  key={`p${i}`}
-                  className="flex items-center text-left gap-2 rounded-md px-3 py-2 w-full lg:flex-col lg:items-center lg:text-center lg:gap-1.5"
-                  style={{ background: "rgba(138,47,42,0.06)" }}
-                >
-                  <span className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: "rgba(138,47,42,0.15)" }}>
-                    <FiAlertTriangle size={14} color="#8a2f2a" />
-                  </span>
-                  <div className="flex flex-col lg:contents">
-                    <span className="text-xs leading-tight" style={{ color: "#9ba5b2" }}>{p.label}</span>
-                    <span className="font-black text-lg leading-none" style={{ color: "#8a2f2a", fontFamily: "var(--font-display)" }}>{p.points}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-panel)" }}>
             <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: "var(--text-primary)" }}>TAYLOR</div>
             <p className="text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{result.message}</p>
@@ -818,6 +779,43 @@ export default function BobbyPanel({
                 Taylor&apos;s not available this round.
               </motion.div>
             ) : null}
+          </AnimatePresence>
+
+          {/* Warnings — solo si existen */}
+          <AnimatePresence>
+            {result.warnings.length > 0 && (
+              <motion.div
+                className="rounded-lg overflow-hidden"
+                variants={fadeUpVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                transition={TRANSITION_BASE}
+              >
+                <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "var(--text-primary)" }}>
+                  <FiAlertTriangle size={13} color="#8a2f2a" /> WARNINGS — READ BEFORE ENTERING
+                </div>
+                <div className="flex flex-col">
+                  {result.warnings.map((w, i) => (
+                    <motion.div
+                      key={i}
+                      className="flex gap-2.5 py-3"
+                      style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-elevated)" }}
+                      variants={fadeUpVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ ...TRANSITION_FAST, delay: i * 0.04 }}
+                    >
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
+                      <div className="text-[16px] leading-snug">
+                        <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
+                        <span style={{ color: "var(--text-primary)" }}>{w.detail}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
 
         </motion.div>
