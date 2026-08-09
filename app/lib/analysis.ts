@@ -260,9 +260,13 @@ function detectBreakout(candles: RawCandle[], levels: Level[], slPoints: number)
     // Candle must have a real body (not a doji). 1min candles are naturally
     // smaller than 5min ones — the old 0.06%-of-price threshold rejected
     // almost every 1min bar, so it's halved here to still catch real moves.
+    // Loosened a notch further (0.45→0.40, 0.0003→0.00025) so real-but-modest
+    // breakout candles stop getting discarded before they even reach the
+    // trend/volume/level scoring below — the risk offset lives in
+    // ACCOUNT.riskPerTrade (markets.ts), not in accepting weaker bars here.
     const bodySize = Math.abs(curr.close - curr.open);
     const range = curr.high - curr.low;
-    if (range === 0 || bodySize / range < 0.45 || bodySize / curr.close < 0.0003) continue;
+    if (range === 0 || bodySize / range < 0.40 || bodySize / curr.close < 0.00025) continue;
 
     for (const level of levels) {
       // Abrupt pierce through the level, no gap
@@ -622,10 +626,13 @@ export function runAnalysis(
   let probability = probFactors.reduce((s, f) => s + f.points, 0)
     + penalties.reduce((s, p) => s + p.points, 0);
 
-  // Weak momentum caps the score — a breakout without fuel can't be high probability
-  if (trend.momentum === "weak" && probability > 60) {
-    penalties.push({ label: "Weak-momentum cap", points: 60 - probability, max: 0 });
-    probability = 60;
+  // Weak momentum caps the score — a breakout without fuel can't be high
+  // probability. Cap nudged 60→65: still firmly below "high confidence"
+  // territory, just no longer discarding a setup that's otherwise clean.
+  const WEAK_MOMENTUM_CAP = 65;
+  if (trend.momentum === "weak" && probability > WEAK_MOMENTUM_CAP) {
+    penalties.push({ label: "Weak-momentum cap", points: WEAK_MOMENTUM_CAP - probability, max: 0 });
+    probability = WEAK_MOMENTUM_CAP;
   }
 
   // Keep probFactors+penalties summing to exactly what's displayed/sent —
@@ -644,7 +651,12 @@ export function runAnalysis(
   // penalties could still show a confident "GO LONG" next to a 5% score. If
   // the score can't back up the call, the call doesn't stand: downgrade to
   // WAIT rather than asserting a direction the number next to it disowns.
-  const SIGNAL_PROBABILITY_FLOOR = 30;
+  // Floor eased 30→22 to surface more of the marginal-but-real setups this
+  // strategy finds — the penalties above (whipsaw, low volume, dead
+  // volatility, etc.) are untouched, so a genuinely bad setup still gets
+  // pushed below even this lower bar. ACCOUNT.riskPerTrade came down to
+  // offset the resulting higher trade frequency.
+  const SIGNAL_PROBABILITY_FLOOR = 22;
   let downgraded = false;
   if (signal !== "WAIT" && probability < SIGNAL_PROBABILITY_FLOOR) {
     signal = "WAIT";

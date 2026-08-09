@@ -1,7 +1,13 @@
 // FTMO-style account settings — reflected across the whole app
 export const ACCOUNT = {
   balance: 1000,
-  riskPerTrade: 25,
+  // Trimmed from 25 alongside the loosened thresholds in analysis.ts (see
+  // SIGNAL_PROBABILITY_FLOOR and the breakout body-size filter) — more setups
+  // now clear the bar, so risk-per-trade comes down proportionally to keep
+  // total exposure roughly where it was rather than compounding with the
+  // higher trade frequency. Same lever a risk desk pulls before loosening
+  // entry criteria: size down first, then widen the funnel.
+  riskPerTrade: 18,
 };
 
 export const MARKETS = {
