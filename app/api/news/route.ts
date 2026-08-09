@@ -17,7 +17,7 @@ interface FinnhubArticle {
   datetime: number;
 }
 
-// Keyword aliases used to decide which of our 5 tracked instruments a given
+// Keyword aliases used to decide which of our tracked instruments a given
 // article actually touches — Finnhub's free news categories (general/forex/
 // crypto) are broad market feeds, not per-symbol, so this is what turns "all
 // finance news" into "only news for the pairs we trade".
@@ -27,6 +27,7 @@ const KEYWORDS: Record<MarketKey, string[]> = {
   gold:     ["gold", "xau", "bullion", "precious metal", "safe-haven", "safe haven"],
   bitcoin:  ["bitcoin", "btc"],
   ethereum: ["ethereum", "eth "],
+  ethbtc:   ["eth/btc", "eth-btc", "ether/bitcoin", "ethereum/bitcoin", "eth dominance", "bitcoin dominance"],
 };
 
 // Macro news moves every instrument we trade, not just one — a rate
@@ -53,7 +54,7 @@ function relevantMarkets(text: string): MarketKey[] {
 // transparent heuristic, not a model: macro events and shock language
 // (crashes, hacks, bans, ETF rulings) are high impact; earnings/corporate
 // moves are medium; routine single-instrument coverage is low. Breadth
-// (how many of our 5 instruments the keyword match already hit) is folded
+// (how many of our tracked instruments the keyword match already hit) is folded
 // in too — news that moves everything is rarely "low impact".
 const HIGH_IMPACT_WORDS = [
   "crash", "plunge", "plummet", "surge", "soar", "record high", "record low",
@@ -126,7 +127,7 @@ export async function GET(request: Request) {
       seen.add(a.url);
       const combinedText = `${a.headline} ${a.summary ?? ""}`;
       const relevantTo = relevantMarkets(combinedText);
-      if (relevantTo.length === 0) continue; // only news that actually touches one of our 5 markets
+      if (relevantTo.length === 0) continue; // only news that actually touches one of our tracked markets
       merged.push({
         id: String(a.id ?? a.url),
         headline: a.headline,
@@ -146,7 +147,7 @@ export async function GET(request: Request) {
     cached = false;
   }
 
-  // The underlying fetch+cache always covers all 5 markets at once (cheap on
+  // The underlying fetch+cache always covers every tracked market at once (cheap on
   // Finnhub's quota) — a `market` filter narrows the response per-request
   // without ever needing a separate upstream fetch per instrument.
   const articles = marketFilter ? all.filter(a => a.relevantTo.includes(marketFilter)) : all;

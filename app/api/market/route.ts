@@ -48,6 +48,7 @@ async function fetchCandles(symbol: string, interval: string, period1: number, p
 const COINBASE_SOURCE = new Map<string, string>([
   ["BTC-USD", "BTC-USD"],
   ["ETH-USD", "ETH-USD"],
+  ["ETH-BTC", "ETH-BTC"],
 ]);
 
 // Coinbase caps each candles request at 300 bars, so reaching the target

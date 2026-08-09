@@ -6,6 +6,11 @@
 const MINUS = "−"; // typographic minus, matches the rest of the app's convention
 
 const number2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Only ever used for sub-$1 prices (e.g. the ETH/BTC ratio pair, ~0.03) —
+// every other instrument's price is always well above 1, so this never
+// changes their formatting. 2 decimals would round 0.029528 to "0.03",
+// making every nearby level look identical.
+const numberSmall = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 });
 const moneyWhole = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const money2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -13,9 +18,11 @@ function sign(n: number): string {
   return n > 0 ? "+" : n < 0 ? MINUS : "";
 }
 
-// Price/level/points — 2 decimals, thousands-grouped. e.g. 29722.3 -> "29,722.30"
+// Price/level/points — 2 decimals, thousands-grouped. e.g. 29722.3 -> "29,722.30".
+// Sub-$1 prices get up to 6 decimals instead, so a BTC-denominated pair
+// like ETH/BTC still reads as a real, distinguishable price.
 export function fmtPrice(n: number): string {
-  return number2.format(n);
+  return Math.abs(n) < 1 ? numberSmall.format(n) : number2.format(n);
 }
 
 // Percentage — 2 decimals, grouped. e.g. 1.2 -> "1.20%"

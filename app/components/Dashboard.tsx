@@ -20,7 +20,7 @@ import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITIO
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
 import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
 
-const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum"];
+const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum", "ethbtc"];
 
 const STORAGE_MARKET = "axe-market";
 const storageKey = (symbol: string) => `axe-analysis-${symbol}`;
