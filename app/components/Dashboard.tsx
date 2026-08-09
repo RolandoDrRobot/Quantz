@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 import { LuBrainCircuit, LuNewspaper } from "react-icons/lu";
 import AxeChart from "./AxeChart";
-import BobbyPanel, { PHASE_META, Clock, type PanelTab } from "./BobbyPanel";
+import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, TradeSetup, BreakoutEvent, Level } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
@@ -51,7 +51,9 @@ const TERMINAL_PHASES = new Set<OppPhase>(["TP_HIT", "SL_HIT", "INVALIDATED"]);
 // PredictionRecord the moment there's an actual breakout to call (not a bare
 // HUNTING setup still waiting for a level to even break), resolves it on a
 // terminal transition, and updates its level/entry/sl/tp on a re-anchor so
-// the Journal never shows a resolution price next to stale numbers. Shared
+// the logged record never shows a resolution price next to stale numbers —
+// this feeds Taylor's own "record" context in the AI second-opinion even
+// though there's no visible journal UI anymore. Shared
 // by the live single-tick path (advancePrice) and the market-switch catch-up
 // replay below, so both stay consistent. Mutates `next.predictionId` in
 // place — safe, since `next` is always a freshly-constructed object that
@@ -180,12 +182,10 @@ export default function Dashboard() {
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
   const [newsOpen, setNewsOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<NewsArticle[]>([]);
   const [taylorOpen, setTaylorOpen] = useState(false);
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
-  const [predictionsVersion, setPredictionsVersion] = useState(0);
   const [isStale, setIsStale] = useState(false);
 
   const cfg = MARKETS[market];
@@ -313,7 +313,6 @@ export default function Dashboard() {
                 // against whatever the price happens to be right now, which
                 // could misattribute a TP that already happened as an SL.
                 opp = catchUpOpportunity(opp, c5m, saved.analysis?.levels ?? [], cfg.short);
-                setPredictionsVersion(v => v + 1);
               }
               updateOpportunity(opp);
               if (opp) saveState(cfg.symbol, saved.analysis, opp);
@@ -341,7 +340,6 @@ export default function Dashboard() {
     const outgoing = opportunityRef.current;
     if (outgoing?.predictionId && !TERMINAL_PHASES.has(outgoing.phase)) {
       resolvePrediction(outgoing.predictionId, "SUPERSEDED", livePriceRef.current ?? outgoing.level);
-      setPredictionsVersion(v => v + 1);
     }
 
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
@@ -351,7 +349,6 @@ export default function Dashboard() {
       // it becomes one at the HUNTING->AWAIT_RETEST transition in
       // advancePrice() if/when that happens live.
       syncPrediction(null, opp, MARKETS[market].short, result.currentPrice);
-      setPredictionsVersion(v => v + 1);
     }
     updateOpportunity(opp);
     saveState(MARKETS[market].symbol, result, opp);
@@ -384,7 +381,6 @@ export default function Dashboard() {
       // a phase-or-level transition can produce, so this and the market-
       // switch catch-up path can never drift out of sync with each other.
       syncPrediction(prev, next, marketShortRef.current, price);
-      setPredictionsVersion(v => v + 1);
       if (levelChanged) playBreakoutSound();
       else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") {
         playBreakoutSound();
@@ -767,10 +763,10 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* Botón Taylor — abre el panel (Analysis/Journal/Rules viven dentro) */}
+          {/* Botón Taylor — abre el panel de análisis */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setActiveTab("analysis"); setTaylorOpen(true); }}
+              onClick={() => setTaylorOpen(true)}
               className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
               style={{
                 background: "rgba(255,255,255,0.06)",
@@ -825,7 +821,7 @@ export default function Dashboard() {
           initial={false}
           transition={TRANSITION_SHEET}
         >
-          {/* BobbyPanel maneja su propio scroll interno — su tab bar vive fija abajo como menú */}
+          {/* BobbyPanel maneja su propio scroll interno */}
           <div className="flex-1 overflow-hidden">
             <BobbyPanel
               market={MARKETS[market]}
@@ -835,9 +831,6 @@ export default function Dashboard() {
               livePrice={livePrice}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              predictionsVersion={predictionsVersion}
               onClose={() => setTaylorOpen(false)}
             />
           </div>
@@ -950,9 +943,6 @@ export default function Dashboard() {
               livePrice={livePrice}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              predictionsVersion={predictionsVersion}
             />
           </aside>
         </div>

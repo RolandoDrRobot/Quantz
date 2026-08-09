@@ -11,7 +11,7 @@ export const TRANSITION_BACKDROP = { duration: 0.18, ease: "easeOut" as const };
 // One-time app-shell entrance (first mount only, not AnimatePresence-driven).
 export const TRANSITION_APP = { duration: 0.4, ease: EASE_OUT };
 
-// Full-screen/sheet modals (Records, Playbook, Journal, Taylor) — backdrop
+// Full-screen/sheet modals (currently just News) — backdrop
 export const backdropVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1 },

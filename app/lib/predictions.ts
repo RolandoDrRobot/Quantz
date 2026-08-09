@@ -96,10 +96,10 @@ export function resolvePrediction(
 }
 
 // Keeps a live (unresolved) prediction's level/entry/sl/tp in sync with its
-// opportunity after a re-anchor — otherwise the Journal shows the original
-// numbers next to a resolution price that belongs to a level the opportunity
-// jumped to later, which reads as a data error rather than the legitimate
-// re-anchor it actually was.
+// opportunity after a re-anchor — otherwise the logged record shows the
+// original numbers next to a resolution price that belongs to a level the
+// opportunity jumped to later, which reads as a data error rather than the
+// legitimate re-anchor it actually was.
 export function updatePredictionLevels(id: string, level: number, entry: number, sl: number, tp: number) {
   try {
     const all = loadPredictions();
