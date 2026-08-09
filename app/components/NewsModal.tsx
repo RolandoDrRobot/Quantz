@@ -24,7 +24,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
       target="_blank"
       rel="noopener noreferrer"
       className="flex gap-3 rounded-lg p-3 transition-colors"
-      style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}
+      style={{ background: "var(--bg-card)" }}
       variants={fadeUpVariants}
       initial="hidden"
       animate="visible"
@@ -51,7 +51,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
           </span>
         </div>
         {article.summary && (
-          <p className="text-[13px] leading-snug line-clamp-2" style={{ color: "var(--text-secondary)" }}>{article.summary}</p>
+          <p className="text-[13px] leading-snug line-clamp-2" style={{ color: "var(--text-primary)" }}>{article.summary}</p>
         )}
         <div className="flex items-center gap-2 flex-wrap mt-0.5">
           <span className="text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{article.source}</span>
@@ -168,7 +168,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                 <div className="flex items-center gap-2 font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
                   <LuNewspaper size={18} /> NEWS
                 </div>
-                <div className="text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold, Bitcoin & Ethereum</div>
+                <div className="text-base mt-0.5" style={{ color: "var(--text-primary)" }}>Only what moves NASDAQ, Dow, Gold, Bitcoin & Ethereum</div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -192,17 +192,17 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
 
             <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-2.5">
               {error ? (
-                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
+                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-primary)" }}>
                   <LuNewspaper size={48} className="mb-4 opacity-15" />
                   <p className="text-lg">{error}</p>
                 </div>
               ) : loading && articles.length === 0 ? (
-                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
+                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-primary)" }}>
                   <FiRefreshCw size={32} className="mb-4 animate-spin opacity-40" />
                   <p className="text-base">Loading news...</p>
                 </div>
               ) : articles.length === 0 ? (
-                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
+                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-primary)" }}>
                   <LuNewspaper size={48} className="mb-4 opacity-15" />
                   <p className="text-lg">No relevant news right now.</p>
                   <p className="text-base mt-2 opacity-70">Nothing moving NASDAQ, Dow, Gold, Bitcoin, or Ethereum at the moment.</p>

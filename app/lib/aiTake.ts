@@ -1,6 +1,7 @@
 import type { AnalysisResult } from "./analysis";
 import type { Market } from "./markets";
 import type { RawCandle } from "../api/market/route";
+import type { TraderProfileSummary } from "./traderProfile";
 
 // Verdict is intentionally advisory, never a trade gate — the deterministic
 // engine in analysis.ts/opportunity.ts remains the sole source of truth for
@@ -32,15 +33,20 @@ export interface AiAnalysisRequest {
   volume: AnalysisResult["volume"];
   nearbyLevels: AnalysisResult["levels"];
   recentCandles: { o: number; h: number; l: number; c: number }[];
+  traderProfile: TraderProfileSummary;
 }
 
 // Distills a full analysis + market payload down to what the AI needs — kept
 // small deliberately (last 12 closed 1m/5m candles, not the full series) so
 // every call stays cheap regardless of how much chart history is loaded.
+// `traderProfile` is passed in rather than computed here so the caller can
+// capture one snapshot and reuse it for both the request and whatever it
+// renders in the UI — they must never disagree.
 export function buildAiAnalysisRequest(
   result: AnalysisResult,
   market: Market,
-  candles: RawCandle[]
+  candles: RawCandle[],
+  traderProfile: TraderProfileSummary
 ): AiAnalysisRequest {
   return {
     market: market.label,
@@ -60,5 +66,6 @@ export function buildAiAnalysisRequest(
     volume: result.volume,
     nearbyLevels: result.levels.slice(0, 6),
     recentCandles: candles.slice(-12).map(c => ({ o: c.open, h: c.high, l: c.low, c: c.close })),
+    traderProfile,
   };
 }

@@ -537,7 +537,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                   <FiZap size={16} /> RETEST ACTIVE — {fmtPrice(opportunity.level)}
                 </div>
-                <div className="text-sm mt-0.5" style={{ color: "#9ba5b2" }}>
+                <div className="text-sm mt-0.5" style={{ color: "var(--text-primary)" }}>
                   {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
                 </div>
               </motion.div>
@@ -549,12 +549,12 @@ export default function Dashboard() {
           {chartLoading ? (
             <>
               <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }} />
-              <p className="text-base" style={{ color: "var(--text-muted)" }}>Loading {cfg.label}...</p>
+              <p className="text-base" style={{ color: "var(--text-primary)" }}>Loading {cfg.label}...</p>
             </>
           ) : (
             <>
               <FiTrendingUp size={40} className="opacity-10" style={{ color: "var(--text-muted)" }} />
-              <p className="text-base" style={{ color: "var(--text-muted)" }}>Error loading {cfg.label}</p>
+              <p className="text-base" style={{ color: "var(--text-primary)" }}>Error loading {cfg.label}</p>
             </>
           )}
         </div>
@@ -633,7 +633,7 @@ export default function Dashboard() {
               <motion.button
                 onClick={() => setNewsOpen(true)}
                 className="overflow-hidden rounded-md flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
-                style={{ background: "rgba(5,14,26,0.7)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+                style={{ background: "rgba(5,14,26,0.7)", cursor: "pointer" }}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
@@ -733,7 +733,7 @@ export default function Dashboard() {
             {tickerItems.length > 0 && (
               <motion.div
                 className="overflow-hidden rounded-md"
-                style={{ background: "rgba(5,14,26,0.7)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: "rgba(5,14,26,0.7)" }}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"

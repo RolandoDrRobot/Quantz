@@ -17,7 +17,7 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
   const hasNotes = entry.followedPlan !== null || entry.setupGrade !== null || entry.emotion !== null || entry.notes.trim().length > 0;
 
   return (
-    <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+    <div className="rounded-lg overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors"
@@ -52,7 +52,7 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
           transition={TRANSITION_BASE}
         >
           <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-muted)" }}>FOLLOWED THE PLAN?</div>
+            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>FOLLOWED THE PLAN?</div>
             <div className="flex gap-2">
               {[{ v: true, label: "YES" }, { v: false, label: "NO" }].map(opt => (
                 <button
@@ -73,7 +73,7 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
           </div>
 
           <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-muted)" }}>SETUP QUALITY</div>
+            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>SETUP QUALITY</div>
             <div className="flex gap-2">
               {GRADES.map(g => (
                 <button
@@ -94,7 +94,7 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
           </div>
 
           <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-muted)" }}>EMOTIONAL STATE ON ENTRY</div>
+            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>EMOTIONAL STATE ON ENTRY</div>
             <div className="flex gap-2 flex-wrap">
               {EMOTIONS.map(e => (
                 <button
@@ -115,7 +115,7 @@ function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: Jou
           </div>
 
           <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-muted)" }}>NOTES</div>
+            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>NOTES</div>
             <textarea
               value={entry.notes}
               onChange={ev => onChange({ notes: ev.target.value })}
@@ -147,9 +147,9 @@ export default function JournalPanel({ refreshToken }: { refreshToken?: number }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-base mb-1" style={{ color: "var(--text-secondary)" }}>Tap a trade to log the plan, setup grade, and headspace behind it</div>
+      <div className="text-base mb-1" style={{ color: "var(--text-primary)" }}>Tap a trade to log the plan, setup grade, and headspace behind it</div>
       {records.length === 0 ? (
-        <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
+        <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-primary)" }}>
           <LuNotebookPen size={48} className="mb-4 opacity-15" />
           <p className="text-lg">No trades to journal yet.</p>
           <p className="text-base mt-2 opacity-70">Every closed trade shows up here — tap one to write it up.</p>

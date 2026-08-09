@@ -15,6 +15,7 @@ import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
+import { buildTraderProfileSummary, type TraderProfileSummary } from "../lib/traderProfile";
 import JournalPanel from "./JournalPanel";
 import PlaybookPanel from "./PlaybookPanel";
 import RecordsPanel from "./RecordsPanel";
@@ -35,9 +36,9 @@ const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; 
 };
 
 const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string; bg: string; border: string }> = {
-  CONFIRM: { label: "AI CONFIRMS",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",  border: "rgba(28,125,76,0.35)" },
-  CAUTION: { label: "AI: CAUTION",  color: "#c23b30", bg: "rgba(194,59,48,0.07)",  border: "rgba(194,59,48,0.30)" },
-  REJECT:  { label: "AI: REJECT",   color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
+  CONFIRM: { label: "TAYLOR CONFIRMS", color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",  border: "rgba(28,125,76,0.35)" },
+  CAUTION: { label: "TAYLOR: CAUTION", color: "#c23b30", bg: "rgba(194,59,48,0.07)",  border: "rgba(194,59,48,0.30)" },
+  REJECT:  { label: "TAYLOR: REJECT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
 };
 
 export const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
@@ -71,7 +72,7 @@ function factorVisual(pct: number): { Icon: IconType; color: string } {
 }
 
 // ── Circular probability gauge ───────────────────────────────────────────────
-function ProbRing({ value }: { value: number }) {
+function ProbRing({ value, adjusted }: { value: number; adjusted?: boolean }) {
   const c = probColor(value);
   const R = 34;
   const CIRC = 2 * Math.PI * R;
@@ -88,6 +89,11 @@ function ProbRing({ value }: { value: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
+        {adjusted && (
+          <span className="flex items-center gap-0.5 mt-0.5 text-[8px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+            <FiCpu size={7} /> TAYLOR
+          </span>
+        )}
       </div>
     </div>
   );
@@ -274,7 +280,7 @@ function TradeCard({
 
       {/* Status + P/L */}
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-        <p className="text-[14px] leading-snug" style={{ color: "#9ba5b2" }}>{statusLine}</p>
+        <p className="text-[14px] leading-snug" style={{ color: "var(--text-primary)" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
             <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
@@ -306,7 +312,7 @@ function TradeCard({
       {/* Contextual actions */}
       {!bot && (opp.phase === "RETEST_ACTIVE" || opp.phase === "AWAIT_RETEST") && (
         blockedReason ? (
-          <div className="mx-5 mb-4 mt-2 px-4 py-3 rounded-md text-sm" style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}>
+          <div className="mx-5 mb-4 mt-2 px-4 py-3 rounded-md text-sm" style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}>
             {blockedReason}
           </div>
         ) : (
@@ -396,6 +402,7 @@ export default function BobbyPanel({
   // only in this component (not persisted like `analysis`) since it's cheap
   // to re-request and shouldn't survive a reload as stale advice.
   const [aiTake, setAiTake] = useState<AiTake | null>(null);
+  const [aiProfile, setAiProfile] = useState<TraderProfileSummary | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
 
@@ -406,6 +413,7 @@ export default function BobbyPanel({
     setPrevMarket(market);
     setError("");
     setAiTake(null);
+    setAiProfile(null);
     setAiUnavailable(false);
   }
 
@@ -421,8 +429,12 @@ export default function BobbyPanel({
   const fetchAiTake = useCallback(async (fresh: AnalysisResult, candles: RawCandle[], requestSymbol: string) => {
     setAiLoading(true);
     setAiUnavailable(false);
+    // Free, synchronous localStorage read — captured once here so the request
+    // payload and whatever the UI later shows ("Your record: ...") are always
+    // the exact same snapshot, never two different reads that could disagree.
+    const profile = buildTraderProfileSummary();
     try {
-      const payload = buildAiAnalysisRequest(fresh, market, candles);
+      const payload = buildAiAnalysisRequest(fresh, market, candles, profile);
       const res = await fetch("/api/ai-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -435,6 +447,7 @@ export default function BobbyPanel({
       }
       const take: AiTake = await res.json();
       setAiTake(take);
+      setAiProfile(profile);
     } catch {
       if (marketSymbolRef.current === requestSymbol) setAiUnavailable(true);
     } finally {
@@ -451,6 +464,7 @@ export default function BobbyPanel({
     setLoading(true);
     setError("");
     setAiTake(null);
+    setAiProfile(null);
     setAiUnavailable(false);
     try {
       const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
@@ -490,6 +504,14 @@ export default function BobbyPanel({
 
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
   const lots = lotsFor(market);
+
+  // Display-only blend — never touches result.probability itself, which is
+  // what the daily-limit/opportunity-gating logic upstream already consumed
+  // synchronously before this AI response could even arrive.
+  const displayProbability = result && aiTake
+    ? Math.max(0, Math.min(100, result.probability + aiTake.confidenceDelta))
+    : result?.probability ?? 0;
+  const isBlended = !!(result && aiTake && aiTake.confidenceDelta !== 0);
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--bg-panel)" }}>
@@ -577,7 +599,7 @@ export default function BobbyPanel({
           ["RISK", fmtMoney(ACCOUNT.riskPerTrade), "#8a2f2a"],
         ].map(([k, v, c]) => (
           <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold whitespace-nowrap"
-            style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "var(--bg-elevated)" }}>
             <span style={{ color: "var(--text-muted)" }}>{k}</span>
             <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
           </span>
@@ -589,7 +611,7 @@ export default function BobbyPanel({
         {error && (
           <motion.div
             className="mx-6 mt-5 p-4 rounded-md text-base"
-            style={{ background: "rgba(138,47,42,0.1)", border: "1px solid rgba(138,47,42,0.35)", color: "#8a2f2a" }}
+            style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}
             variants={fadeUpVariants}
             initial="hidden"
             animate="visible"
@@ -626,7 +648,7 @@ export default function BobbyPanel({
               <motion.div
                 key="no-setup"
                 className="rounded-lg px-5 py-4 text-base"
-                style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)" }}
+                style={{ background: "var(--bg-panel)", color: "var(--text-primary)" }}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
@@ -639,17 +661,22 @@ export default function BobbyPanel({
           </AnimatePresence>
 
           {/* Signal + probability gauge */}
-          <div className="rounded-lg flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <ProbRing value={result.probability} />
+          <div className="rounded-lg flex items-center gap-5 px-5 py-4" style={{ background: "var(--bg-panel)" }}>
+            <ProbRing value={displayProbability} adjusted={isBlended} />
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <sig.Icon size={26} color={sig.color} />
                 <span className="text-3xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
               <div className="text-base mt-1 font-semibold" style={{ color: "var(--text-secondary)" }}>
-                {probLabel(result.probability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
+                {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
                 {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
               </div>
+              {isBlended && aiTake && (
+                <div className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
+                </div>
+              )}
             </div>
           </div>
 
@@ -658,15 +685,14 @@ export default function BobbyPanel({
             {result.warnings.length > 0 && (
               <motion.div
                 className="rounded-lg overflow-hidden"
-                style={{ border: "1px solid rgba(138,47,42,0.35)" }}
                 variants={fadeUpVariants}
                 initial="hidden"
                 animate="visible"
                 exit="hidden"
                 transition={TRANSITION_BASE}
               >
-                <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}>
-                  <FiAlertTriangle size={13} /> WARNINGS — READ BEFORE ENTERING
+                <div className="flex items-center gap-1.5 py-2.5 text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "var(--text-primary)" }}>
+                  <FiAlertTriangle size={13} color="#8a2f2a" /> WARNINGS — READ BEFORE ENTERING
                 </div>
                 <div className="flex flex-col">
                   {result.warnings.map((w, i) => (
@@ -682,7 +708,7 @@ export default function BobbyPanel({
                       <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
                       <div className="text-[16px] leading-snug">
                         <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
-                        <span style={{ color: "#929ba7" }}>{w.detail}</span>
+                        <span style={{ color: "var(--text-primary)" }}>{w.detail}</span>
                       </div>
                     </motion.div>
                   ))}
@@ -692,7 +718,7 @@ export default function BobbyPanel({
           </AnimatePresence>
 
           {/* Score factors */}
-          <div className="rounded-lg py-4 lg:px-5" style={{ background: "var(--bg-panel)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-lg py-4 lg:px-5" style={{ background: "var(--bg-panel)" }}>
             <div className="grid grid-cols-2 gap-2">
               {result.probFactors.map((f, i) => {
                 const pct = f.max > 0 ? (f.points / f.max) * 100 : 0;
@@ -701,7 +727,7 @@ export default function BobbyPanel({
                   <div
                     key={i}
                     className="flex items-center text-left gap-2 rounded-md px-3 py-2 w-full lg:flex-col lg:items-center lg:text-center lg:gap-1.5"
-                    style={{ background: "var(--bg-elevated)", border: `1px solid ${c}33` }}
+                    style={{ background: "var(--bg-elevated)" }}
                   >
                     <span className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: `${c}26` }}>
                       <Icon size={14} color={c} />
@@ -717,7 +743,7 @@ export default function BobbyPanel({
                 <div
                   key={`p${i}`}
                   className="flex items-center text-left gap-2 rounded-md px-3 py-2 w-full lg:flex-col lg:items-center lg:text-center lg:gap-1.5"
-                  style={{ background: "rgba(138,47,42,0.06)", border: "1px solid rgba(138,47,42,0.35)" }}
+                  style={{ background: "rgba(138,47,42,0.06)" }}
                 >
                   <span className="flex items-center justify-center w-8 h-8 rounded-full shrink-0" style={{ background: "rgba(138,47,42,0.15)" }}>
                     <FiAlertTriangle size={14} color="#8a2f2a" />
@@ -731,9 +757,9 @@ export default function BobbyPanel({
             </div>
           </div>
 
-          <div className="rounded-lg px-5 py-4" style={{ background: sig.bg, border: `1px solid ${sig.border}` }}>
-            <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: sig.color }}>TAYLOR</div>
-            <p className="text-lg leading-relaxed" style={{ color: "#9ba5b2" }}>{result.message}</p>
+          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-panel)" }}>
+            <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: "var(--text-primary)" }}>TAYLOR</div>
+            <p className="text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{result.message}</p>
             {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
               <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                 Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
@@ -746,17 +772,17 @@ export default function BobbyPanel({
               <motion.div
                 key="ai-loading"
                 className="rounded-lg px-5 py-4 flex items-center gap-2.5"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: "rgba(255,255,255,0.03)" }}
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
                 <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
-                <span className="text-base" style={{ color: "var(--text-muted)" }}>Getting a second opinion from Claude…</span>
+                <span className="text-base" style={{ color: "var(--text-muted)" }}>Taylor&apos;s taking a look…</span>
               </motion.div>
             ) : aiTake ? (
               <motion.div
                 key="ai-take"
                 className="rounded-lg px-5 py-4"
-                style={{ background: AI_VERDICT_STYLE[aiTake.verdict].bg, border: `1px solid ${AI_VERDICT_STYLE[aiTake.verdict].border}` }}
+                style={{ background: AI_VERDICT_STYLE[aiTake.verdict].bg }}
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -769,10 +795,16 @@ export default function BobbyPanel({
                     </span>
                   )}
                 </div>
-                <p className="text-lg leading-relaxed" style={{ color: "#9ba5b2" }}>{aiTake.note}</p>
+                <p className="text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{aiTake.note}</p>
                 {aiTake.keyRisk && (
                   <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                     Key risk: {aiTake.keyRisk}
+                  </div>
+                )}
+                {aiProfile?.hasHistory && (
+                  <div className="mt-2 pt-2 text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>
+                    Your record: {aiProfile.totalTrades} trades · {aiProfile.winRate}% win rate
+                    {aiProfile.planAdherenceRate !== null && ` · ${aiProfile.planAdherenceRate}% plan adherence`}
                   </div>
                 )}
               </motion.div>
@@ -783,14 +815,14 @@ export default function BobbyPanel({
                 style={{ color: "var(--text-muted)" }}
                 variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
               >
-                AI second opinion unavailable this round.
+                Taylor&apos;s not available this round.
               </motion.div>
             ) : null}
           </AnimatePresence>
 
         </motion.div>
       ) : !loading && !error ? (
-        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-muted)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
+        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-primary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
           <FiZap size={48} className="mb-4 opacity-15" />
           <p className="text-lg">Press <strong style={{ color: "var(--gold)" }}>New Analysis</strong> to analyze {market.label}.</p>
           <p className="text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>

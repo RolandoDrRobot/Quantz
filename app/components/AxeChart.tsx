@@ -486,7 +486,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         {showLegend && (
           <motion.div
             className="absolute top-14 right-4 rounded-md p-5 flex flex-col gap-4"
-            style={{ background: "rgba(5,14,26,0.96)", border: "1px solid rgba(194,59,48,0.25)", minWidth: 210 }}
+            style={{ background: "rgba(5,14,26,0.96)", minWidth: 210 }}
             variants={fadeUpVariants}
             initial="hidden"
             animate="visible"

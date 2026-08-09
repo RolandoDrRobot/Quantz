@@ -25,7 +25,7 @@ export default function PlaybookPanel() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <div className="text-base" style={{ color: "var(--text-secondary)" }}>The 40 rules · {checked.size}/{TOTAL_RULES} checked ({pct}%)</div>
+        <div className="text-base" style={{ color: "var(--text-primary)" }}>The 40 rules · {checked.size}/{TOTAL_RULES} checked ({pct}%)</div>
         <div className="h-1.5 rounded-full overflow-hidden mt-2.5" style={{ background: "rgba(255,255,255,0.06)" }}>
           <div className="h-full transition-all duration-300" style={{ width: `${pct}%`, background: "var(--gold)" }} />
         </div>
@@ -33,10 +33,10 @@ export default function PlaybookPanel() {
 
       {PLAYBOOK.map(category => (
         <div key={category.title}>
-          <div className="text-xs font-bold tracking-[0.2em] mb-2" style={{ color: "var(--text-muted)" }}>
+          <div className="text-xs font-bold tracking-[0.2em] mb-2" style={{ color: "var(--text-primary)" }}>
             {category.title.toUpperCase()}
           </div>
-          <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-lg overflow-hidden">
             {category.rules.map((rule, i) => {
               const isChecked = checked.has(rule.id);
               return (

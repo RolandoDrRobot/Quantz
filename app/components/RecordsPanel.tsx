@@ -8,8 +8,8 @@ import { fmtPrice, fmtPct, fmtMoney, fmtSignedMoney, fmtRatio, fmtSignedR, fmtIn
 
 function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
-    <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="text-[11px] font-bold tracking-[0.2em]" style={{ color: "var(--text-secondary)" }}>{label}</div>
+    <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)" }}>
+      <div className="text-[11px] font-bold tracking-[0.2em]" style={{ color: "var(--text-primary)" }}>{label}</div>
       <div className={`${big ? "text-4xl" : "text-2xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#f2f5f8", fontFamily: "var(--font-display)" }}>
         {value}
       </div>
@@ -43,7 +43,7 @@ export default function RecordsPanel({ refreshToken }: { refreshToken?: number }
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div className="text-base" style={{ color: "var(--text-secondary)" }}>Per-trade performance · fixed risk {fmtMoney(ACCOUNT.riskPerTrade)}</div>
+        <div className="text-base" style={{ color: "var(--text-primary)" }}>Per-trade performance · fixed risk {fmtMoney(ACCOUNT.riskPerTrade)}</div>
         {records.length > 0 && (
           <button
             onClick={handleClear}
@@ -56,7 +56,7 @@ export default function RecordsPanel({ refreshToken }: { refreshToken?: number }
       </div>
 
       {records.length === 0 ? (
-        <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-muted)" }}>
+        <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-primary)" }}>
           <FiBarChart2 size={48} className="mb-4 opacity-15" />
           <p className="text-lg">No trades recorded yet.</p>
           <p className="text-base mt-2 opacity-70">Every TP, SL, or manual close shows up here automatically.</p>
@@ -85,7 +85,7 @@ export default function RecordsPanel({ refreshToken }: { refreshToken?: number }
           </div>
 
           {/* Wins vs losses bar */}
-          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)" }}>
             <div className="flex items-center justify-between text-[12px] font-bold mb-2">
               <span style={{ color: "#1c7d4c" }}>{fmtInt(stats.wins)} WINS · {fmtSignedMoney(stats.grossWin)}</span>
               <span style={{ color: "#8a2f2a" }}>{fmtInt(stats.losses)} LOSSES · {fmtSignedMoney(-stats.grossLoss)}</span>
@@ -97,7 +97,7 @@ export default function RecordsPanel({ refreshToken }: { refreshToken?: number }
           </div>
 
           {/* Trade list */}
-          <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
             <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.8fr_0.7fr_0.5fr] px-5 py-3 text-[11px] font-bold tracking-widest min-w-[520px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
               <span>DATE</span><span>MARKET</span><span>SIDE</span><span>ENTRY → EXIT</span><span>OUTCOME</span><span>P/L</span><span>R</span>
