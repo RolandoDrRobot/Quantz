@@ -7,14 +7,14 @@ import { LuBrainCircuit, LuNewspaper } from "react-icons/lu";
 import AxeChart from "./AxeChart";
 import BobbyPanel, { PHASE_META, Clock, type PanelTab } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
-import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis";
+import type { AnalysisResult, TradeSetup, BreakoutEvent, Level } from "../lib/analysis";
 import { MARKETS, type MarketKey } from "../lib/markets";
 import NewsModal from "./NewsModal";
 import type { NewsArticle } from "../lib/news";
 import { createOpportunity, advanceOpportunity, livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
-import { addPrediction, resolvePrediction } from "../lib/predictions";
+import { addPrediction, resolvePrediction, updatePredictionLevels } from "../lib/predictions";
 import { tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
@@ -38,6 +38,76 @@ function isCompatibleOpportunity(o: unknown): o is Opportunity {
   if (typeof o !== "object" || o === null) return false;
   const r = o as Record<string, unknown>;
   return typeof r.phase === "string" && VALID_PHASES.has(r.phase as OppPhase);
+}
+
+const TERMINAL_PHASES = new Set<OppPhase>(["TP_HIT", "SL_HIT", "INVALIDATED"]);
+
+// Keeps the prediction log in sync with an opportunity's state — logs a new
+// PredictionRecord the moment there's an actual breakout to call (not a bare
+// HUNTING setup still waiting for a level to even break), resolves it on a
+// terminal transition, and updates its level/entry/sl/tp on a re-anchor so
+// the Journal never shows a resolution price next to stale numbers. Shared
+// by the live single-tick path (advancePrice) and the market-switch catch-up
+// replay below, so both stay consistent. Mutates `next.predictionId` in
+// place — safe, since `next` is always a freshly-constructed object that
+// hasn't been committed to state yet when this runs.
+function syncPrediction(prev: Opportunity | null, next: Opportunity, marketShort: string, triggerPrice: number): void {
+  if (!next.predictionId) {
+    if (next.phase === "HUNTING") return; // not a real call yet — nothing to log
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    addPrediction({
+      id,
+      market: marketShort,
+      direction: next.direction,
+      level: next.level,
+      entry: next.entry,
+      sl: next.sl,
+      tp: next.tp,
+      probability: next.analysisProbability,
+      createdAt: Date.now(),
+      resolvedAt: null,
+      outcome: "PENDING",
+    });
+    next.predictionId = id;
+    return; // the fresh log already reflects next's current numbers
+  }
+  if (next.phase === "TP_HIT" && prev?.phase !== "TP_HIT") {
+    resolvePrediction(next.predictionId, "TP_HIT", next.tp, livePnl(next, next.tp));
+  } else if (next.phase === "SL_HIT" && prev?.phase !== "SL_HIT") {
+    resolvePrediction(next.predictionId, "SL_HIT", next.sl, livePnl(next, next.sl));
+  } else if (next.phase === "INVALIDATED" && prev?.phase !== "INVALIDATED") {
+    resolvePrediction(next.predictionId, "INVALIDATED", triggerPrice);
+  } else if (prev && next.level !== prev.level) {
+    updatePredictionLevels(next.predictionId, next.level, next.entry, next.sl, next.tp);
+  }
+}
+
+// Replays every candle newer than the opportunity's last update against the
+// state machine — checking each candle's stop-side extreme before its
+// payoff-side extreme (conservative: never credits a TP that might not have
+// actually printed before the SL did within the same bar) — so an
+// opportunity on a market you weren't watching resolves against the real
+// path price took, not just whatever price happens to be showing the moment
+// you look again.
+function catchUpOpportunity(start: Opportunity, candles: RawCandle[], levels: Level[], marketShort: string): Opportunity {
+  const relevant = candles
+    .filter(c => c.time * 1000 > start.updatedAt)
+    .sort((a, b) => a.time - b.time);
+  let cur = start;
+  for (const c of relevant) {
+    const dirUp = cur.direction === "long";
+    const checks = dirUp ? [c.low, c.high] : [c.high, c.low];
+    for (const price of checks) {
+      const prev = cur;
+      const next = advanceOpportunity(cur, price, levels);
+      if (next.phase !== prev.phase || next.level !== prev.level) {
+        syncPrediction(prev, next, marketShort, price);
+      }
+      cur = next;
+      if (TERMINAL_PHASES.has(cur.phase)) return cur;
+    }
+  }
+  return cur;
 }
 
 // In a thin/quiet session the 1m range can be smaller than the market's own
@@ -215,7 +285,19 @@ export default function Dashboard() {
               // — PHASE_META[...] would be undefined and crash the panel.
               // Just cached UI state, not real history, so discard rather
               // than try to migrate it.
-              updateOpportunity(isCompatibleOpportunity(saved.opportunity) ? saved.opportunity : null);
+              let opp: Opportunity | null = isCompatibleOpportunity(saved.opportunity) ? saved.opportunity : null;
+              if (opp && !TERMINAL_PHASES.has(opp.phase)) {
+                // This market wasn't selected while price kept moving — no
+                // WS/poll ever reached it. Replay the candles that arrived
+                // since its last update against the state machine (5m for
+                // the longest available lookback) instead of only comparing
+                // against whatever the price happens to be right now, which
+                // could misattribute a TP that already happened as an SL.
+                opp = catchUpOpportunity(opp, c5m, saved.analysis?.levels ?? [], cfg.short);
+                setPredictionsVersion(v => v + 1);
+              }
+              updateOpportunity(opp);
+              if (opp) saveState(cfg.symbol, saved.analysis, opp);
             }
           }
         } catch { /* corrupt entry */ }
@@ -224,33 +306,32 @@ export default function Dashboard() {
       .finally(() => { if (!cancelled) setChartLoading(false); });
 
     return () => { cancelled = true; };
-  }, [cfg.symbol, cfg.slPoints, updateOpportunity]);
+  }, [cfg.symbol, cfg.slPoints, cfg.short, updateOpportunity]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
     setRawCandles1m(c1m);
     setRawCandles5m(c5m);
     setAnalysis(result);
+
+    // A fresh analysis replaces whatever opportunity was live — if that one
+    // was still unresolved (never hit TP/SL/INVALIDATED on its own), it
+    // would otherwise be silently abandoned as PENDING forever. Grade it
+    // honestly as SUPERSEDED instead: we genuinely don't know how it would
+    // have played out, so it's excluded from the hit-rate math, not lost.
+    const outgoing = opportunityRef.current;
+    if (outgoing?.predictionId && !TERMINAL_PHASES.has(outgoing.phase)) {
+      resolvePrediction(outgoing.predictionId, "SUPERSEDED", livePriceRef.current ?? outgoing.level);
+      setPredictionsVersion(v => v + 1);
+    }
+
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
     if (opp) {
-      // Log it as soon as it's detected — including setups still in
-      // HUNTING/AWAIT_RETEST — so the prediction log is honest about every
-      // call Taylor makes, not just the ones that went on to confirm.
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      addPrediction({
-        id,
-        market: MARKETS[market].short,
-        direction: opp.direction,
-        level: opp.level,
-        entry: opp.entry,
-        sl: opp.sl,
-        tp: opp.tp,
-        probability: opp.analysisProbability,
-        createdAt: Date.now(),
-        resolvedAt: null,
-        outcome: "PENDING",
-      });
-      opp.predictionId = id;
+      // Only logs once there's an actual breakout to call (see
+      // syncPrediction) — a bare HUNTING setup isn't a real prediction yet;
+      // it becomes one at the HUNTING->AWAIT_RETEST transition in
+      // advancePrice() if/when that happens live.
+      syncPrediction(null, opp, MARKETS[market].short, result.currentPrice);
       setPredictionsVersion(v => v + 1);
     }
     updateOpportunity(opp);
@@ -278,6 +359,13 @@ export default function Dashboard() {
     const transitioned = next.phase !== prev.phase || levelChanged;
     if (transitioned) {
       setOpportunity(next);
+      // Covers logging a fresh breakout call (HUNTING->AWAIT_RETEST),
+      // resolving on TP_HIT/SL_HIT/INVALIDATED, and updating the logged
+      // level/entry/sl/tp on a plain re-anchor — one call handles every case
+      // a phase-or-level transition can produce, so this and the market-
+      // switch catch-up path can never drift out of sync with each other.
+      syncPrediction(prev, next, marketShortRef.current, price);
+      setPredictionsVersion(v => v + 1);
       if (levelChanged) playBreakoutSound();
       else if (next.phase === "AWAIT_RETEST" && prev.phase === "HUNTING") {
         playBreakoutSound();
@@ -289,19 +377,13 @@ export default function Dashboard() {
       }
       else if (next.phase === "TP_HIT") {
         playResolvedSound(true);
-        if (prev.predictionId) resolvePrediction(prev.predictionId, "TP_HIT", next.tp, livePnl(next, next.tp));
-        setPredictionsVersion(v => v + 1);
         toast.success(`tp · ${fmtPrice(next.tp)}`, { duration: 4000 });
       }
       else if (next.phase === "SL_HIT") {
         playResolvedSound(false);
-        if (prev.predictionId) resolvePrediction(prev.predictionId, "SL_HIT", next.sl, livePnl(next, next.sl));
-        setPredictionsVersion(v => v + 1);
         toast.error(`sl · ${fmtPrice(next.sl)}`, { duration: 4000 });
       }
       else if (next.phase === "INVALIDATED") {
-        if (prev.predictionId) resolvePrediction(prev.predictionId, "INVALIDATED", price);
-        setPredictionsVersion(v => v + 1);
         toast(`invalidated · ${fmtPrice(price)} — setup didn't hold`, { duration: 4000 });
       }
       saveState(symbolRef.current, analysisRef.current, next);

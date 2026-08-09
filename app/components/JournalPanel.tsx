@@ -18,10 +18,13 @@ function StatCard({ label, value, color, big }: { label: string; value: string; 
 }
 
 const OUTCOME_STYLE: Record<PredictionRecord["outcome"], { label: string; color: string }> = {
-  PENDING:     { label: "TRACKING", color: "#c9a838" },
-  TP_HIT:      { label: "TP",       color: "#1c7d4c" },
-  SL_HIT:      { label: "SL",       color: "#8a2f2a" },
-  INVALIDATED: { label: "INVALID.", color: "#9ba5b2" },
+  PENDING:     { label: "TRACKING",   color: "#c9a838" },
+  TP_HIT:      { label: "TP",         color: "#1c7d4c" },
+  SL_HIT:      { label: "SL",         color: "#8a2f2a" },
+  INVALIDATED: { label: "INVALID.",   color: "#9ba5b2" },
+  // A fresh "New Analysis" replaced this call before it resolved on its own
+  // — we never found out how it would have played out.
+  SUPERSEDED:  { label: "SUPERSEDED", color: "#6f7a89" },
 };
 
 export default function JournalPanel({ refreshToken }: { refreshToken?: number }) {
@@ -70,6 +73,11 @@ export default function JournalPanel({ refreshToken }: { refreshToken?: number }
             <StatCard label="RESOLVED" value={fmtInt(stats.resolved)} big />
             <StatCard label="INVALIDATED" value={fmtPct(stats.invalidatedRate)} color="#9ba5b2" big />
           </div>
+          {stats.superseded > 0 && (
+            <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+              {fmtInt(stats.superseded)} more superseded by a newer analysis before resolving — excluded from hit rate.
+            </div>
+          )}
 
           {/* TP vs SL bar */}
           <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)" }}>

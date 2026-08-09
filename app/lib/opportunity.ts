@@ -19,9 +19,12 @@ export interface Opportunity {
   phase: OppPhase;
   direction: "long" | "short";
   level: number;       // the level being broken / retested (= entry) — moves on re-anchor
-  anchorLevel: number; // the ORIGINAL breakout level, fixed for the opportunity's lifetime —
-                        // invalidation is judged against this, not a re-anchored `level`, so
-                        // catching up to a farther level doesn't tighten the failure tolerance
+  anchorLevel: number; // the breakout level invalidation is judged against — stays fixed
+                        // through ordinary pullback/consolidation so a normal retest never
+                        // reads as a failure, but moves WITH `level` on a re-anchor (see
+                        // advanceOpportunity's AWAIT_RETEST case) so the failure tolerance
+                        // stays anchored to whatever level is actually being tracked now,
+                        // instead of drifting arbitrarily far from it after a big run
   retestZone: number;
   entry: number;
   sl: number;
@@ -121,6 +124,11 @@ export function advanceOpportunity(o: Opportunity, price: number, levels: Level[
           return {
             ...o,
             level: newLevel,
+            // Re-anchoring `anchorLevel` too: this new level is now the setup
+            // being tracked, so its own failure tolerance should be judged
+            // relative to itself — not to a level several re-anchors back,
+            // which would make INVALIDATED nearly unreachable after a run.
+            anchorLevel: newLevel,
             entry: newLevel,
             sl: dirUp ? newLevel - o.slPoints : newLevel + o.slPoints,
             tp: computeTp(o.direction, newLevel, o.slPoints, levels),

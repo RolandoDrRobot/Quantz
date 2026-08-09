@@ -20,10 +20,13 @@ export interface PredictionRecord {
   probability: number;            // Taylor's score at creation
   createdAt: number;
   resolvedAt: number | null;
-  outcome: "PENDING" | "TP_HIT" | "SL_HIT" | "INVALIDATED";
-  resolvedPrice?: number;         // price at resolution (tp/sl price, or the invalidating tick)
+  // SUPERSEDED = a fresh "New Analysis" replaced this call before it ever
+  // resolved on its own — we genuinely don't know how it would have played
+  // out, so it's excluded from hitRate/invalidatedRate (see computePredictionStats).
+  outcome: "PENDING" | "TP_HIT" | "SL_HIT" | "INVALIDATED" | "SUPERSEDED";
+  resolvedPrice?: number;         // price at resolution (tp/sl price, or the invalidating/superseding tick)
   pnlAtResolution?: number;       // what it "would have been worth" at the kept lot sizing —
-                                   // only set for TP_HIT/SL_HIT; left undefined for INVALIDATED
+                                   // only set for TP_HIT/SL_HIT; left undefined otherwise
                                    // since no position was ever conceptually opened
 }
 
@@ -44,7 +47,7 @@ function isPredictionRecord(v: unknown): v is PredictionRecord {
     typeof r.probability === "number" &&
     typeof r.createdAt === "number" &&
     (r.resolvedAt === null || typeof r.resolvedAt === "number") &&
-    (r.outcome === "PENDING" || r.outcome === "TP_HIT" || r.outcome === "SL_HIT" || r.outcome === "INVALIDATED") &&
+    (r.outcome === "PENDING" || r.outcome === "TP_HIT" || r.outcome === "SL_HIT" || r.outcome === "INVALIDATED" || r.outcome === "SUPERSEDED") &&
     (r.resolvedPrice === undefined || typeof r.resolvedPrice === "number") &&
     (r.pnlAtResolution === undefined || typeof r.pnlAtResolution === "number")
   );
@@ -92,6 +95,21 @@ export function resolvePrediction(
   } catch { /* storage unavailable */ }
 }
 
+// Keeps a live (unresolved) prediction's level/entry/sl/tp in sync with its
+// opportunity after a re-anchor — otherwise the Journal shows the original
+// numbers next to a resolution price that belongs to a level the opportunity
+// jumped to later, which reads as a data error rather than the legitimate
+// re-anchor it actually was.
+export function updatePredictionLevels(id: string, level: number, entry: number, sl: number, tp: number) {
+  try {
+    const all = loadPredictions();
+    const idx = all.findIndex(r => r.id === id);
+    if (idx === -1) return;
+    all[idx] = { ...all[idx], level, entry, sl, tp };
+    save(all);
+  } catch { /* storage unavailable */ }
+}
+
 export function clearPredictions() {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
@@ -99,12 +117,14 @@ export function clearPredictions() {
 export interface PredictionStats {
   total: number;
   pending: number;
-  resolved: number;        // tpHits + slHits + invalidated
+  resolved: number;        // tpHits + slHits + invalidated — SUPERSEDED excluded, since
+                            // we never actually found out how those would have played out
   tpHits: number;
   slHits: number;
   invalidated: number;
+  superseded: number;
   hitRate: number;         // 0-100 — tpHits / (tpHits + slHits); of calls that actually played
-                            // out, how often was the direction right. Excludes invalidated/pending.
+                            // out, how often was the direction right. Excludes invalidated/pending/superseded.
   invalidatedRate: number; // 0-100 — invalidated / resolved
 }
 
@@ -114,6 +134,7 @@ export function computePredictionStats(rs: PredictionRecord[]): PredictionStats 
   const tpHits = rs.filter(r => r.outcome === "TP_HIT").length;
   const slHits = rs.filter(r => r.outcome === "SL_HIT").length;
   const invalidated = rs.filter(r => r.outcome === "INVALIDATED").length;
+  const superseded = rs.filter(r => r.outcome === "SUPERSEDED").length;
   const resolved = tpHits + slHits + invalidated;
   const played = tpHits + slHits;
 
@@ -124,6 +145,7 @@ export function computePredictionStats(rs: PredictionRecord[]): PredictionStats 
     tpHits,
     slHits,
     invalidated,
+    superseded,
     hitRate: played > 0 ? (tpHits / played) * 100 : 0,
     invalidatedRate: resolved > 0 ? (invalidated / resolved) * 100 : 0,
   };
