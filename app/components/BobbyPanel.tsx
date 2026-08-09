@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
@@ -391,13 +391,25 @@ export default function BobbyPanel({
   const [error, setError] = useState("");
   const result = analysis; // analysis state lives in Dashboard (persisted across reloads)
 
-  // AI second-opinion layer — purely advisory, never gates a trade. Lives
-  // only in this component (not persisted like `analysis`) since it's cheap
-  // to re-request and shouldn't survive a reload as stale advice.
+  // AI second-opinion layer — purely advisory, never gates a trade. Tracks
+  // the CURRENT opportunity: once generated, a take persists (survives tab
+  // switches, live price ticks, phase transitions, even switching to another
+  // market and back — cached per symbol below) and only retires when a fresh
+  // "New Analysis" supersedes it with a new opportunity for that market.
   const [aiTake, setAiTake] = useState<AiTake | null>(null);
   const [aiProfile, setAiProfile] = useState<TraderProfileSummary | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
+
+  // Per-market cache (session-only, not localStorage) so switching over to
+  // check another instrument and back restores the take instead of losing
+  // it. Refs can't be read or written during render, so both the mirror
+  // below and the swap-on-market-change logic live in effects.
+  const aiCacheRef = useRef<Record<string, { take: AiTake; profile: TraderProfileSummary | null }>>({});
+  const currentTakeRef = useRef<{ take: AiTake; profile: TraderProfileSummary | null } | null>(null);
+  useEffect(() => {
+    currentTakeRef.current = aiTake ? { take: aiTake, profile: aiProfile } : null;
+  }, [aiTake, aiProfile]);
 
   // Clear a stale error from the previous market as soon as the market
   // changes, without waiting for a post-render effect.
@@ -405,9 +417,6 @@ export default function BobbyPanel({
   if (market !== prevMarket) {
     setPrevMarket(market);
     setError("");
-    setAiTake(null);
-    setAiProfile(null);
-    setAiUnavailable(false);
   }
 
   // Tracks which symbol is currently selected so an in-flight analyze()
@@ -415,6 +424,23 @@ export default function BobbyPanel({
   // it's stale and bail instead of overwriting the new market's state.
   const marketSymbolRef = useRef(market.symbol);
   useEffect(() => { marketSymbolRef.current = market.symbol; }, [market.symbol]);
+
+  // Swaps Taylor's take to/from the per-market cache when the selected
+  // market changes — a layout effect so the swap lands before paint and the
+  // previous market's take never flashes on screen against the new market's
+  // chart/probability.
+  const prevSymbolForCacheRef = useRef(market.symbol);
+  useLayoutEffect(() => {
+    const prevSymbol = prevSymbolForCacheRef.current;
+    if (prevSymbol === market.symbol) return;
+    if (currentTakeRef.current) aiCacheRef.current[prevSymbol] = currentTakeRef.current;
+    else delete aiCacheRef.current[prevSymbol];
+    const cached = aiCacheRef.current[market.symbol];
+    setAiTake(cached?.take ?? null);
+    setAiProfile(cached?.profile ?? null);
+    setAiUnavailable(false);
+    prevSymbolForCacheRef.current = market.symbol;
+  }, [market.symbol]);
 
   // Fire-and-forget from analyze() — runs after the deterministic engine
   // already has a result, so the "NEW ANALYSIS" spinner clears on its own
@@ -441,6 +467,7 @@ export default function BobbyPanel({
       const take: AiTake = await res.json();
       setAiTake(take);
       setAiProfile(profile);
+      aiCacheRef.current[requestSymbol] = { take, profile };
     } catch {
       if (marketSymbolRef.current === requestSymbol) setAiUnavailable(true);
     } finally {
@@ -455,9 +482,13 @@ export default function BobbyPanel({
     const requestSymbol = market.symbol;
     setLoading(true);
     setError("");
+    // A fresh analysis means a new opportunity for this market — the old
+    // take was about the setup that's now gone, so it retires here (and
+    // only here, besides an explicit generateComment() overwrite).
     setAiTake(null);
     setAiProfile(null);
     setAiUnavailable(false);
+    delete aiCacheRef.current[requestSymbol];
     try {
       const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
       if (!res.ok) {
@@ -505,6 +536,7 @@ export default function BobbyPanel({
     setAiUnavailable(false);
     setAiTake(null);
     setAiProfile(null);
+    delete aiCacheRef.current[requestSymbol]; // avoid resurrecting a stale take if this attempt fails
     try {
       const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch market data");
@@ -613,9 +645,10 @@ export default function BobbyPanel({
           title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
           className="flex-1 px-5 py-2.5 rounded-md font-black text-sm tracking-widest transition-all duration-150"
           style={{
-            background: "var(--gold-dim)",
-            color: !result ? "var(--text-muted)" : "var(--gold)",
-            border: `1px solid ${!result ? "rgba(255,255,255,0.08)" : "var(--gold-border)"}`,
+            background: "rgba(255,255,255,0.10)",
+            color: "var(--text-primary)",
+            border: "1px solid rgba(255,255,255,0.5)",
+            boxShadow: "0 0 14px rgba(255,255,255,0.18)",
             cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
             opacity: !result ? 0.5 : 1,
             fontFamily: "var(--font-display)",
@@ -718,15 +751,11 @@ export default function BobbyPanel({
             </div>
           </div>
 
-          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-panel)" }}>
-            <div className="text-sm font-black tracking-[0.2em] mb-2" style={{ color: "var(--text-primary)" }}>TAYLOR</div>
-            <p className="text-lg leading-relaxed" style={{ color: "var(--text-primary)" }}>{result.message}</p>
-            {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-              <div className="mt-2 pt-2 text-base" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
-              </div>
-            )}
-          </div>
+          {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
+            <div className="rounded-lg px-5 py-3 text-base" style={{ background: "var(--bg-panel)", color: "var(--text-secondary)" }}>
+              Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             {aiLoading ? (
