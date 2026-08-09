@@ -50,11 +50,6 @@ export function fmtSignedMoney(n: number): string {
   return `${sign(n)}${moneyWhole.format(Math.abs(n))}`;
 }
 
-// Signed dollar amount, 2 decimals — "+$1,234.56"
-export function fmtSignedMoney2(n: number): string {
-  return `${sign(n)}${money2.format(Math.abs(n))}`;
-}
-
 // Lot size — 2 decimals, grouped
 export function fmtLots(n: number): string {
   return number2.format(n);
@@ -63,11 +58,6 @@ export function fmtLots(n: number): string {
 // Unsigned ratio (R:R, profit factor) — 2 decimals, grouped
 export function fmtRatio(n: number): string {
   return number2.format(n);
-}
-
-// R-multiple — 2 decimals, signed
-export function fmtSignedR(n: number): string {
-  return `${sign(n)}${number2.format(Math.abs(n))}`;
 }
 
 // Plain grouped integer — counts, whole percentages, etc. e.g. 12345 -> "12,345"

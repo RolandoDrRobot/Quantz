@@ -164,7 +164,8 @@ function detectTrend(candles: RawCandle[]): TrendInfo {
   const direction = current > ma20 ? "bullish" : current < ma20 ? "bearish" : "neutral";
   const abs = Math.abs(changeRecent);
   // Thresholds scaled down from the old 1h-window values (0.5% / 0.15%) to
-  // match a ~15min window — roughly sqrt(15/60) of the hourly move size.
+  // match a ~15min window — tuned a bit tighter than a strict sqrt(15/60)
+  // scaling (which would give 0.25%/0.075%) after live testing on 1m data.
   const momentum = abs > 0.20 ? "strong" : abs > 0.07 ? "moderate" : "weak";
 
   return { direction, momentum, ma20, changeRecent };
@@ -490,9 +491,17 @@ export function runAnalysis(
   const hiRecent = Math.max(...recentRange.map(c => c.high));
   const loRecent = Math.min(...recentRange.map(c => c.low));
 
-  // Whipsaw: the breakout level was crossed in BOTH directions in the last 15 minutes
+  // Whipsaw: the breakout level was crossed in BOTH directions in the 15
+  // minutes BEFORE this breakout — price was already chopping across it
+  // before this attempt, a real "this level doesn't hold" signal. Only
+  // candles BEFORE the breakout count: a legitimate retest AFTER the
+  // breakout is a single opposite-direction cross too, and it's exactly
+  // what breakout+retest is built to trade — counting it here used to flag
+  // a clean, textbook setup's own retest as "chop" and could tank it below
+  // the probability floor for doing exactly what it was supposed to do.
   if (breakout) {
-    const w = candles.slice(-15);
+    const breakoutIdx = candles.findIndex(c => c.time === breakout.breakoutTime);
+    const w = breakoutIdx > 0 ? candles.slice(Math.max(0, breakoutIdx - 15), breakoutIdx) : [];
     let up = 0, down = 0;
     for (let i = 1; i < w.length; i++) {
       if (w[i - 1].close < breakout.level && w[i].close > breakout.level) up++;
@@ -502,7 +511,7 @@ export function runAnalysis(
       warnings.push({
         severity: "high",
         title: "Whipsaw at the level",
-        detail: `${fmtPrice(breakout.level)} broke in BOTH directions in the last 15 min — breakouts here are eating each other alive. Classic range noise.`,
+        detail: `${fmtPrice(breakout.level)} broke in BOTH directions in the 15 min before this break — breakouts here were already eating each other alive. Classic range noise.`,
       });
       penalties.push({ label: "Whipsaw at level", points: -20, max: 0 });
     }
@@ -533,7 +542,11 @@ export function runAnalysis(
     penalties.push({ label: "Low volume", points: -12, max: 0 });
   }
 
-  // Dead momentum: abrupt candles with no follow-through
+  // Dead momentum: abrupt candles with no follow-through. Unlike every other
+  // warning here, this one has no adjacent `penalties.push(...)` — it's
+  // enforced further down instead, via the weak-momentum score cap (search
+  // "Weak-momentum cap"), which is a stronger check than a flat point
+  // deduction would be (it caps the *ceiling*, not just the raw sum).
   if (trend.momentum === "weak") {
     warnings.push({
       severity: "high",
@@ -604,7 +617,17 @@ export function runAnalysis(
     penalties.push({ label: "Weak-momentum cap", points: 60 - probability, max: 0 });
     probability = 60;
   }
-  probability = Math.max(5, Math.min(92, probability));
+
+  // Keep probFactors+penalties summing to exactly what's displayed/sent —
+  // otherwise a maxed-out breakdown could show 100 while the headline score
+  // reads 92 (or a heavily-penalized one sums below 5 while the score floors
+  // at 5). That silent gap is what the AI second-opinion sees too, since
+  // it's handed this same breakdown as source of truth.
+  const clamped = Math.max(5, Math.min(92, probability));
+  if (clamped !== probability) {
+    penalties.push({ label: "Score range clamp", points: clamped - probability, max: 0 });
+  }
+  probability = clamped;
 
   // Signal and probability used to be able to flatly contradict each other —
   // a real, trend-aligned breakout stacked with whipsaw/low-volume/range-bound

@@ -14,11 +14,6 @@ export interface NewsArticle {
   impact: NewsImpact;
 }
 
-export interface NewsResponse {
-  articles: NewsArticle[];
-  cached: boolean;
-}
-
 export function fmtTimeAgo(unixSeconds: number): string {
   const diffSec = Math.max(0, Math.floor(Date.now() / 1000) - unixSeconds);
   if (diffSec < 60) return "just now";

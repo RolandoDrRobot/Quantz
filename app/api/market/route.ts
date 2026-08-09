@@ -54,19 +54,38 @@ const COINBASE_SOURCE = new Map<string, string>([
 // Coinbase caps each candles request at 300 bars, so reaching the target
 // depth means paging backwards with start/end. Public rate limit is
 // generous (~10 req/s) — this stays fast even across several pages.
+//
+// Paging is bounded by CALENDAR TIME, not by how many rows each page
+// returns. Coinbase only returns a bucket when a trade actually happened in
+// it — a thin pair (e.g. ETH-BTC) can return far fewer than PAGE rows on a
+// page that's nowhere near the start of real history. Stopping on a short
+// page (the old behavior) silently truncated those pairs to their first
+// page — for ETH-BTC that meant ~17 candles instead of the requested 1500+.
+// Only a page that comes back genuinely EMPTY (repeatedly) is treated as
+// "ran out of history."
 async function fetchCoinbaseCandles(product: string, granularitySec: number, totalWanted: number): Promise<RawCandle[]> {
   const PAGE = 300;
+  const MAX_PAGES = 60; // hard cap so a pathological product can't page forever
+  const MAX_EMPTY_PAGES = 3;
   let out: RawCandle[] = [];
   let endSec = Math.floor(Date.now() / 1000);
+  const targetStartSec = endSec - totalWanted * granularitySec;
+  let emptyPages = 0;
   try {
-    while (out.length < totalWanted) {
+    for (let page = 0; page < MAX_PAGES && endSec > targetStartSec; page++) {
       const startSec = endSec - PAGE * granularitySec;
       const url = `https://api.exchange.coinbase.com/products/${encodeURIComponent(product)}/candles`
         + `?granularity=${granularitySec}&start=${new Date(startSec * 1000).toISOString()}&end=${new Date(endSec * 1000).toISOString()}`;
       const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "AxeCapital/1.0" } });
       if (!res.ok) break;
       const data: unknown = await res.json();
-      if (!Array.isArray(data) || data.length === 0) break;
+      if (!Array.isArray(data) || data.length === 0) {
+        emptyPages++;
+        if (emptyPages >= MAX_EMPTY_PAGES) break; // several empty pages in a row — genuinely out of history
+        endSec = startSec - 1;
+        continue;
+      }
+      emptyPages = 0;
 
       // Coinbase's candle tuple order is [time, low, high, open, close, volume]
       // — different from every other source here (open, high, low, close).
@@ -79,7 +98,6 @@ async function fetchCoinbaseCandles(product: string, granularitySec: number, tot
         batch.push({ time, open, high, low, close, volume: isFinite(volume) ? volume : 0 });
       }
       out = [...batch, ...out]; // this page is older than everything already collected
-      if (data.length < PAGE) break; // hit the start of Coinbase's available history
       endSec = startSec - 1;
     }
   } catch { /* return whatever pages succeeded before the failure */ }
@@ -152,8 +170,13 @@ export async function GET(request: Request) {
       fetchCoinbaseCandles(coinbaseSource, 300, 2000),
       fetchCoinbaseCandles(coinbaseSource, 60, 1500),
     ]);
-    candles5m = dedup(cb5m);
-    candles1m = dedup(cb1m);
+    // BTC-USD/ETH-USD trade constantly and don't need this. ETH-BTC is thin
+    // enough (see fetchCoinbaseCandles' comment) that a single anomalous
+    // print carries proportionally much more weight against its own sparse
+    // candle set — same outlier-clamp Gold already gets, for the same reason.
+    const isThinCrypto = coinbaseSource === "ETH-BTC";
+    candles5m = isThinCrypto ? sanitizeCandles(dedup(cb5m)) : dedup(cb5m);
+    candles1m = isThinCrypto ? sanitizeCandles(dedup(cb1m)) : dedup(cb1m);
   } else {
     // Yahoo: 5m (30 days, 4 chunks) + 1m (last 3 days). Used for indices and
     // Gold (GC=F futures) — real volume, real-time price, no key required.
@@ -181,23 +204,19 @@ export async function GET(request: Request) {
   const last = candles5m[candles5m.length - 1];
   const currentPrice = last.close;
 
-  // prevClose: last candle from a different calendar day
-  const lastDay = new Date(last.time * 1000).toDateString();
+  // prevClose: last candle from a different calendar day, judged in Costa
+  // Rica local time — the server's own local day (UTC on Vercel) would
+  // misattribute prevClose right around UTC midnight for 24h instruments
+  // (crypto, Gold), skewing the displayed % change.
+  const dayKeyCR = (epochSec: number) => new Date(epochSec * 1000).toLocaleDateString("en-US", { timeZone: "America/Costa_Rica" });
+  const lastDay = dayKeyCR(last.time);
   let prevClose = currentPrice;
   for (let i = candles5m.length - 2; i >= 0; i--) {
-    if (new Date(candles5m[i].time * 1000).toDateString() !== lastDay) {
+    if (dayKeyCR(candles5m[i].time) !== lastDay) {
       prevClose = candles5m[i].close;
       break;
     }
   }
 
-  const now2 = new Date();
-  const et = new Date(now2.toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const day = et.getDay();
-  const totalMin = et.getHours() * 60 + et.getMinutes();
-  const isWeekend = day === 0 || day === 6;
-  const isEquityOpen = !isWeekend && totalMin >= 9 * 60 + 30 && totalMin < 16 * 60;
-  const marketState = isEquityOpen ? "REGULAR" : "CLOSED";
-
-  return NextResponse.json({ candles5m, candles1m, currentPrice, prevClose, marketState, symbol });
+  return NextResponse.json({ candles5m, candles1m, currentPrice, prevClose, symbol });
 }

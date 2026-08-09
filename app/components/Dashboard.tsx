@@ -22,6 +22,11 @@ import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum", "ethbtc"];
 
+// Mirrors the exact condition AxeChart.tsx uses to decide whether its Twelve
+// Data WS branch can actually run — a market with a `tdSymbol` but no live
+// key is NOT covered, even though `tdSymbol` itself is truthy.
+const TD_WS_VIABLE = !!process.env.NEXT_PUBLIC_TWELVEDATA_API_KEY;
+
 const STORAGE_MARKET = "axe-market";
 const storageKey = (symbol: string) => `axe-analysis-${symbol}`;
 const MAX_AGE_MS = 24 * 3600 * 1000;
@@ -188,11 +193,12 @@ export default function Dashboard() {
   const symbolRef = useRef(cfg.symbol);
   const marketShortRef = useRef<string>(cfg.short);
   const livePriceRef = useRef<number | null>(null);
-  // Mirrors AxeChart's own "no WS source" check — a market with neither
-  // (currently only Gold) already runs its own 5s poll to this same
-  // /api/tick endpoint as its PRIMARY feed. Duplicating that from the
-  // safety-net poll below doubles the request rate for no added coverage.
-  const hasOwnTickPollRef = useRef(!cfg.coinbaseProduct && !cfg.tdSymbol);
+  // Mirrors AxeChart's own "no WS source" check — a market with neither a
+  // Coinbase product nor a VIABLE Twelve Data WS (tdSymbol set but no key —
+  // see TD_WS_VIABLE) already runs its own 5s poll to this same /api/tick
+  // endpoint as its PRIMARY feed. Duplicating that from the safety-net poll
+  // below doubles the request rate for no added coverage.
+  const hasOwnTickPollRef = useRef(!cfg.coinbaseProduct && !(TD_WS_VIABLE && cfg.tdSymbol));
   // Every live price — WS tick, Gold's poll, the safety-net poll, a manual
   // check — funnels through advancePrice(), so "time since the last call"
   // is a single, source-agnostic staleness signal. Every poller in this app
@@ -209,7 +215,7 @@ export default function Dashboard() {
   useEffect(() => { analysisRef.current = analysis; }, [analysis]);
   useEffect(() => { symbolRef.current = cfg.symbol; }, [cfg.symbol]);
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
-  useEffect(() => { hasOwnTickPollRef.current = !cfg.coinbaseProduct && !cfg.tdSymbol; }, [cfg.coinbaseProduct, cfg.tdSymbol]);
+  useEffect(() => { hasOwnTickPollRef.current = !cfg.coinbaseProduct && !(TD_WS_VIABLE && cfg.tdSymbol); }, [cfg.coinbaseProduct, cfg.tdSymbol]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
 
   // News ticker feed — scoped to the selected market, so switching markets
@@ -265,8 +271,13 @@ export default function Dashboard() {
     lastTickAtRef.current = Date.now(); // don't flag stale mid-switch before the new feed connects
     setIsStale(false);
     let cancelled = false;
+    // Rapidly clicking through markets used to leave every prior fetch
+    // running to completion in the background even though only the last
+    // one's result would ever be used — wasted bandwidth/API quota. This
+    // actually cancels the in-flight request, not just its state update.
+    const controller = new AbortController();
 
-    fetch(`/api/market?symbol=${encodeURIComponent(cfg.symbol)}`, { cache: "no-store" })
+    fetch(`/api/market?symbol=${encodeURIComponent(cfg.symbol)}`, { cache: "no-store", signal: controller.signal })
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
@@ -305,7 +316,7 @@ export default function Dashboard() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setChartLoading(false); });
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [cfg.symbol, cfg.slPoints, cfg.short, updateOpportunity]);
   /* eslint-enable react-hooks/set-state-in-effect */
 

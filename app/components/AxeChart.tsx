@@ -418,11 +418,17 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       connect();
     }
 
-    // Fallback: markets with no free real-time WebSocket (Gold — Twelve
-    // Data's free XAU/USD feed was found frozen/stale) poll a lightweight
-    // server-side proxy for Yahoo's live price instead.
+    // Fallback: markets with no free real-time WebSocket actually available
+    // poll a lightweight server-side proxy for Yahoo's live price instead.
+    // Checks whether the Twelve Data WS branch above could actually run
+    // (needs both a symbol AND a live key), not just whether `tdSymbol` is
+    // set — otherwise a missing/revoked TD_API_KEY silently blacks out
+    // NASDAQ/Dow's live price entirely: the WS branch skips itself, and the
+    // old `!tdSymbol` check here also skipped the poll, since a truthy
+    // `tdSymbol` looked like "already covered" even when it wasn't.
     let pollId: ReturnType<typeof setInterval> | null = null;
-    if (!coinbaseProduct && !tdSymbol) {
+    const tdWsViable = !!(TD_API_KEY && tdSymbol);
+    if (!coinbaseProduct && !tdWsViable) {
       const poll = async () => {
         try {
           const res = await fetch(`/api/tick?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" });
