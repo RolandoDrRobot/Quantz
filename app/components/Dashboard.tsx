@@ -11,11 +11,11 @@ import type { AnalysisResult, TradeSetup, BreakoutEvent } from "../lib/analysis"
 import { MARKETS, type MarketKey } from "../lib/markets";
 import NewsModal from "./NewsModal";
 import type { NewsArticle } from "../lib/news";
-import { createOpportunity, advanceOpportunity, takeTrade, enterAtMarket, closeTrade, livePnl, type Opportunity } from "../lib/opportunity";
+import { createOpportunity, advanceOpportunity, livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
-import { addRecord, loadRecords, getTodayRecords } from "../lib/records";
-import { ACCOUNT, tradeCostFor, lotsFor } from "../lib/markets";
+import { addPrediction, resolvePrediction } from "../lib/predictions";
+import { tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
 import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
@@ -31,6 +31,13 @@ function saveState(symbol: string, analysis: AnalysisResult | null, opportunity:
     if (!analysis) return;
     localStorage.setItem(storageKey(symbol), JSON.stringify({ analysis, opportunity, savedAt: Date.now() }));
   } catch { /* storage unavailable */ }
+}
+
+const VALID_PHASES = new Set<OppPhase>(["HUNTING", "AWAIT_RETEST", "RETEST_ACTIVE", "CONFIRMED", "TP_HIT", "SL_HIT", "INVALIDATED"]);
+function isCompatibleOpportunity(o: unknown): o is Opportunity {
+  if (typeof o !== "object" || o === null) return false;
+  const r = o as Record<string, unknown>;
+  return typeof r.phase === "string" && VALID_PHASES.has(r.phase as OppPhase);
 }
 
 // In a thin/quiet session the 1m range can be smaller than the market's own
@@ -98,19 +105,17 @@ export default function Dashboard() {
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
-  const [botMode, setBotMode] = useState(true);
   const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
   const [newsOpen, setNewsOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<NewsArticle[]>([]);
   const [taylorOpen, setTaylorOpen] = useState(false);
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
-  const [recordsVersion, setRecordsVersion] = useState(0);
+  const [predictionsVersion, setPredictionsVersion] = useState(0);
   const [isStale, setIsStale] = useState(false);
 
   const cfg = MARKETS[market];
   const analysisRef = useRef<AnalysisResult | null>(null);
   const symbolRef = useRef(cfg.symbol);
-  const botModeRef = useRef(botMode);
   const marketShortRef = useRef<string>(cfg.short);
   const livePriceRef = useRef<number | null>(null);
   // Mirrors AxeChart's own "no WS source" check — a market with neither
@@ -128,12 +133,11 @@ export default function Dashboard() {
   // keeps this a pure render instead of an impure call on every re-render.
   const lastTickAtRef = useRef(0);
 
-  // Callbacks (handleTick, recordTrade, etc.) read these refs instead of
+  // Callbacks (handleTick, advancePrice, etc.) read these refs instead of
   // closing over state, so they always see the latest value without being
   // recreated every render — synced here rather than during render.
   useEffect(() => { analysisRef.current = analysis; }, [analysis]);
   useEffect(() => { symbolRef.current = cfg.symbol; }, [cfg.symbol]);
-  useEffect(() => { botModeRef.current = botMode; }, [botMode]);
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
   useEffect(() => { hasOwnTickPollRef.current = !cfg.coinbaseProduct && !cfg.tdSymbol; }, [cfg.coinbaseProduct, cfg.tdSymbol]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
@@ -164,42 +168,6 @@ export default function Dashboard() {
     setOpportunity(next);
   }, []);
 
-  const recordTrade = useCallback((opp: Opportunity, outcome: "TP" | "SL" | "MANUAL", exit: number) => {
-    const pnl = livePnl(opp, exit);
-    addRecord({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      time: Date.now(),
-      market: marketShortRef.current,
-      direction: opp.direction,
-      entry: opp.entry,
-      exit,
-      outcome,
-      pnl,
-      rMultiple: parseFloat((pnl / ACCOUNT.riskPerTrade).toFixed(2)),
-      probability: opp.analysisProbability,
-    });
-    setRecordsVersion(v => v + 1);
-  }, []);
-
-  // Playbook rules #19 ("1-2 trades a day") and #24 ("stop after two losses")
-  // used to be honor-system checklist text only — nothing actually stopped a
-  // third trade or a third loss from happening. This enforces them: the bot
-  // won't auto-confirm a retest, and the manual entry buttons refuse, once
-  // either limit is hit for the day (Costa Rica local day).
-  const DAILY_TRADE_LIMIT = 2;
-  const DAILY_LOSS_LIMIT = 2;
-  const todayStats = useMemo(() => {
-    const today = getTodayRecords(loadRecords());
-    return { count: today.length, losses: today.filter(r => r.pnl < 0).length };
-  }, [recordsVersion]);
-  const dailyLimitReason = todayStats.count >= DAILY_TRADE_LIMIT
-    ? `Daily limit reached — ${todayStats.count} trades today. That's the plan, not a suggestion.`
-    : todayStats.losses >= DAILY_LOSS_LIMIT
-      ? `Daily stop reached — ${todayStats.losses} losses today. Protect the account, come back tomorrow.`
-      : null;
-  const dailyLimitReasonRef = useRef<string | null>(null);
-  useEffect(() => { dailyLimitReasonRef.current = dailyLimitReason; }, [dailyLimitReason]);
-
   // Reading localStorage during the initial render (e.g. a useState
   // initializer) would desync the static server-prerendered HTML from the
   // client's first paint. Applying the saved value post-mount is what avoids
@@ -209,8 +177,6 @@ export default function Dashboard() {
     try {
       const saved = localStorage.getItem(STORAGE_MARKET) as MarketKey | null;
       if (saved && MARKETS[saved]) setMarket(saved);
-      const bot = localStorage.getItem("axe-bot-mode");
-      if (bot !== null) setBotMode(bot === "true");
     } catch { /* storage unavailable */ }
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -244,7 +210,12 @@ export default function Dashboard() {
             const saved = JSON.parse(raw);
             if (saved.analysis && Date.now() - (saved.savedAt ?? 0) < MAX_AGE_MS) {
               setAnalysis(saved.analysis);
-              updateOpportunity(saved.opportunity ?? null);
+              // A saved opportunity from before the trade-execution pivot can
+              // have an old-shape phase (e.g. "CLOSED") that no longer exists
+              // — PHASE_META[...] would be undefined and crash the panel.
+              // Just cached UI state, not real history, so discard rather
+              // than try to migrate it.
+              updateOpportunity(isCompatibleOpportunity(saved.opportunity) ? saved.opportunity : null);
             }
           }
         } catch { /* corrupt entry */ }
@@ -261,6 +232,27 @@ export default function Dashboard() {
     setRawCandles5m(c5m);
     setAnalysis(result);
     const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
+    if (opp) {
+      // Log it as soon as it's detected — including setups still in
+      // HUNTING/AWAIT_RETEST — so the prediction log is honest about every
+      // call Taylor makes, not just the ones that went on to confirm.
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      addPrediction({
+        id,
+        market: MARKETS[market].short,
+        direction: opp.direction,
+        level: opp.level,
+        entry: opp.entry,
+        sl: opp.sl,
+        tp: opp.tp,
+        probability: opp.analysisProbability,
+        createdAt: Date.now(),
+        resolvedAt: null,
+        outcome: "PENDING",
+      });
+      opp.predictionId = id;
+      setPredictionsVersion(v => v + 1);
+    }
     updateOpportunity(opp);
     saveState(MARKETS[market].symbol, result, opp);
     const sig = result.signal === "GO_LONG" ? "▲ long" : result.signal === "GO_SHORT" ? "▼ short" : "wait";
@@ -280,7 +272,7 @@ export default function Dashboard() {
       if (announce) toast(`Price updated · ${fmtPrice(price)}`, { duration: 2500 });
       return;
     }
-    const next = advanceOpportunity(prev, price, botModeRef.current && !dailyLimitReasonRef.current, analysisRef.current?.levels ?? []);
+    const next = advanceOpportunity(prev, price, analysisRef.current?.levels ?? []);
     opportunityRef.current = next;
     const levelChanged = next.level !== prev.level;
     const transitioned = next.phase !== prev.phase || levelChanged;
@@ -297,13 +289,20 @@ export default function Dashboard() {
       }
       else if (next.phase === "TP_HIT") {
         playResolvedSound(true);
-        recordTrade(next, "TP", next.tp);
+        if (prev.predictionId) resolvePrediction(prev.predictionId, "TP_HIT", next.tp, livePnl(next, next.tp));
+        setPredictionsVersion(v => v + 1);
         toast.success(`tp · ${fmtPrice(next.tp)}`, { duration: 4000 });
       }
       else if (next.phase === "SL_HIT") {
         playResolvedSound(false);
-        recordTrade(next, "SL", next.sl);
+        if (prev.predictionId) resolvePrediction(prev.predictionId, "SL_HIT", next.sl, livePnl(next, next.sl));
+        setPredictionsVersion(v => v + 1);
         toast.error(`sl · ${fmtPrice(next.sl)}`, { duration: 4000 });
+      }
+      else if (next.phase === "INVALIDATED") {
+        if (prev.predictionId) resolvePrediction(prev.predictionId, "INVALIDATED", price);
+        setPredictionsVersion(v => v + 1);
+        toast(`invalidated · ${fmtPrice(price)} — setup didn't hold`, { duration: 4000 });
       }
       saveState(symbolRef.current, analysisRef.current, next);
     }
@@ -312,7 +311,7 @@ export default function Dashboard() {
       const pnlPart = pnl !== null ? ` · ${fmtSignedMoney(pnl)}` : "";
       toast(`No change · ${PHASE_META[next.phase].label} · ${fmtPrice(price)}${pnlPart}`, { duration: 3500 });
     }
-  }, [recordTrade]);
+  }, []);
 
   const handleTick = useCallback((price: number) => advancePrice(price), [advancePrice]);
 
@@ -408,49 +407,6 @@ export default function Dashboard() {
       retestZone: opportunity.retestZone,
     };
   }, [opportunity, analysis]);
-
-  // Functional update — two rapid clicks reading botModeRef.current (only
-  // synced post-commit by its own effect) could otherwise both compute the
-  // same "next" value and net out to zero real toggles.
-  const handleToggleBot = useCallback(() => {
-    setBotMode(prev => !prev);
-  }, []);
-
-  useEffect(() => {
-    try { localStorage.setItem("axe-bot-mode", String(botMode)); } catch { /* ignore */ }
-  }, [botMode]);
-
-  const handleTakeTrade = useCallback(() => {
-    if (dailyLimitReasonRef.current) { toast.error(dailyLimitReasonRef.current); return; }
-    const prev = opportunityRef.current;
-    if (!prev || livePriceRef.current === null) return;
-    const next = takeTrade(prev, livePriceRef.current);
-    if (next === prev) return;
-    updateOpportunity(next);
-    saveState(symbolRef.current, analysisRef.current, next);
-  }, [updateOpportunity]);
-
-  const handleMarketEntry = useCallback(() => {
-    if (dailyLimitReasonRef.current) { toast.error(dailyLimitReasonRef.current); return; }
-    const prev = opportunityRef.current;
-    if (!prev || livePriceRef.current === null) return;
-    const next = enterAtMarket(prev, livePriceRef.current, analysisRef.current?.levels ?? []);
-    if (next === prev) return;
-    updateOpportunity(next);
-    saveState(symbolRef.current, analysisRef.current, next);
-  }, [updateOpportunity]);
-
-  const handleCloseTrade = useCallback(() => {
-    const prev = opportunityRef.current;
-    if (!prev || livePriceRef.current === null) return;
-    const exit = livePriceRef.current;
-    const next = closeTrade(prev, exit);
-    if (next === prev || next.phase !== "CLOSED") return;
-    updateOpportunity(next);
-    playResolvedSound(livePnl(next, exit) >= 0);
-    recordTrade(next, "MANUAL", exit);
-    saveState(symbolRef.current, analysisRef.current, next);
-  }, [recordTrade, updateOpportunity]);
 
   // ── Derived display values ───────────────────────────────────────────────────
   const displayPrice = livePrice ?? analysis?.currentPrice ?? null;
@@ -710,7 +666,7 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* Botón Taylor — abre el panel (Analysis/Journal/Rules/History viven dentro) */}
+          {/* Botón Taylor — abre el panel (Analysis/Journal/Rules viven dentro) */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setActiveTab("analysis"); setTaylorOpen(true); }}
@@ -776,17 +732,11 @@ export default function Dashboard() {
               onAnalysis={handleAnalysis}
               opportunity={opportunity}
               livePrice={livePrice}
-              botMode={botMode}
-              onToggleBot={handleToggleBot}
-              onTakeTrade={handleTakeTrade}
-              onMarketEntry={handleMarketEntry}
-              onCloseTrade={handleCloseTrade}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
-              tradeBlockedReason={dailyLimitReason}
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              recordsVersion={recordsVersion}
+              predictionsVersion={predictionsVersion}
               onClose={() => setTaylorOpen(false)}
             />
           </div>
@@ -897,17 +847,11 @@ export default function Dashboard() {
               onAnalysis={handleAnalysis}
               opportunity={opportunity}
               livePrice={livePrice}
-              botMode={botMode}
-              onToggleBot={handleToggleBot}
-              onTakeTrade={handleTakeTrade}
-              onMarketEntry={handleMarketEntry}
-              onCloseTrade={handleCloseTrade}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
-              tradeBlockedReason={dailyLimitReason}
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              recordsVersion={recordsVersion}
+              predictionsVersion={predictionsVersion}
             />
           </aside>
         </div>

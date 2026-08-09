@@ -1,175 +1,130 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { FiArrowUpRight, FiArrowDownRight, FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { useState, useMemo, useCallback } from "react";
+import { FiTrash2, FiArrowUpRight, FiArrowDownRight, FiClock } from "react-icons/fi";
 import { LuNotebookPen } from "react-icons/lu";
-import { loadRecords, type TradeRecord } from "../lib/records";
-import { loadJournal, saveJournal, EMOTIONS, EMPTY_ENTRY, type JournalEntry, type SetupGrade } from "../lib/journal";
-import { fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
-import { fmtSignedMoney } from "../lib/format";
+import { loadPredictions, clearPredictions, computePredictionStats, type PredictionRecord } from "../lib/predictions";
+import { fmtPrice, fmtPct, fmtSignedMoney, fmtInt } from "../lib/format";
 
-const GRADES: SetupGrade[] = ["A+", "A", "B", "C"];
-
-function EntryRow({ record, entry, onChange }: { record: TradeRecord; entry: JournalEntry; onChange: (patch: Partial<JournalEntry>) => void }) {
-  const [open, setOpen] = useState(false);
-  const win = record.pnl > 0;
-  const hasNotes = entry.followedPlan !== null || entry.setupGrade !== null || entry.emotion !== null || entry.notes.trim().length > 0;
-
+function StatCard({ label, value, color, big }: { label: string; value: string; color?: string; big?: boolean }) {
   return (
-    <div className="rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors"
-        style={{ background: "var(--bg-card)", cursor: "pointer" }}
-      >
-        <span className="flex items-center gap-1 font-bold text-sm shrink-0" style={{ color: record.direction === "long" ? "#1c7d4c" : "#8a2f2a" }}>
-          {record.direction === "long" ? <FiArrowUpRight size={15} /> : <FiArrowDownRight size={15} />}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-sm" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{record.market}</span>
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-              {new Date(record.time).toLocaleString("en-US", { timeZone: "America/Costa_Rica", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
-            </span>
-            {hasNotes && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--gold)" }} title="Has journal notes" />}
-          </div>
-        </div>
-        <span className="font-black text-sm shrink-0" style={{ color: win ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-          {fmtSignedMoney(record.pnl)}
-        </span>
-        {open ? <FiChevronUp size={16} color="var(--text-muted)" /> : <FiChevronDown size={16} color="var(--text-muted)" />}
-      </button>
-
-      <AnimatePresence>
-      {open && (
-        <motion.div
-          className="px-4 py-4 flex flex-col gap-4 overflow-hidden"
-          style={{ background: "var(--bg-panel)", borderTop: "1px solid rgba(255,255,255,0.06)" }}
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={TRANSITION_BASE}
-        >
-          <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>FOLLOWED THE PLAN?</div>
-            <div className="flex gap-2">
-              {[{ v: true, label: "YES" }, { v: false, label: "NO" }].map(opt => (
-                <button
-                  key={opt.label}
-                  onClick={() => onChange({ followedPlan: entry.followedPlan === opt.v ? null : opt.v })}
-                  className="px-4 py-2 rounded-md text-sm font-bold"
-                  style={{
-                    background: entry.followedPlan === opt.v ? (opt.v ? "rgba(28,125,76,0.15)" : "rgba(138,47,42,0.15)") : "rgba(255,255,255,0.05)",
-                    color: entry.followedPlan === opt.v ? (opt.v ? "#1c7d4c" : "#8a2f2a") : "var(--text-secondary)",
-                    border: `1px solid ${entry.followedPlan === opt.v ? (opt.v ? "#1c7d4c" : "#8a2f2a") : "rgba(255,255,255,0.1)"}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>SETUP QUALITY</div>
-            <div className="flex gap-2">
-              {GRADES.map(g => (
-                <button
-                  key={g}
-                  onClick={() => onChange({ setupGrade: entry.setupGrade === g ? null : g })}
-                  className="px-4 py-2 rounded-md text-sm font-bold"
-                  style={{
-                    background: entry.setupGrade === g ? "var(--gold-dim)" : "rgba(255,255,255,0.05)",
-                    color: entry.setupGrade === g ? "var(--gold)" : "var(--text-secondary)",
-                    border: `1px solid ${entry.setupGrade === g ? "var(--gold-border)" : "rgba(255,255,255,0.1)"}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>EMOTIONAL STATE ON ENTRY</div>
-            <div className="flex gap-2 flex-wrap">
-              {EMOTIONS.map(e => (
-                <button
-                  key={e}
-                  onClick={() => onChange({ emotion: entry.emotion === e ? null : e })}
-                  className="px-3 py-1.5 rounded-md text-sm font-bold"
-                  style={{
-                    background: entry.emotion === e ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)",
-                    color: entry.emotion === e ? "var(--text-primary)" : "var(--text-secondary)",
-                    border: `1px solid ${entry.emotion === e ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs font-bold tracking-[0.15em] mb-2" style={{ color: "var(--text-primary)" }}>NOTES</div>
-            <textarea
-              value={entry.notes}
-              onChange={ev => onChange({ notes: ev.target.value })}
-              placeholder="What happened? What would you do differently?"
-              rows={3}
-              className="w-full rounded-md px-3 py-2 text-sm resize-none"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-primary)" }}
-            />
-          </div>
-        </motion.div>
-      )}
-      </AnimatePresence>
+    <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)" }}>
+      <div className="text-[11px] font-bold tracking-[0.2em]" style={{ color: "var(--text-primary)" }}>{label}</div>
+      <div className={`${big ? "text-4xl" : "text-2xl"} font-black mt-1 leading-none`} style={{ color: color ?? "#f2f5f8", fontFamily: "var(--font-display)" }}>
+        {value}
+      </div>
     </div>
   );
 }
 
-export default function JournalPanel({ refreshToken }: { refreshToken?: number }) {
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshToken is a manual invalidation token, not read inside
-  const records = useMemo(() => loadRecords(), [refreshToken]);
-  const [entries, setEntries] = useState<Record<string, JournalEntry>>(() => loadJournal());
+const OUTCOME_STYLE: Record<PredictionRecord["outcome"], { label: string; color: string }> = {
+  PENDING:     { label: "TRACKING", color: "#c9a838" },
+  TP_HIT:      { label: "TP",       color: "#1c7d4c" },
+  SL_HIT:      { label: "SL",       color: "#8a2f2a" },
+  INVALIDATED: { label: "INVALID.", color: "#9ba5b2" },
+};
 
-  const updateEntry = useCallback((id: string, patch: Partial<JournalEntry>) => {
-    setEntries(prev => {
-      const next = { ...prev, [id]: { ...(prev[id] ?? EMPTY_ENTRY), ...patch } };
-      saveJournal(next);
-      return next;
-    });
+export default function JournalPanel({ refreshToken }: { refreshToken?: number }) {
+  // Bumped after a clear to force re-reading localStorage.
+  const [version, setVersion] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- version/refreshToken are manual invalidation tokens, not read inside
+  const predictions = useMemo(() => loadPredictions(), [version, refreshToken]);
+
+  const handleClear = useCallback(() => {
+    if (window.confirm("Delete ALL logged predictions? This can't be undone.")) {
+      clearPredictions();
+      setVersion(v => v + 1);
+    }
   }, []);
 
+  const stats = computePredictionStats(predictions);
+  const hitColor = stats.hitRate >= 50 ? "#1c7d4c" : "#8a2f2a";
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="text-base mb-1" style={{ color: "var(--text-primary)" }}>Tap a trade to log the plan, setup grade, and headspace behind it</div>
-      {records.length === 0 ? (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div className="text-base" style={{ color: "var(--text-primary)" }}>Automatic log — every opportunity Taylor detects, and whether the call came true</div>
+        {predictions.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold tracking-wider shrink-0"
+            style={{ background: "rgba(138,47,42,0.08)", color: "#8a2f2a", border: "1px solid rgba(138,47,42,0.3)", cursor: "pointer", fontFamily: "var(--font-display)" }}
+          >
+            <FiTrash2 size={13} /> CLEAR ALL
+          </button>
+        )}
+      </div>
+
+      {predictions.length === 0 ? (
         <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-primary)" }}>
           <LuNotebookPen size={48} className="mb-4 opacity-15" />
-          <p className="text-lg">No trades to journal yet.</p>
-          <p className="text-base mt-2 opacity-70">Every closed trade shows up here — tap one to write it up.</p>
+          <p className="text-lg">No predictions logged yet.</p>
+          <p className="text-base mt-2 opacity-70">Every opportunity Taylor detects shows up here automatically.</p>
         </div>
       ) : (
-        records.map((r, i) => (
-          <motion.div
-            key={r.id}
-            variants={fadeUpVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ ...TRANSITION_FAST, delay: Math.min(i, 8) * 0.02 }}
-          >
-            <EntryRow
-              record={r}
-              entry={entries[r.id] ?? EMPTY_ENTRY}
-              onChange={patch => updateEntry(r.id, patch)}
-            />
-          </motion.div>
-        ))
+        <>
+          {/* Headline stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="PREDICTIONS" value={fmtInt(stats.total)} big />
+            <StatCard label="HIT RATE" value={fmtPct(stats.hitRate)} color={hitColor} big />
+            <StatCard label="RESOLVED" value={fmtInt(stats.resolved)} big />
+            <StatCard label="INVALIDATED" value={fmtPct(stats.invalidatedRate)} color="#9ba5b2" big />
+          </div>
+
+          {/* TP vs SL bar */}
+          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-card)" }}>
+            <div className="flex items-center justify-between text-[12px] font-bold mb-2">
+              <span style={{ color: "#1c7d4c" }}>{fmtInt(stats.tpHits)} TP</span>
+              <span style={{ color: "#8a2f2a" }}>{fmtInt(stats.slHits)} SL</span>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <div style={{ width: `${stats.hitRate}%`, background: "#1c7d4c" }} />
+              <div style={{ width: `${100 - stats.hitRate}%`, background: "#8a2f2a" }} />
+            </div>
+          </div>
+
+          {/* Prediction list */}
+          <div className="rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+            <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.9fr] px-5 py-3 text-[11px] font-bold tracking-widest min-w-[480px]" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
+              <span>DATE</span><span>MARKET</span><span>SIDE</span><span>LEVEL → RESOLVED</span><span>OUTCOME</span>
+            </div>
+            {predictions.map((p, i) => {
+              const oc = OUTCOME_STYLE[p.outcome];
+              return (
+                <div
+                  key={p.id}
+                  className="grid grid-cols-[1.4fr_0.8fr_0.7fr_1.2fr_0.9fr] px-5 py-3 text-[14px] items-center min-w-[480px]"
+                  style={{ background: "var(--bg-card)", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                >
+                  <span style={{ color: "#9ba5b2" }}>
+                    {new Date(p.createdAt).toLocaleString("en-US", { timeZone: "America/Costa_Rica", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
+                  </span>
+                  <span className="font-bold" style={{ color: "#f2f5f8", fontFamily: "var(--font-display)" }}>{p.market}</span>
+                  <span className="flex items-center gap-1 font-bold" style={{ color: p.direction === "long" ? "#1c7d4c" : "#8a2f2a" }}>
+                    {p.direction === "long" ? <FiArrowUpRight size={14} /> : <FiArrowDownRight size={14} />}
+                    {p.direction === "long" ? "L" : "S"}
+                  </span>
+                  <span style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>
+                    {fmtPrice(p.level)}{p.resolvedPrice != null ? ` → ${fmtPrice(p.resolvedPrice)}` : ""}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black" style={{ background: `${oc.color}1a`, color: oc.color, border: `1px solid ${oc.color}40` }}>
+                      {p.outcome === "PENDING" && <FiClock size={10} />}
+                      {oc.label}
+                    </span>
+                    {p.pnlAtResolution != null && (
+                      <span className="font-bold text-[12px]" style={{ color: p.pnlAtResolution >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
+                        {fmtSignedMoney(p.pnlAtResolution)}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+            </div>{/* end overflow-x-auto */}
+          </div>
+        </>
       )}
     </div>
   );

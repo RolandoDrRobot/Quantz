@@ -4,7 +4,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react
 import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
-  FiTrendingUp, FiTrendingDown, FiPauseCircle, FiPower, FiBarChart2,
+  FiTrendingUp, FiTrendingDown, FiPauseCircle,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX,
 } from "react-icons/fi";
 import { LuBrainCircuit, LuNotebookPen, LuListChecks } from "react-icons/lu";
@@ -15,18 +15,16 @@ import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
-import { buildTraderProfileSummary, type TraderProfileSummary } from "../lib/traderProfile";
+import { buildPredictionProfileSummary, type PredictionProfileSummary } from "../lib/predictionProfile";
 import JournalPanel from "./JournalPanel";
 import PlaybookPanel from "./PlaybookPanel";
-import RecordsPanel from "./RecordsPanel";
 
-export type PanelTab = "analysis" | "journal" | "rules" | "history";
+export type PanelTab = "analysis" | "journal" | "rules";
 
 const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
   { key: "analysis", label: "ANALYSIS", Icon: LuBrainCircuit },
   { key: "journal",  label: "JOURNAL",  Icon: LuNotebookPen },
   { key: "rules",    label: "RULES",    Icon: LuListChecks },
-  { key: "history",  label: "HISTORY",  Icon: FiBarChart2 },
 ];
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
@@ -41,15 +39,14 @@ const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string; bg: st
   REJECT:  { label: "TAYLOR: REJECT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
 };
 
-export const PHASE_META: Record<OppPhase, { label: string; color: string; step: number }> = {
-  HUNTING:       { label: "HUNTING BREAKOUT",           color: "#9ba5b2", step: 0 },
-  AWAIT_RETEST:  { label: "BREAKOUT — AWAITING RETEST", color: "#c23b30", step: 1 },
-  RETEST_ACTIVE: { label: "RETEST ACTIVE",              color: "#d9584b", step: 2 },
-  CONFIRMED:     { label: "POSITION OPEN",              color: "#1c7d4c", step: 3 },
-  TP_HIT:        { label: "TAKE PROFIT",                color: "#1c7d4c", step: 4 },
-  SL_HIT:        { label: "STOP LOSS",                  color: "#8a2f2a", step: 4 },
-  CLOSED:        { label: "MANUALLY CLOSED",            color: "#c23b30", step: 4 },
-  INVALIDATED:   { label: "SETUP INVALIDATED",          color: "#8a2f2a", step: 4 },
+export const PHASE_META: Record<OppPhase, { label: string; color: string }> = {
+  HUNTING:       { label: "HUNTING BREAKOUT",           color: "#9ba5b2" },
+  AWAIT_RETEST:  { label: "BREAKOUT — AWAITING RETEST", color: "#c23b30" },
+  RETEST_ACTIVE: { label: "RETEST ACTIVE",              color: "#d9584b" },
+  CONFIRMED:     { label: "TRACKING LIVE",              color: "#1c7d4c" },
+  TP_HIT:        { label: "TAKE PROFIT",                color: "#1c7d4c" },
+  SL_HIT:        { label: "STOP LOSS",                  color: "#8a2f2a" },
+  INVALIDATED:   { label: "SETUP INVALIDATED",          color: "#8a2f2a" },
 };
 
 
@@ -153,32 +150,28 @@ export function Clock({ is24h }: { is24h: boolean }) {
 }
 
 
-// ── The Trade card — everything about the position in one place ──────────────
-function TradeCard({
-  opp, price, bot, lots, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checking, onToggleBot, blockedReason,
+// ── The opportunity card — everything about the tracked call in one place ────
+// No trade is ever taken in-app — this tracks whether Taylor's call (TP
+// before SL) would have played out. RISK/SPREAD/LOTS and the live $ figure
+// stay, on purpose: reference numbers for placing the trade manually.
+function OpportunityCard({
+  opp, price, lots, onCheckOpportunity, checking,
 }: {
   opp: Opportunity;
   price: number | null;
-  bot: boolean;
   lots: number;
-  onTakeTrade: () => void;
-  onMarketEntry: () => void;
-  onCloseTrade: () => void;
   onCheckOpportunity: () => void;
   checking: boolean;
-  onToggleBot: () => void;
-  blockedReason: string | null;
 }) {
   // Values come from the LIVE opportunity — it can re-anchor to closer levels
   const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * ACCOUNT.riskPerTrade);
   const meta = PHASE_META[opp.phase];
-  const isTerminal = ["TP_HIT", "SL_HIT", "CLOSED", "INVALIDATED"].includes(opp.phase);
+  const isTerminal = ["TP_HIT", "SL_HIT", "INVALIDATED"].includes(opp.phase);
   const dirColor = opp.direction === "long" ? "#1c7d4c" : "#8a2f2a";
   const dist = price !== null ? Math.abs(price - opp.level) : null;
 
   const pnl = (() => {
     if (opp.phase === "CONFIRMED" && price !== null) return livePnl(opp, price);
-    if (opp.phase === "CLOSED" && opp.exitPrice != null) return livePnl(opp, opp.exitPrice);
     if (opp.phase === "TP_HIT") return livePnl(opp, opp.tp);
     if (opp.phase === "SL_HIT") return livePnl(opp, opp.sl);
     return null;
@@ -193,22 +186,19 @@ function TradeCard({
       statusLine = dist !== null ? `Level broke — awaiting retest · ${fmtPrice(dist)} pts away` : "Level broke — awaiting retest";
       break;
     case "RETEST_ACTIVE":
-      statusLine = bot ? "Price at the level — bot enters if the candle holds" : "Price at the level — your call. Take it or skip it.";
+      statusLine = "Price at the level — holding the candle decides it.";
       break;
     case "CONFIRMED":
-      statusLine = `${bot ? "Bot entered" : "Position open"} · spread ${fmtMoney2(opp.cost ?? 0)}`;
+      statusLine = `Retest held — tracking live · spread ${fmtMoney2(opp.cost ?? 0)}`;
       break;
     case "TP_HIT":
-      statusLine = `Target hit at ${fmtPrice(opp.tp)}. That's how it's done.`;
+      statusLine = `Target hit at ${fmtPrice(opp.tp)}. Called it.`;
       break;
     case "SL_HIT":
-      statusLine = `Stopped at ${fmtPrice(opp.sl)} — controlled loss, next one up.`;
-      break;
-    case "CLOSED":
-      statusLine = `Closed at ${opp.exitPrice != null ? fmtPrice(opp.exitPrice) : "—"} by your call.`;
+      statusLine = `Stopped at ${fmtPrice(opp.sl)} — the call was wrong on this one.`;
       break;
     case "INVALIDATED":
-      statusLine = "Price reversed — trap avoided.";
+      statusLine = "Price reversed before confirming — no call made.";
       break;
   }
 
@@ -221,45 +211,35 @@ function TradeCard({
         boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33` : "none",
       }}
     >
-      {/* Header: phase + verify button + direction pill */}
+      {/* Header: phase + resolved-outcome badge + check button + direction pill */}
       <div className="flex items-center justify-between gap-2 px-5 pt-4">
         <div className="flex items-center gap-2 min-w-0">
           {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: meta.color }} />}
+          {isTerminal && (
+            <span className="flex items-center justify-center w-4 h-4 rounded-full shrink-0" style={{ background: `${meta.color}22`, color: meta.color }}>
+              {opp.phase === "TP_HIT" ? <FiCheck size={11} /> : opp.phase === "SL_HIT" ? <FiX size={11} /> : <FiAlertTriangle size={10} />}
+            </span>
+          )}
           <span className="font-black text-base tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
             {meta.label}
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {!isTerminal && (
-            <>
-              <button
-                onClick={onToggleBot}
-                title={bot ? "Bot: on — click to turn off" : "Bot: off — click to turn on"}
-                className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
-                style={{
-                  background: bot ? "rgba(28,125,76,0.15)" : "var(--bg-elevated)",
-                  color: bot ? "#1c7d4c" : "var(--text-secondary)",
-                  border: `1px solid ${bot ? "rgba(28,125,76,0.4)" : "rgba(255,255,255,0.1)"}`,
-                  cursor: "pointer",
-                }}
-              >
-                <FiCpu size={12} />
-              </button>
-              <button
-                onClick={onCheckOpportunity}
-                disabled={checking}
-                title="Check current opportunity"
-                className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  color: "var(--text-secondary)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  cursor: checking ? "not-allowed" : "pointer",
-                }}
-              >
-                <FiRefreshCw size={12} className={checking ? "animate-spin" : ""} />
-              </button>
-            </>
+            <button
+              onClick={onCheckOpportunity}
+              disabled={checking}
+              title="Check current opportunity"
+              className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                color: "var(--text-secondary)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                cursor: checking ? "not-allowed" : "pointer",
+              }}
+            >
+              <FiRefreshCw size={12} className={checking ? "animate-spin" : ""} />
+            </button>
           )}
           <span
             className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[12px] font-black tracking-wider whitespace-nowrap"
@@ -301,63 +281,6 @@ function TradeCard({
           <div className="text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
         </div>
       </div>
-
-      {/* Contextual actions */}
-      {!bot && (opp.phase === "RETEST_ACTIVE" || opp.phase === "AWAIT_RETEST") && (
-        blockedReason ? (
-          <div className="mx-5 mb-4 mt-2 px-4 py-3 rounded-md text-sm" style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}>
-            {blockedReason}
-          </div>
-        ) : (
-        <div className="grid grid-cols-2 gap-3 px-5 pb-4 pt-2">
-          <button
-            onClick={onTakeTrade}
-            className="flex items-center justify-center gap-2 py-3 rounded-md font-black text-base tracking-widest transition-all duration-150"
-            style={{
-              background: opp.phase === "RETEST_ACTIVE" ? "#1c7d4c" : "rgba(28,125,76,0.1)",
-              color: opp.phase === "RETEST_ACTIVE" ? "#050e1a" : "#1c7d4c",
-              border: "1px solid rgba(28,125,76,0.45)",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <FiCheck size={16} /> TAKE TRADE
-          </button>
-          <button
-            onClick={onMarketEntry}
-            disabled={price === null}
-            className="flex items-center justify-center gap-2 py-3 rounded-md font-black text-base tracking-widest transition-all duration-150"
-            style={{
-              background: "rgba(28,125,76,0.1)",
-              color: "#c23b30",
-              border: "1px solid rgba(28,125,76,0.45)",
-              cursor: price === null ? "not-allowed" : "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <FiZap size={15} /> {price !== null ? `MARKET @ ${fmtPrice(price)}` : "MARKET ENTRY"}
-          </button>
-        </div>
-        )
-      )}
-
-      {opp.phase === "CONFIRMED" && (
-        <div className="px-5 pb-4 pt-2">
-          <button
-            onClick={onCloseTrade}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-md font-black text-base tracking-widest transition-all duration-150"
-            style={{
-              background: "rgba(138,47,42,0.1)",
-              color: "#8a2f2a",
-              border: "1px solid rgba(138,47,42,0.4)",
-              cursor: "pointer",
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            <FiPower size={15} /> CLOSE POSITION {price !== null && pnl !== null ? `@ ${fmtPrice(price)} (${fmtSignedMoney(pnl)})` : ""}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -368,24 +291,18 @@ interface Props {
   onAnalysis: (result: AnalysisResult, candles5m: RawCandle[], candles1m: RawCandle[]) => void;
   opportunity: Opportunity | null;
   livePrice: number | null;
-  botMode: boolean;
-  onToggleBot: () => void;
-  onTakeTrade: () => void;
-  onMarketEntry: () => void;
-  onCloseTrade: () => void;
   onCheckOpportunity: () => void;
   checkingOpportunity: boolean;
-  tradeBlockedReason: string | null;
   activeTab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
-  recordsVersion: number;
+  predictionsVersion: number;
   onClose?: () => void;
 }
 
 export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
-  botMode, onToggleBot, onTakeTrade, onMarketEntry, onCloseTrade, onCheckOpportunity, checkingOpportunity, tradeBlockedReason,
-  activeTab, onTabChange, recordsVersion, onClose,
+  onCheckOpportunity, checkingOpportunity,
+  activeTab, onTabChange, predictionsVersion, onClose,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -397,7 +314,7 @@ export default function BobbyPanel({
   // market and back — cached per symbol below) and only retires when a fresh
   // "New Analysis" supersedes it with a new opportunity for that market.
   const [aiTake, setAiTake] = useState<AiTake | null>(null);
-  const [aiProfile, setAiProfile] = useState<TraderProfileSummary | null>(null);
+  const [aiProfile, setAiProfile] = useState<PredictionProfileSummary | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
 
@@ -405,8 +322,8 @@ export default function BobbyPanel({
   // check another instrument and back restores the take instead of losing
   // it. Refs can't be read or written during render, so both the mirror
   // below and the swap-on-market-change logic live in effects.
-  const aiCacheRef = useRef<Record<string, { take: AiTake; profile: TraderProfileSummary | null }>>({});
-  const currentTakeRef = useRef<{ take: AiTake; profile: TraderProfileSummary | null } | null>(null);
+  const aiCacheRef = useRef<Record<string, { take: AiTake; profile: PredictionProfileSummary | null }>>({});
+  const currentTakeRef = useRef<{ take: AiTake; profile: PredictionProfileSummary | null } | null>(null);
   useEffect(() => {
     currentTakeRef.current = aiTake ? { take: aiTake, profile: aiProfile } : null;
   }, [aiTake, aiProfile]);
@@ -451,7 +368,7 @@ export default function BobbyPanel({
     // Free, synchronous localStorage read — captured once here so the request
     // payload and whatever the UI later shows ("Your record: ...") are always
     // the exact same snapshot, never two different reads that could disagree.
-    const profile = buildTraderProfileSummary();
+    const profile = buildPredictionProfileSummary();
     try {
       const payload = buildAiAnalysisRequest(fresh, market, candles, profile);
       const res = await fetch("/api/ai-analysis", {
@@ -606,15 +523,11 @@ export default function BobbyPanel({
       <AnimatePresence mode="wait">
       {activeTab === "journal" ? (
         <motion.div key="journal" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
-          <JournalPanel refreshToken={recordsVersion} />
+          <JournalPanel refreshToken={predictionsVersion} />
         </motion.div>
       ) : activeTab === "rules" ? (
         <motion.div key="rules" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
           <PlaybookPanel />
-        </motion.div>
-      ) : activeTab === "history" ? (
-        <motion.div key="history" className="p-6" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
-          <RecordsPanel refreshToken={recordsVersion} />
         </motion.div>
       ) : (
       <motion.div key="analysis" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
@@ -701,18 +614,12 @@ export default function BobbyPanel({
           <AnimatePresence mode="wait">
             {opportunity ? (
               <motion.div key={opportunity.phase} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
-                <TradeCard
+                <OpportunityCard
                   opp={opportunity}
                   price={livePrice}
-                  bot={botMode}
                   lots={lots}
-                  onTakeTrade={onTakeTrade}
-                  onMarketEntry={onMarketEntry}
-                  onCloseTrade={onCloseTrade}
                   onCheckOpportunity={onCheckOpportunity}
                   checking={checkingOpportunity}
-                  onToggleBot={onToggleBot}
-                  blockedReason={tradeBlockedReason}
                 />
               </motion.div>
             ) : (
@@ -793,8 +700,8 @@ export default function BobbyPanel({
                 )}
                 {aiProfile?.hasHistory && (
                   <div className="mt-2 pt-2 text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)" }}>
-                    Your record: {aiProfile.totalTrades} trades · {aiProfile.winRate}% win rate
-                    {aiProfile.planAdherenceRate !== null && ` · ${aiProfile.planAdherenceRate}% plan adherence`}
+                    Taylor&apos;s record: {aiProfile.resolvedCount} resolved calls · {aiProfile.hitRate}% hit rate
+                    {aiProfile.invalidatedRate > 0 && ` · ${aiProfile.invalidatedRate}% invalidated`}
                   </div>
                 )}
               </motion.div>

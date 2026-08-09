@@ -1,17 +1,18 @@
 import type { AnalysisResult, Level } from "./analysis";
 import { ACCOUNT } from "./markets";
 
-// Live-tracked trade opportunity, advanced tick by tick:
+// Live-tracked opportunity, advanced tick by tick:
 // HUNTING → AWAIT_RETEST → RETEST_ACTIVE → CONFIRMED → TP_HIT / SL_HIT
 // Any stage can die into INVALIDATED if price pushes hard against the setup.
+// The app never takes a real position — this purely tracks whether Taylor's
+// call (TP before SL) would have played out, for the automatic prediction log.
 export type OppPhase =
   | "HUNTING"        // waiting for price to break the level
   | "AWAIT_RETEST"   // level broken — waiting for price to come back to it
   | "RETEST_ACTIVE"  // price is retesting the level right now
-  | "CONFIRMED"      // retest held — trade is live, tracking P/L
+  | "CONFIRMED"      // retest held — tracking live toward TP/SL
   | "TP_HIT"
   | "SL_HIT"
-  | "CLOSED"         // manually closed at market price
   | "INVALIDATED";
 
 export interface Opportunity {
@@ -26,24 +27,26 @@ export interface Opportunity {
   sl: number;
   tp: number;
   slPoints: number;
-  cost: number;        // round-trip broker cost (spread) in dollars
+  cost: number;        // round-trip broker cost (spread) in dollars — reference for manual sizing
   analysisProbability: number; // Taylor's score at creation — carried onto the
-                                // TradeRecord when this resolves, so scoring can
+                                // PredictionRecord when this resolves, so scoring can
                                 // eventually be checked against real outcomes
   startedAt: number;
   updatedAt: number;
-  fillPrice?: number;  // actual market price when the trade was entered
-  exitPrice?: number;  // set when the position is closed manually
+  confirmedPrice?: number; // price at the moment the retest confirmed (was "fillPrice" —
+                            // renamed since CONFIRMED no longer means a real position filled)
+  predictionId?: string;   // links this live opportunity to its logged PredictionRecord
+                            // (see lib/predictions.ts), set by the caller right after creation
 }
 
 export function createOpportunity(a: AnalysisResult, slPoints: number, cost: number): Opportunity | null {
   if (!a.tradeSetup) return null;
   // A breakout that already happened but isn't trend-aligned (or scored too
   // low to trust) is exactly what Taylor's own message calls a trap — don't
-  // hand back a trackable, tradeable opportunity for it (which would reach
-  // RETEST_ACTIVE and a live "TAKE TRADE" button on the very next tick,
-  // since price is already past the level). Nothing to hunt at this level
-  // anymore; the next "New Analysis" looks for a cleaner setup instead.
+  // hand back a trackable opportunity for it (which would reach RETEST_ACTIVE
+  // on the very next tick, since price is already past the level). Nothing
+  // to hunt at this level anymore; the next "New Analysis" looks for a
+  // cleaner setup instead.
   if (a.breakout && a.signal === "WAIT") return null;
   const now = Date.now();
   const startLevel = a.breakout?.level ?? a.tradeSetup.entryPrice;
@@ -78,12 +81,11 @@ function computeTp(direction: "long" | "short", entry: number, slPoints: number,
   return next?.price ?? entry - slPoints * 2;
 }
 
-// autoTrade = Trade Bot ON: entries are taken automatically when the retest
-// holds. With the bot OFF, RETEST_ACTIVE waits for the user to take the trade
-// manually (takeTrade) — if price leaves the zone untaken, we re-arm the retest.
-// `levels` enables dynamic re-anchoring: if price runs away from a broken level
-// without retesting, the opportunity jumps to the nearest freshly-broken level.
-export function advanceOpportunity(o: Opportunity, price: number, autoTrade = true, levels: Level[] = []): Opportunity {
+// `levels` enables dynamic re-anchoring: if price runs away from a broken
+// level without retesting, the opportunity jumps to the nearest freshly-
+// broken level. A held retest always confirms — there's no bot/manual
+// distinction anymore, since the app never takes a real position either way.
+export function advanceOpportunity(o: Opportunity, price: number, levels: Level[] = []): Opportunity {
   const now = Date.now();
   const dirUp = o.direction === "long";
   const beyond = dirUp ? price > o.level : price < o.level;  // past the level in trade direction
@@ -107,7 +109,7 @@ export function advanceOpportunity(o: Opportunity, price: number, autoTrade = tr
       if (inZone) return { ...o, phase: "RETEST_ACTIVE", updatedAt: now };
 
       // Re-anchor: price ran more than 1 SL past the broken level without
-      // retesting — that retest is likely gone. The live trade is at the
+      // retesting — that retest is likely gone. The live read is at the
       // nearest level price broke on its way. Jump the opportunity there.
       const runDist = dirUp ? price - o.level : o.level - price;
       if (runDist > o.slPoints && levels.length > 0) {
@@ -133,9 +135,7 @@ export function advanceOpportunity(o: Opportunity, price: number, autoTrade = tr
       if (failed) return { ...o, phase: "INVALIDATED", updatedAt: now };
       // Retest held: price bounced off the level and cleared the zone again
       if (beyond && !inZone) {
-        return autoTrade
-          ? { ...o, phase: "CONFIRMED", fillPrice: price, updatedAt: now } // bot enters at market
-          : { ...o, phase: "AWAIT_RETEST", updatedAt: now }; // untaken — wait for next touch
+        return { ...o, phase: "CONFIRMED", confirmedPrice: price, updatedAt: now };
       }
       return { ...o, updatedAt: now };
 
@@ -152,39 +152,13 @@ export function advanceOpportunity(o: Opportunity, price: number, autoTrade = tr
   }
 }
 
-// Manual mode actions
-export function takeTrade(o: Opportunity, price: number): Opportunity {
-  if (o.phase !== "RETEST_ACTIVE" && o.phase !== "AWAIT_RETEST") return o;
-  return { ...o, phase: "CONFIRMED", fillPrice: price, updatedAt: Date.now() };
-}
-
-// Market entry: open the position at the CURRENT price, re-basing SL and TP
-// from it (same lot sizing — SL distance is unchanged)
-export function enterAtMarket(o: Opportunity, price: number, levels: Level[] = []): Opportunity {
-  if (o.phase === "CONFIRMED" || o.phase === "TP_HIT" || o.phase === "SL_HIT" || o.phase === "CLOSED" || o.phase === "INVALIDATED") return o;
-  const dirUp = o.direction === "long";
-  return {
-    ...o,
-    phase: "CONFIRMED",
-    entry: price,
-    fillPrice: price,
-    sl: dirUp ? price - o.slPoints : price + o.slPoints,
-    tp: computeTp(o.direction, price, o.slPoints, levels),
-    updatedAt: Date.now(),
-  };
-}
-
-// Close an open position at the current market price
-export function closeTrade(o: Opportunity, price: number): Opportunity {
-  if (o.phase !== "CONFIRMED") return o;
-  return { ...o, phase: "CLOSED", exitPrice: price, updatedAt: Date.now() };
-}
-
-// Live P/L in dollars from the ACTUAL fill price, minus broker cost (spread).
-// A fresh position correctly starts slightly negative — you pay the spread.
+// Live P/L in dollars from the price at confirmation, minus broker cost
+// (spread) — reference info for sizing/tracking a manually-placed trade, not
+// a real position the app itself holds. A fresh confirm correctly starts
+// slightly negative — you'd pay the spread.
 export function livePnl(o: Opportunity, price: number): number {
   const perPoint = ACCOUNT.riskPerTrade / o.slPoints;
-  const base = o.fillPrice ?? o.entry;
+  const base = o.confirmedPrice ?? o.entry;
   const diff = o.direction === "long" ? price - base : base - price;
   return diff * perPoint - (o.cost ?? 0);
 }
