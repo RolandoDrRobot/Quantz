@@ -660,7 +660,7 @@ export default function BobbyPanel({
         <button
           onClick={analyze}
           disabled={loading || aiLoading}
-          className="flex-1 px-2 py-1.5 rounded-md font-black text-[10px] sm:text-xs tracking-tight transition-all duration-150"
+          className="flex-1 px-3 py-3.5 rounded-md font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -668,8 +668,8 @@ export default function BobbyPanel({
             fontFamily: "var(--font-display)",
           }}
         >
-          <span className="flex items-center justify-center gap-1 whitespace-nowrap">
-            {loading ? <FiRefreshCw size={11} className="animate-spin shrink-0" /> : <FiRefreshCw size={11} className="shrink-0" />}
+          <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+            {loading ? <FiRefreshCw size={15} className="animate-spin shrink-0" /> : <FiRefreshCw size={15} className="shrink-0" />}
             {loading ? "LOADING..." : "NEW ANALYSIS"}
           </span>
         </button>
@@ -677,7 +677,7 @@ export default function BobbyPanel({
           onClick={generateComment}
           disabled={!result || loading || aiLoading}
           title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
-          className="flex-1 px-2 py-1.5 rounded-md font-black text-[10px] sm:text-xs tracking-tight transition-all duration-150"
+          className="flex-1 px-3 py-3.5 rounded-md font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -686,8 +686,8 @@ export default function BobbyPanel({
             fontFamily: "var(--font-display)",
           }}
         >
-          <span className="flex items-center justify-center gap-1 whitespace-nowrap">
-            {aiLoading ? <FiCpu size={11} className="animate-pulse shrink-0" /> : <FiCpu size={11} className="shrink-0" />}
+          <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+            {aiLoading ? <FiCpu size={15} className="animate-pulse shrink-0" /> : <FiCpu size={15} className="shrink-0" />}
             {aiLoading ? "THINKING..." : "TAYLOR'S TAKE"}
           </span>
         </button>
@@ -703,7 +703,7 @@ export default function BobbyPanel({
           onChange={(e) => setChatInput(e.target.value)}
           disabled={!result || chatSending || aiLoading}
           placeholder={result ? "Ask Taylor about this setup…" : "Run an analysis first"}
-          className="flex-1 min-w-0 px-3.5 py-2.5 rounded-md text-base lg:text-sm outline-none"
+          className="flex-1 min-w-0 px-4 py-4 rounded-md text-base lg:text-sm outline-none"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -714,7 +714,7 @@ export default function BobbyPanel({
           type="submit"
           disabled={!chatInput.trim() || !result || chatSending || aiLoading}
           title="Send"
-          className="flex items-center justify-center w-11 h-11 rounded-md shrink-0 transition-all duration-150"
+          className="flex items-center justify-center w-14 h-14 rounded-md shrink-0 transition-all duration-150"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -722,7 +722,7 @@ export default function BobbyPanel({
             opacity: !chatInput.trim() || !result ? 0.5 : 1,
           }}
         >
-          <FiSend size={16} />
+          <FiSend size={20} />
         </button>
       </form>
     </>
@@ -842,12 +842,12 @@ export default function BobbyPanel({
             <div className="flex items-center gap-5 mt-3">
               <ProbRing value={displayProbability} adjusted={isBlended} />
               <div className="flex-1">
-                <div className="text-lg lg:text-base font-semibold" style={{ color: "var(--text-secondary)" }}>
+                <div className="text-lg lg:text-base font-semibold" style={{ color: "var(--text-primary)" }}>
                   {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
                   {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
                 </div>
                 {isBlended && aiTake && (
-                  <div className="text-base lg:text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  <div className="text-base lg:text-sm mt-0.5" style={{ color: "var(--text-primary)" }}>
                     Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
                   </div>
                 )}
@@ -855,7 +855,7 @@ export default function BobbyPanel({
                     recomputes on its own. The opportunity card (or the watching strip
                     above, before one exists) is the live piece that ticks with price. */}
                 {opportunity && (
-                  <div className="text-sm lg:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  <div className="text-sm lg:text-xs mt-1" style={{ color: "var(--text-primary)" }}>
                     Entry-time read · {formatElapsed(now - opportunity.startedAt)}
                   </div>
                 )}
