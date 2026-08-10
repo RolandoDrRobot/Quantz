@@ -7,6 +7,7 @@ import type { RawCandle } from "../api/market/route";
 import type { Level, TradeSetup, BreakoutEvent } from "../lib/analysis";
 import { popVariants, fadeUpVariants, TRANSITION_FAST, TRANSITION_BASE } from "../lib/motionVariants";
 import { fmtPrice } from "../lib/format";
+import { glassChipStyle, glassStyle } from "../lib/glass";
 
 // ─── AXE CAPITAL Palette — navy + brand red ──────────────────────────────────
 const P = {
@@ -463,7 +464,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         {livePrice !== null && (
           <motion.div
             className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-md"
-            style={{ background: "rgba(5,14,26,0.92)", border: `1px solid ${stale ? "rgba(217,140,20,0.4)" : "rgba(194,59,48,0.3)"}` }}
+            style={glassChipStyle(stale ? "#d98c14" : "#c23b30")}
             variants={popVariants}
             initial="hidden"
             animate="visible"
@@ -482,7 +483,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       <button
         onClick={() => setShowLegend(v => !v)}
         className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider"
-        style={{ background: "rgba(5,14,26,0.92)", border: "1px solid rgba(194,59,48,0.2)", color: "#c23b30", cursor: "pointer" }}
+        style={{ ...glassChipStyle("#c23b30"), color: "#c23b30", cursor: "pointer" }}
       >
         {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEGEND
       </button>
@@ -492,7 +493,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
         {showLegend && (
           <motion.div
             className="absolute top-14 right-4 rounded-md p-5 flex flex-col gap-4"
-            style={{ background: "rgba(5,14,26,0.96)", minWidth: 210 }}
+            style={{ ...glassStyle(), minWidth: 210 }}
             variants={fadeUpVariants}
             initial="hidden"
             animate="visible"

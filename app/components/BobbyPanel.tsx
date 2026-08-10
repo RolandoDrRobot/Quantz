@@ -9,12 +9,13 @@ import {
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
-import { ACCOUNT, lotsFor, tradeCostFor, type Market } from "../lib/markets";
+import { ACCOUNT, lotsFor, type Market } from "../lib/markets";
 import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
-import { fmtPrice, fmtMoney, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
+import { fmtPrice, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
 import { buildPredictionProfileSummary, type PredictionProfileSummary } from "../lib/predictionProfile";
+import { glassStyle, glassChipStyle } from "../lib/glass";
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
   GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
@@ -42,7 +43,11 @@ interface ChatMessage {
 function composeTakeMessage(take: AiTake, profile: PredictionProfileSummary | null): string {
   const delta = take.confidenceDelta !== 0 ? ` (${take.confidenceDelta > 0 ? "+" : ""}${take.confidenceDelta})` : "";
   const risk = take.keyRisk ? `\n\nKey risk: ${take.keyRisk}` : "";
-  const record = profile?.hasHistory
+  // hasHistory only means "at least one prediction was ever logged" — with
+  // everything still PENDING (resolvedCount 0) there's nothing to report yet,
+  // and "0 resolved calls · 0% hit rate" reads as a bad track record instead
+  // of just an empty one.
+  const record = profile?.hasHistory && profile.resolvedCount > 0
     ? `\n\nTaylor's record: ${profile.resolvedCount} resolved calls · ${profile.hitRate}% hit rate${profile.invalidatedRate > 0 ? ` · ${profile.invalidatedRate}% invalidated` : ""}`
     : "";
   return `${AI_VERDICT_STYLE[take.verdict].label}${delta} — ${take.note}${risk}${record}`;
@@ -218,12 +223,13 @@ function OpportunityCard({
       break;
   }
 
+  const cardGlass = glassStyle(meta.color);
   return (
     <div
       className="rounded-lg overflow-hidden"
       style={{
-        background: `linear-gradient(180deg, ${meta.color}0d 0%, transparent 40%), var(--bg-panel)`,
-        boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33` : "none",
+        ...cardGlass,
+        boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33, ${cardGlass.boxShadow}` : cardGlass.boxShadow,
       }}
     >
       {/* Header: phase + resolved-outcome badge + check button + direction pill */}
@@ -247,9 +253,8 @@ function OpportunityCard({
               title="Check current opportunity"
               className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
               style={{
-                background: "rgba(255,255,255,0.06)",
+                ...glassChipStyle(),
                 color: "var(--text-secondary)",
-                border: "1px solid rgba(255,255,255,0.1)",
                 cursor: checking ? "not-allowed" : "pointer",
               }}
             >
@@ -258,7 +263,7 @@ function OpportunityCard({
           )}
           <span
             className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[13px] lg:text-[12px] font-black tracking-wider whitespace-nowrap"
-            style={{ background: `${dirColor}1a`, color: dirColor, border: `1px solid ${dirColor}44`, fontFamily: "var(--font-display)" }}
+            style={{ ...glassChipStyle(dirColor), color: dirColor, fontFamily: "var(--font-display)" }}
           >
             {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
             {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {fmtLots(lots)} LOTS
@@ -657,9 +662,8 @@ export default function BobbyPanel({
           disabled={loading || aiLoading}
           className="flex-1 px-2 py-1.5 rounded-md font-black text-[10px] sm:text-xs tracking-tight transition-all duration-150"
           style={{
-            background: "rgba(255,255,255,0.10)",
+            ...glassChipStyle(),
             color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
             cursor: loading || aiLoading ? "not-allowed" : "pointer",
             fontFamily: "var(--font-display)",
           }}
@@ -675,9 +679,8 @@ export default function BobbyPanel({
           title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
           className="flex-1 px-2 py-1.5 rounded-md font-black text-[10px] sm:text-xs tracking-tight transition-all duration-150"
           style={{
-            background: "rgba(255,255,255,0.10)",
+            ...glassChipStyle(),
             color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
             cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
             opacity: !result ? 0.5 : 1,
             fontFamily: "var(--font-display)",
@@ -702,9 +705,8 @@ export default function BobbyPanel({
           placeholder={result ? "Ask Taylor about this setup…" : "Run an analysis first"}
           className="flex-1 min-w-0 px-3.5 py-2.5 rounded-md text-base lg:text-sm outline-none"
           style={{
-            background: "rgba(255,255,255,0.07)",
+            ...glassChipStyle(),
             color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.14)",
             opacity: !result ? 0.6 : 1,
           }}
         />
@@ -714,9 +716,8 @@ export default function BobbyPanel({
           title="Send"
           className="flex items-center justify-center w-11 h-11 rounded-md shrink-0 transition-all duration-150"
           style={{
-            background: "rgba(255,255,255,0.10)",
+            ...glassChipStyle(),
             color: "var(--text-primary)",
-            border: "1px solid rgba(255,255,255,0.5)",
             cursor: !chatInput.trim() || !result || chatSending || aiLoading ? "not-allowed" : "pointer",
             opacity: !chatInput.trim() || !result ? 0.5 : 1,
           }}
@@ -728,7 +729,7 @@ export default function BobbyPanel({
   );
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg)] lg:bg-[var(--bg-panel)]">
+    <div className="flex flex-col h-full" style={{ background: "var(--ambient-gradient)" }}>
 
       {/* Logo + close button — mobile sheet only; the analyze/generate-comment buttons used
           to live in this same row, but on narrow screens their tracked-out labels wrapped to
@@ -736,12 +737,21 @@ export default function BobbyPanel({
           desktop lg:order-first pulls that footer back up to where this row used to be, and
           this row hides there since onClose is only passed for the mobile sheet. */}
       {onClose && (
-        <div className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden">
+        <div
+          className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden"
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01))",
+            borderBottom: "1px solid var(--glass-border)",
+            backdropFilter: "blur(var(--glass-blur))",
+            WebkitBackdropFilter: "blur(var(--glass-blur))",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
           <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto" />
           <button
             onClick={onClose}
             className="p-2.5 rounded-md shrink-0"
-            style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+            style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
           >
             <FiX size={18} />
           </button>
@@ -749,28 +759,12 @@ export default function BobbyPanel({
       )}
 
       <div className="flex-1 overflow-y-auto">
-      {/* Account chips — only market-variable values */}
-      <div className="flex items-center gap-2.5 px-6 py-3 overflow-x-auto">
-        {[
-          ["SL", market.slLabel, "#f2f5f8"],
-          ["LOTS", fmtLots(lots), "#f2f5f8"],
-          ["SPREAD", `~${fmtMoney2(tradeCostFor(market))}`, "#c23b30"],
-          ["RISK", fmtMoney(ACCOUNT.riskPerTrade), "#8a2f2a"],
-        ].map(([k, v, c]) => (
-          <span key={k} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm lg:text-[12px] font-bold whitespace-nowrap"
-            style={{ background: "var(--bg-elevated)" }}>
-            <span style={{ color: "var(--text-muted)" }}>{k}</span>
-            <span style={{ color: c, fontFamily: "var(--font-display)" }}>{v}</span>
-          </span>
-        ))}
-      </div>
-
       {/* Error */}
       <AnimatePresence>
         {error && (
           <motion.div
             className="mx-6 mt-5 p-4 rounded-md text-lg lg:text-base"
-            style={{ background: "rgba(138,47,42,0.1)", color: "#8a2f2a" }}
+            style={{ ...glassStyle("#8a2f2a"), color: "#8a2f2a" }}
             variants={fadeUpVariants}
             initial="hidden"
             animate="visible"
@@ -801,7 +795,7 @@ export default function BobbyPanel({
               <motion.div
                 key="no-setup"
                 className="rounded-lg overflow-hidden"
-                style={{ background: "var(--bg-panel)" }}
+                style={glassStyle()}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
@@ -832,7 +826,7 @@ export default function BobbyPanel({
           {/* Signal + probability gauge — the verdict itself is a snapshot (see the
               "entry-time read" caption below), but the box is never just sitting
               there: the live price + elapsed-time caption both tick every update. */}
-          <div className="rounded-lg px-5 py-4" style={{ background: "var(--bg-panel)" }}>
+          <div className="rounded-lg px-5 py-4" style={glassStyle(sig.color)}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <sig.Icon size={22} color={sig.color} />
@@ -870,7 +864,7 @@ export default function BobbyPanel({
           </div>
 
           {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-            <div className="rounded-lg px-5 py-3 text-lg lg:text-base" style={{ background: "var(--bg-panel)", color: "var(--text-secondary)" }}>
+            <div className="rounded-lg px-5 py-3 text-lg lg:text-base" style={{ ...glassStyle(), color: "var(--text-secondary)" }}>
               Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
             </div>
           )}
@@ -891,8 +885,8 @@ export default function BobbyPanel({
                     className="rounded-lg px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
                     style={
                       m.role === "user"
-                        ? { background: "rgba(255,255,255,0.07)", color: "var(--text-primary)" }
-                        : { background: m.verdict ? AI_VERDICT_STYLE[m.verdict].bg : "rgba(255,255,255,0.03)", color: "var(--text-primary)" }
+                        ? { ...glassChipStyle(), color: "var(--text-primary)" }
+                        : { ...glassChipStyle(m.verdict ? AI_VERDICT_STYLE[m.verdict].color : undefined), color: "var(--text-primary)" }
                     }
                   >
                     {m.role === "taylor" && (
@@ -915,7 +909,7 @@ export default function BobbyPanel({
                     className="flex justify-start"
                     variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
                   >
-                    <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: "rgba(255,255,255,0.03)" }}>
+                    <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
                       <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
                       <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>
                         {aiLoading ? "Taylor's taking a look…" : "Taylor's typing…"}
@@ -937,7 +931,7 @@ export default function BobbyPanel({
               analyze/take buttons + chat bar sit right under Taylor's thread instead of
               pinned to the panel edge, since there's no thumb-reach constraint here. */}
           {!onClose && (
-            <div className="rounded-lg px-5 py-4 flex flex-col gap-3" style={{ background: "var(--bg-panel)" }}>
+            <div className="rounded-lg px-5 py-4 flex flex-col gap-3" style={glassStyle()}>
               {footerControls}
             </div>
           )}
@@ -947,13 +941,14 @@ export default function BobbyPanel({
             {result.warnings.length > 0 && (
               <motion.div
                 className="rounded-lg overflow-hidden"
+                style={glassStyle("#8a2f2a")}
                 variants={fadeUpVariants}
                 initial="hidden"
                 animate="visible"
                 exit="hidden"
                 transition={TRANSITION_BASE}
               >
-                <div className="flex items-center gap-1.5 py-2.5 text-base lg:text-sm font-black tracking-widest" style={{ background: "rgba(138,47,42,0.1)", color: "var(--text-primary)" }}>
+                <div className="flex items-center gap-1.5 py-2.5 text-base lg:text-sm font-black tracking-widest" style={{ color: "var(--text-primary)" }}>
                   <FiAlertTriangle size={13} color="#8a2f2a" /> WARNINGS — READ BEFORE ENTERING
                 </div>
                 <div className="flex flex-col">
@@ -961,7 +956,7 @@ export default function BobbyPanel({
                     <motion.div
                       key={i}
                       className="flex gap-2.5 py-3"
-                      style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none", background: "var(--bg-elevated)" }}
+                      style={{ borderTop: i > 0 ? "1px solid var(--glass-border)" : "none" }}
                       variants={fadeUpVariants}
                       initial="hidden"
                       animate="visible"
@@ -997,7 +992,13 @@ export default function BobbyPanel({
       {onClose && (
         <div
           className="flex flex-col gap-2 px-4 py-3 shrink-0"
-          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+          style={{
+            background: "linear-gradient(0deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01))",
+            borderTop: "1px solid var(--glass-border)",
+            backdropFilter: "blur(var(--glass-blur))",
+            WebkitBackdropFilter: "blur(var(--glass-blur))",
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          }}
         >
           {footerControls}
         </div>

@@ -19,6 +19,7 @@ import { tradeCostFor, lotsFor } from "../lib/markets";
 import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
 import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
+import { glassStyle, glassChipStyle } from "../lib/glass";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum", "ethbtc"];
 
@@ -130,14 +131,14 @@ function pickChartCandles(c1m: RawCandle[], c5m: RawCandle[], slPoints: number):
 
 function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (tf: Timeframe) => void }) {
   return (
-    <div className="flex items-center rounded-md overflow-hidden shrink-0" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+    <div className="flex items-center rounded-md overflow-hidden shrink-0" style={glassChipStyle()}>
       {TIMEFRAMES.map(tf => (
         <button
           key={tf.key}
           onClick={() => onChange(tf.key)}
           className="px-2.5 py-1.5 text-[11px] font-black tracking-wider"
           style={{
-            background: value === tf.key ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)",
+            background: value === tf.key ? "rgba(255,255,255,0.14)" : "transparent",
             color: value === tf.key ? "var(--text-primary)" : "var(--text-muted)",
             fontFamily: "var(--font-display)",
             cursor: "pointer",
@@ -576,10 +577,9 @@ export default function Dashboard() {
                 className="absolute left-4 right-4 rounded-lg p-4 z-10"
                 style={{
                   top: "3.5rem",
-                  background: "rgba(5,14,26,0.96)",
+                  ...glassStyle(opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"),
                   border: `2px solid ${opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"}`,
                   boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(28,125,76,0.35)" : "rgba(138,47,42,0.35)"}`,
-                  backdropFilter: "blur(8px)",
                 }}
                 variants={popVariants}
                 initial="hidden"
@@ -663,9 +663,8 @@ export default function Dashboard() {
                     onClick={() => handleMarketChange(key)}
                     className="flex-1 py-4 rounded-md text-base font-black tracking-wider transition-all duration-200"
                     style={{
-                      background: active ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.06)",
+                      ...glassChipStyle(active ? m.color : undefined),
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      border: `1px solid ${active ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.08)"}`,
                       boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
                       fontFamily: "var(--font-display)",
                       cursor: "pointer",
@@ -686,7 +685,7 @@ export default function Dashboard() {
               <motion.button
                 onClick={() => setNewsOpen(true)}
                 className="overflow-hidden rounded-md flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
-                style={{ background: "rgba(5,14,26,0.7)", cursor: "pointer" }}
+                style={{ ...glassChipStyle(), cursor: "pointer" }}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
@@ -769,9 +768,8 @@ export default function Dashboard() {
               onClick={() => setTaylorOpen(true)}
               className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
               style={{
-                background: "rgba(255,255,255,0.06)",
+                ...glassChipStyle(cfg.color),
                 color: "var(--text-primary)",
-                border: "1px solid rgba(255,255,255,0.1)",
                 cursor: "pointer",
               }}
               title="Taylor — open panel"
@@ -786,7 +784,7 @@ export default function Dashboard() {
             {tickerItems.length > 0 && (
               <motion.div
                 className="overflow-hidden rounded-md"
-                style={{ background: "rgba(5,14,26,0.7)" }}
+                style={glassChipStyle()}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
@@ -852,7 +850,12 @@ export default function Dashboard() {
         {/* ── Header: título + reloj ── */}
         <div
           className="flex items-center justify-between px-7 py-4 shrink-0"
-          style={{ background: "var(--bg-panel)", borderBottom: "1px solid var(--gold-border)" }}
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))",
+            borderBottom: "1px solid var(--glass-border)",
+            backdropFilter: "blur(var(--glass-blur))",
+            WebkitBackdropFilter: "blur(var(--glass-blur))",
+          }}
         >
           <div className="flex items-center gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
@@ -865,7 +868,12 @@ export default function Dashboard() {
         {/* ── Top bar ── */}
         <div
           className="flex items-center gap-2 px-6 py-3 shrink-0 overflow-x-auto"
-          style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)" }}
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))",
+            borderBottom: "1px solid var(--glass-border)",
+            backdropFilter: "blur(var(--glass-blur))",
+            WebkitBackdropFilter: "blur(var(--glass-blur))",
+          }}
         >
           {MARKET_KEYS.map(key => {
             const m = MARKETS[key];
@@ -876,9 +884,8 @@ export default function Dashboard() {
                 onClick={() => handleMarketChange(key)}
                 className="px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
-                  background: active ? "rgba(255,255,255,0.10)" : "transparent",
+                  ...glassChipStyle(active ? m.color : undefined),
                   color: active ? "var(--text-primary)" : "var(--text-muted)",
-                  border: `1px solid ${active ? "rgba(255,255,255,0.5)" : "transparent"}`,
                   boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
                   cursor: "pointer",
                   fontFamily: "var(--font-display)",
@@ -892,7 +899,15 @@ export default function Dashboard() {
         </div>
 
         {/* ── Timeframe selector + news marquee ── */}
-        <div className="w-full flex items-center gap-3 px-6 py-2 shrink-0" style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--gold-border)" }}>
+        <div
+          className="w-full flex items-center gap-3 px-6 py-2 shrink-0"
+          style={{
+            background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))",
+            borderBottom: "1px solid var(--glass-border)",
+            backdropFilter: "blur(var(--glass-blur))",
+            WebkitBackdropFilter: "blur(var(--glass-blur))",
+          }}
+        >
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />
           <AnimatePresence>
           {newsTicker.length > 0 && (
@@ -933,7 +948,7 @@ export default function Dashboard() {
           {/* Taylor + Bobby panel — BobbyPanel manages its own internal scroll now */}
           <aside
             className="shrink-0 overflow-hidden flex flex-col"
-            style={{ width: "46%", borderLeft: "1px solid rgba(28,125,76,0.2)" }}
+            style={{ width: "46%", borderLeft: "1px solid var(--glass-border)" }}
           >
             <BobbyPanel
               market={MARKETS[market]}

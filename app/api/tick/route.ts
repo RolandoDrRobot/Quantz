@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
-// Lightweight live-price poll for markets with no free real-time WebSocket
-// (currently Gold — Twelve Data's free-tier XAU/USD feed was found frozen for
-// 40+ minutes at a time, $50+ stale vs. the real spot price). Yahoo's chart
-// endpoint returns `regularMarketPrice` in `meta` regardless of the requested
-// range/interval, so `1d/1d` keeps the payload tiny (~1KB) for frequent polling.
+// Lightweight live-price poll. Primary feed for markets with no free
+// real-time WebSocket (Gold — Twelve Data's free-tier XAU/USD feed was found
+// frozen for 40+ minutes at a time, $50+ stale vs. the real spot price), and
+// also Dashboard's independent safety-net poll for every other market (see
+// Dashboard.tsx's hasOwnTickPollRef) so a stalled WS/poll feed still keeps
+// the opportunity state machine moving. Yahoo's chart endpoint returns
+// `regularMarketPrice` in `meta` regardless of the requested range/interval,
+// so `1d/1d` keeps the payload tiny (~1KB) for frequent polling.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get("symbol");

@@ -8,6 +8,7 @@ import type { NewsArticle, NewsImpact } from "../lib/news";
 import { fmtTimeAgo } from "../lib/news";
 import { MARKETS, type MarketKey } from "../lib/markets";
 import { backdropVariants, modalVariants, fadeUpVariants, TRANSITION_BACKDROP, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
+import { glassStyle, glassChipStyle } from "../lib/glass";
 
 const PAGE_SIZE = 15;
 
@@ -24,7 +25,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
       target="_blank"
       rel="noopener noreferrer"
       className="flex gap-3 rounded-lg p-3 transition-colors"
-      style={{ background: "var(--bg-card)" }}
+      style={glassChipStyle(IMPACT_META[article.impact].color !== "var(--text-muted)" ? IMPACT_META[article.impact].color : undefined)}
       variants={fadeUpVariants}
       initial="hidden"
       animate="visible"
@@ -139,7 +140,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
       {open && (
         <motion.div
           className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6"
-          style={{ background: "rgba(0,0,0,0.75)" }}
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
           onClick={onClose}
           variants={backdropVariants}
           initial="hidden"
@@ -149,7 +150,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
         >
           <motion.div
             className="w-full lg:max-w-2xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
-            style={{ background: "var(--bg-panel)", border: "1px solid var(--gold-border)", boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
+            style={{ ...glassStyle(), boxShadow: "0 -8px 60px rgba(0,0,0,0.5), var(--glass-shadow)" }}
             onClick={e => e.stopPropagation()}
             variants={modalVariants}
             initial="hidden"
@@ -163,7 +164,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--gold-border)" }}>
+            <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--glass-border)" }}>
               <div>
                 <div className="flex items-center gap-2 font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
                   <LuNewspaper size={18} /> NEWS
@@ -176,14 +177,14 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                   disabled={loading}
                   title="Refresh news"
                   className="flex items-center justify-center w-9 h-9 rounded-md"
-                  style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: loading ? "not-allowed" : "pointer" }}
+                  style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: loading ? "not-allowed" : "pointer" }}
                 >
                   <FiRefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 </button>
                 <button
                   onClick={onClose}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold"
-                  style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
+                  style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
                 >
                   <FiX size={13} /> CLOSE
                 </button>
@@ -216,7 +217,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                     <button
                       onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
                       className="mt-2 py-3 rounded-md text-sm font-bold tracking-wider"
-                      style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
+                      style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
                     >
                       LOAD MORE
                     </button>
