@@ -179,18 +179,77 @@ export function Clock({ is24h }: { is24h: boolean }) {
 }
 
 
+// ── Shared probability row — the ring + factor breakdown, small and secondary
+//    now that it lives inside the same card as the phase/direction header
+//    instead of its own separate box. `showSignalLabel` skips repeating
+//    LONG/SHORT/WAIT when a direction pill is already shown elsewhere on
+//    the same card (the opportunity header) — only the no-setup card (no
+//    direction pill of its own) needs the label here to know the bias.
+function ProbRow({
+  sig, displayProbability, isBlended, aiTake, result, opportunity, now, showSignalLabel,
+}: {
+  sig: { label: string; color: string; Icon: IconType };
+  displayProbability: number;
+  isBlended: boolean;
+  aiTake: AiTake | null;
+  result: AnalysisResult;
+  opportunity: Opportunity | null;
+  now: number;
+  showSignalLabel: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-5 py-3.5">
+      <ProbRing value={displayProbability} adjusted={isBlended} color={sig.color} />
+      <div className="flex-1 min-w-0">
+        {showSignalLabel && (
+          <div className="flex items-center gap-1.5">
+            <sig.Icon size={14} color={sig.color} />
+            <span className="text-sm font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
+          </div>
+        )}
+        <div className="text-sm lg:text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
+          {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
+        </div>
+        {isBlended && aiTake && (
+          <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
+          </div>
+        )}
+        {/* This verdict is a snapshot from when the analysis ran — it never
+            recomputes on its own; the rest of this card is the live piece
+            that ticks with price. */}
+        {opportunity && (
+          <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            Entry-time read · {formatElapsed(now - opportunity.startedAt)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── The opportunity card — everything about the tracked call in one place ────
 // No trade is ever taken in-app — this tracks whether Taylor's call (TP
 // before SL) would have played out. RISK/SPREAD/LOTS and the live $ figure
-// stay, on purpose: reference numbers for placing the trade manually.
+// stay, on purpose: reference numbers for placing the trade manually. Also
+// folds in the probability/signal read (ProbRow) — that used to be its own
+// separate card right below this one; merged so the whole picture for this
+// setup lives in one compact surface instead of two.
 function OpportunityCard({
-  opp, price, lots, onCheckOpportunity, checking,
+  opp, price, lots, onCheckOpportunity, checking, sig, displayProbability, isBlended, aiTake, result, now,
 }: {
   opp: Opportunity;
   price: number | null;
   lots: number;
   onCheckOpportunity: () => void;
   checking: boolean;
+  sig: { label: string; color: string; Icon: IconType };
+  displayProbability: number;
+  isBlended: boolean;
+  aiTake: AiTake | null;
+  result: AnalysisResult;
+  now: number;
 }) {
   // Values come from the LIVE opportunity — it can re-anchor to closer levels
   const reward = Math.round((Math.abs(opp.tp - opp.entry) / opp.slPoints) * ACCOUNT.riskPerTrade);
@@ -269,23 +328,30 @@ function OpportunityCard({
       </div>
 
       {/* Status */}
-      <div className="px-5 py-3">
+      <div className="px-5 pt-3">
         <p className="text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>{statusLine}</p>
       </div>
+
+      {/* Probability read — no signal label here, the direction pill above
+          already says LONG/SHORT/WAIT. */}
+      <ProbRow
+        sig={sig} displayProbability={displayProbability} isBlended={isBlended} aiTake={aiTake}
+        result={result} opportunity={opp} now={now} showSignalLabel={false}
+      />
 
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3">
         <div className="px-5 py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
-          <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
+          <div className="text-base lg:text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
         </div>
         <div className="px-5 py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · {fmtSignedMoney(-ACCOUNT.riskPerTrade)}</div>
-          <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
+          <div className="text-base lg:text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
         </div>
         <div className="px-5 py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · {fmtSignedMoney(reward)}</div>
-          <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
+          <div className="text-base lg:text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
         </div>
       </div>
     </div>
@@ -783,6 +849,10 @@ export default function BobbyPanel({
             );
           })()}
 
+          {/* Opportunity + signal read, merged into one compact card — this used to
+              be two separate boxes stacked on top of each other (the tracked-call
+              card and a standalone probability gauge). ProbRow folds the ring/
+              factor breakdown into whichever card is showing. */}
           <AnimatePresence mode="wait">
             {opportunity ? (
               <motion.div key={opportunity.phase} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
@@ -792,6 +862,12 @@ export default function BobbyPanel({
                   lots={lots}
                   onCheckOpportunity={onCheckOpportunity}
                   checking={checkingOpportunity}
+                  sig={sig}
+                  displayProbability={displayProbability}
+                  isBlended={isBlended}
+                  aiTake={aiTake}
+                  result={result}
+                  now={now}
                 />
               </motion.div>
             ) : (
@@ -811,11 +887,15 @@ export default function BobbyPanel({
                     NO SETUP YET
                   </span>
                 </div>
-                <div className="px-5 py-3.5 text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+                <div className="px-5 pt-3 text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>
                   {nearestLevel
                     ? `Watching ${nearestLevel.type} at ${fmtPrice(nearestLevel.price)} · ${fmtPrice(Math.abs(livePrice! - nearestLevel.price))} pts away`
                     : "No tradeable setup — run a new analysis once the market moves."}
                 </div>
+                <ProbRow
+                  sig={sig} displayProbability={displayProbability} isBlended={isBlended} aiTake={aiTake}
+                  result={result} opportunity={null} now={now} showSignalLabel
+                />
                 {livePrice !== null && (
                   <div className="flex items-center gap-1.5 px-5 pb-4 text-[12px] lg:text-[11px] font-bold tracking-widest" style={{ color: "var(--text-secondary)" }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#1c7d4c" }} />
@@ -825,46 +905,6 @@ export default function BobbyPanel({
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Signal + probability gauge — the verdict itself is a snapshot (see the
-              "entry-time read" caption below), but the box is never just sitting
-              there: the live price + elapsed-time caption both tick every update. */}
-          <div className="rounded-md px-4 py-3" style={glassStyle(sig.color)}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <sig.Icon size={18} color={sig.color} />
-                <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
-              </div>
-              {livePrice !== null && (
-                <div className="flex items-center gap-1.5 text-[12px] lg:text-[11px] font-bold tracking-widest shrink-0" style={{ color: "var(--text-secondary)" }}>
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#1c7d4c" }} />
-                  LIVE · {fmtPrice(livePrice)}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3 mt-2">
-              <ProbRing value={displayProbability} adjusted={isBlended} color={sig.color} />
-              <div className="flex-1">
-                <div className="text-base lg:text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-                  {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
-                  {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
-                </div>
-                {isBlended && aiTake && (
-                  <div className="text-sm lg:text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                    Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
-                  </div>
-                )}
-                {/* This verdict is a snapshot from when the analysis ran — it never
-                    recomputes on its own. The opportunity card (or the watching strip
-                    above, before one exists) is the live piece that ticks with price. */}
-                {opportunity && (
-                  <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                    Entry-time read · {formatElapsed(now - opportunity.startedAt)}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
 
           {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
             <div className="rounded-md px-5 py-3 text-lg lg:text-base" style={{ ...glassStyle(), color: "var(--text-secondary)" }}>
