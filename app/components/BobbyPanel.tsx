@@ -6,7 +6,7 @@ import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiSend,
-  FiBarChart2, FiBookOpen, FiHeart,
+  FiBarChart2, FiBookOpen, FiHeart, FiClock,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -17,6 +17,7 @@ import { fmtPrice, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
 import { buildPredictionProfileSummary, type PredictionProfileSummary } from "../lib/predictionProfile";
 import { glassStyle, glassChipStyle } from "../lib/glass";
+import { getSessionInfo, sessionColor } from "../lib/sessions";
 import JournalPanel from "./JournalPanel";
 import WendyPanel from "./WendyPanel";
 
@@ -753,6 +754,34 @@ export default function BobbyPanel({
       <AnimatePresence mode="wait">
       {result && sig ? (
         <motion.div key="result" className="p-6 flex flex-col gap-5" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
+
+          {/* Session intelligence — specific to this exact instrument, not a
+              generic world-clock. `now` (ticking every 30s) is what keeps this
+              re-rendering; getSessionInfo() itself reads the real clock fresh
+              on every call. */}
+          {(() => {
+            void now; // re-render dependency only — getSessionInfo reads the clock itself
+            const session = getSessionInfo(market.key);
+            const color = sessionColor(session.quality);
+            return (
+              <div className="rounded-md px-5 py-3.5" style={glassStyle(session.quality === "good" ? color : undefined)}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FiClock size={15} style={{ color }} className="shrink-0" />
+                    <span className="font-black text-sm tracking-wider truncate" style={{ color, fontFamily: "var(--font-display)" }}>
+                      {session.label}
+                    </span>
+                  </div>
+                  {session.nextLabel && (
+                    <span className="text-[11px] font-bold tracking-wide shrink-0" style={{ color: "var(--text-muted)" }}>
+                      {session.nextLabel}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[13px] leading-snug mt-1.5" style={{ color: "var(--text-secondary)" }}>{session.note}</p>
+              </div>
+            );
+          })()}
 
           <AnimatePresence mode="wait">
             {opportunity ? (

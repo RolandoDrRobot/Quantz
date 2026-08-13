@@ -12,6 +12,7 @@ export const ACCOUNT = {
 
 export const MARKETS = {
   nasdaq: {
+    key: "nasdaq",
     symbol: "^NDX",
     tdSymbol: "NDX",
     coinbaseProduct: null,
@@ -26,6 +27,7 @@ export const MARKETS = {
     color: "#1c7d4c",
   },
   dowjones: {
+    key: "dowjones",
     symbol: "^DJI",
     tdSymbol: "DJI",
     coinbaseProduct: null,
@@ -40,6 +42,7 @@ export const MARKETS = {
     color: "#3a72c9",
   },
   gold: {
+    key: "gold",
     symbol: "GC=F",
     // Twelve Data's free-tier XAU/USD feed (candles + WS) was found frozen
     // for 40+ minutes at a time, $50+ stale vs. the real spot price — that's
@@ -59,6 +62,7 @@ export const MARKETS = {
     color: "#c9a838",
   },
   bitcoin: {
+    key: "bitcoin",
     symbol: "BTC-USD",
     tdSymbol: "BTC/USD",
     // Twelve Data's free tier never reports volume for crypto, and Binance
