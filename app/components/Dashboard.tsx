@@ -579,7 +579,6 @@ export default function Dashboard() {
                   top: "3.5rem",
                   ...glassStyle(opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"),
                   border: `2px solid ${opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"}`,
-                  boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(28,125,76,0.35)" : "rgba(138,47,42,0.35)"}`,
                 }}
                 variants={popVariants}
                 initial="hidden"
@@ -665,7 +664,6 @@ export default function Dashboard() {
                     style={{
                       ...glassChipStyle(active ? m.color : undefined),
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
                       fontFamily: "var(--font-display)",
                       cursor: "pointer",
                     }}
@@ -851,10 +849,8 @@ export default function Dashboard() {
         <div
           className="flex items-center justify-between px-7 py-4 shrink-0"
           style={{
-            background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))",
+            background: "var(--bg-panel)",
             borderBottom: "1px solid var(--glass-border)",
-            backdropFilter: "blur(var(--glass-blur))",
-            WebkitBackdropFilter: "blur(var(--glass-blur))",
           }}
         >
           <div className="flex items-center gap-4">
@@ -869,10 +865,8 @@ export default function Dashboard() {
         <div
           className="flex items-center gap-2 px-6 py-3 shrink-0 overflow-x-auto"
           style={{
-            background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))",
+            background: "var(--bg-elevated)",
             borderBottom: "1px solid var(--glass-border)",
-            backdropFilter: "blur(var(--glass-blur))",
-            WebkitBackdropFilter: "blur(var(--glass-blur))",
           }}
         >
           {MARKET_KEYS.map(key => {
@@ -886,7 +880,6 @@ export default function Dashboard() {
                 style={{
                   ...glassChipStyle(active ? m.color : undefined),
                   color: active ? "var(--text-primary)" : "var(--text-muted)",
-                  boxShadow: active ? "0 0 14px rgba(255,255,255,0.18)" : "none",
                   cursor: "pointer",
                   fontFamily: "var(--font-display)",
                 }}
@@ -902,10 +895,8 @@ export default function Dashboard() {
         <div
           className="w-full flex items-center gap-3 px-6 py-2 shrink-0"
           style={{
-            background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))",
+            background: "var(--bg-elevated)",
             borderBottom: "1px solid var(--glass-border)",
-            backdropFilter: "blur(var(--glass-blur))",
-            WebkitBackdropFilter: "blur(var(--glass-blur))",
           }}
         >
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />

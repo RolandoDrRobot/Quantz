@@ -140,7 +140,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
       {open && (
         <motion.div
           className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6"
-          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+          style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={onClose}
           variants={backdropVariants}
           initial="hidden"
@@ -150,7 +150,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
         >
           <motion.div
             className="w-full lg:max-w-2xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
-            style={{ ...glassStyle(), boxShadow: "0 -8px 60px rgba(0,0,0,0.5), var(--glass-shadow)" }}
+            style={{ ...glassStyle(), boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
             onClick={e => e.stopPropagation()}
             variants={modalVariants}
             initial="hidden"

@@ -32,27 +32,16 @@
   --font-display: var(--font-josefin), sans-serif;
   --font-body:    var(--font-josefin), sans-serif;
 
-  /* ── Glass — "Nosedive" frosted-glass language (Black Mirror's social-
-     rating app: soft gradient sheens, blurred translucent cards, faint
-     bright edges) built from THIS app's navy/red palette instead of
-     Nosedive's pastels. See app/lib/glass.ts for the shared style builders
-     that use these tokens — accent-tinted surfaces (phase/verdict/signal
-     color) compute their own gradient there rather than hardcoding one
-     fixed tint here. */
-  --glass-border:  rgba(255,255,255,0.14);
-  --glass-shadow:  0 8px 32px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.07);
-  --glass-blur:    18px;
-
-  /* Ambient wash — backdrop-blur has nothing to blur (and so nothing to show)
-     over a single flat color, so every glass surface needs this varied
-     gradient behind it, not flat --bg. Reusable as one token so panels
-     mounted over the chart (the mobile sheet, the desktop aside) can apply
-     the exact same wash the page itself uses, not just the html/body root. */
-  --ambient-gradient:
-    radial-gradient(ellipse 70% 50% at 15% -10%, rgba(255,255,255,0.10), transparent 60%),
-    radial-gradient(ellipse 60% 45% at 100% 0%,  rgba(28,125,76,0.10), transparent 60%),
-    radial-gradient(ellipse 55% 40% at 100% 100%, rgba(255,255,255,0.06), transparent 55%),
-    var(--bg);
+  /* ── Surfaces — flat, sober, corporate. Replaces the earlier "Nosedive"
+     frosted-glass look (gradient sheens + blur) with plain solid panels and
+     a thin neutral border, same navy/red/white palette. Kept the --glass-*
+     names since app/lib/glass.ts's glassStyle()/glassChipStyle() are called
+     in ~50 places across the app — only what they produce changed, not
+     their names or call sites. --ambient-gradient is kept as a flat alias
+     to --bg for the same reason (BobbyPanel references it directly). */
+  --glass-border:  rgba(255,255,255,0.10);
+  --glass-shadow:  none;
+  --ambient-gradient: var(--bg);
 }
 
 html, body {
@@ -60,8 +49,7 @@ html, body {
   overflow: hidden;
   color: var(--text-primary);
   font-family: var(--font-body);
-  background: var(--ambient-gradient);
-  background-attachment: fixed;
+  background: var(--bg);
 }
 
 /* Bigger type on mobile — Tailwind's text-* scale and most spacing utilities

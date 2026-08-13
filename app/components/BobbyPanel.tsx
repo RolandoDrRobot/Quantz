@@ -232,14 +232,10 @@ function OpportunityCard({
       break;
   }
 
-  const cardGlass = glassStyle(meta.color);
   return (
     <div
       className="rounded-lg overflow-hidden"
-      style={{
-        ...cardGlass,
-        boxShadow: opp.phase === "RETEST_ACTIVE" ? `0 0 20px ${meta.color}33, ${cardGlass.boxShadow}` : cardGlass.boxShadow,
-      }}
+      style={glassStyle(meta.color)}
     >
       {/* Header: phase + resolved-outcome badge + check button + direction pill */}
       <div className="flex items-center justify-between gap-2 px-5 pt-4">
@@ -750,10 +746,8 @@ export default function BobbyPanel({
         <div
           className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden"
           style={{
-            background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01))",
+            background: "var(--bg-panel)",
             borderBottom: "1px solid var(--glass-border)",
-            backdropFilter: "blur(var(--glass-blur))",
-            WebkitBackdropFilter: "blur(var(--glass-blur))",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
@@ -775,10 +769,8 @@ export default function BobbyPanel({
       <div
         className="flex items-center gap-1.5 px-4 py-2.5 shrink-0"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))",
+          background: "var(--bg-panel)",
           borderBottom: "1px solid var(--glass-border)",
-          backdropFilter: "blur(var(--glass-blur))",
-          WebkitBackdropFilter: "blur(var(--glass-blur))",
         }}
       >
         {TABS.map(tab => {
@@ -1021,10 +1013,8 @@ export default function BobbyPanel({
         <div
           className="flex flex-col gap-2 px-4 py-3 shrink-0"
           style={{
-            background: "linear-gradient(0deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01))",
+            background: "var(--bg-panel)",
             borderTop: "1px solid var(--glass-border)",
-            backdropFilter: "blur(var(--glass-blur))",
-            WebkitBackdropFilter: "blur(var(--glass-blur))",
             paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
           }}
         >
