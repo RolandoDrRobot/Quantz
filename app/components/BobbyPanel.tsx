@@ -6,6 +6,7 @@ import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiSend,
+  FiBarChart2, FiBookOpen, FiCheckSquare, FiHeart,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -16,16 +17,27 @@ import { fmtPrice, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
 import { buildPredictionProfileSummary, type PredictionProfileSummary } from "../lib/predictionProfile";
 import { glassStyle, glassChipStyle } from "../lib/glass";
+import JournalPanel from "./JournalPanel";
+import ChecklistPanel from "./ChecklistPanel";
+import WendyPanel from "./WendyPanel";
+
+export type PanelTab = "analysis" | "journal" | "checklist" | "wendy";
+const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
+  { key: "analysis",  label: "ANALYSIS",  Icon: FiBarChart2 },
+  { key: "journal",   label: "JOURNAL",   Icon: FiBookOpen },
+  { key: "checklist", label: "CHECKLIST", Icon: FiCheckSquare },
+  { key: "wendy",     label: "WENDY",     Icon: FiHeart },
+];
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
   GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
   GO_SHORT: { label: "SHORT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.07)",    border: "rgba(138,47,42,0.35)",    Icon: FiTrendingDown },
-  WAIT:     { label: "WAIT", color: "#c23b30", bg: "rgba(194,59,48,0.07)",  border: "rgba(194,59,48,0.30)",  Icon: FiPauseCircle },
+  WAIT:     { label: "WAIT", color: "#f2f5f8", bg: "rgba(255,255,255,0.06)",  border: "rgba(255,255,255,0.24)",  Icon: FiPauseCircle },
 };
 
 const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string; bg: string; border: string }> = {
   CONFIRM: { label: "TAYLOR CONFIRMS", color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",  border: "rgba(28,125,76,0.35)" },
-  CAUTION: { label: "TAYLOR: CAUTION", color: "#c23b30", bg: "rgba(194,59,48,0.07)",  border: "rgba(194,59,48,0.30)" },
+  CAUTION: { label: "TAYLOR: CAUTION", color: "#f2f5f8", bg: "rgba(255,255,255,0.06)",  border: "rgba(255,255,255,0.24)" },
   REJECT:  { label: "TAYLOR: REJECT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
 };
 
@@ -55,8 +67,8 @@ function composeTakeMessage(take: AiTake, profile: PredictionProfileSummary | nu
 
 export const PHASE_META: Record<OppPhase, { label: string; color: string }> = {
   HUNTING:       { label: "HUNTING BREAKOUT",           color: "#9ba5b2" },
-  AWAIT_RETEST:  { label: "BREAKOUT — AWAITING RETEST", color: "#c23b30" },
-  RETEST_ACTIVE: { label: "RETEST ACTIVE",              color: "#d9584b" },
+  AWAIT_RETEST:  { label: "BREAKOUT — AWAITING RETEST", color: "#f2f5f8" },
+  RETEST_ACTIVE: { label: "RETEST ACTIVE",              color: "#ffffff" },
   CONFIRMED:     { label: "TRACKING LIVE",              color: "#1c7d4c" },
   TP_HIT:        { label: "TAKE PROFIT",                color: "#1c7d4c" },
   SL_HIT:        { label: "STOP LOSS",                  color: "#8a2f2a" },
@@ -66,7 +78,7 @@ export const PHASE_META: Record<OppPhase, { label: string; color: string }> = {
 
 function probColor(p: number) {
   if (p >= 70) return "#1c7d4c";
-  if (p >= 45) return "#c23b30";
+  if (p >= 45) return "#f2f5f8";
   return "#8a2f2a";
 }
 function probLabel(p: number) {
@@ -358,6 +370,7 @@ export default function BobbyPanel({
   market, analysis, onAnalysis, opportunity, livePrice,
   onCheckOpportunity, checkingOpportunity, onClose,
 }: Props) {
+  const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -758,6 +771,41 @@ export default function BobbyPanel({
         </div>
       )}
 
+      {/* Tab bar — Analysis (Taylor's read + chat), Journal (manual, editable trade
+          ledger — separate from the automatic prediction log), Checklist (pre-trade
+          ritual against the actual strategy rules), Wendy (psychology check-in, not
+          market analysis). Always visible on both mobile and desktop. */}
+      <div
+        className="flex items-center gap-1.5 px-4 py-2.5 shrink-0"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))",
+          borderBottom: "1px solid var(--glass-border)",
+          backdropFilter: "blur(var(--glass-blur))",
+          WebkitBackdropFilter: "blur(var(--glass-blur))",
+        }}
+      >
+        {TABS.map(tab => {
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-md text-[10px] font-black tracking-wide transition-all duration-150"
+              style={{
+                ...glassChipStyle(active ? "#f2f5f8" : undefined),
+                color: active ? "var(--text-primary)" : "var(--text-muted)",
+                cursor: "pointer",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              <tab.Icon size={16} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "analysis" && (
       <div className="flex-1 overflow-y-auto">
       {/* Error */}
       <AnimatePresence>
@@ -936,44 +984,6 @@ export default function BobbyPanel({
             </div>
           )}
 
-          {/* Warnings — solo si existen */}
-          <AnimatePresence>
-            {result.warnings.length > 0 && (
-              <motion.div
-                className="rounded-lg overflow-hidden"
-                style={glassStyle("#8a2f2a")}
-                variants={fadeUpVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                transition={TRANSITION_BASE}
-              >
-                <div className="flex items-center gap-1.5 py-2.5 text-base lg:text-sm font-black tracking-widest" style={{ color: "var(--text-primary)" }}>
-                  <FiAlertTriangle size={13} color="#8a2f2a" /> WARNINGS — READ BEFORE ENTERING
-                </div>
-                <div className="flex flex-col">
-                  {result.warnings.map((w, i) => (
-                    <motion.div
-                      key={i}
-                      className="flex gap-2.5 py-3"
-                      style={{ borderTop: i > 0 ? "1px solid var(--glass-border)" : "none" }}
-                      variants={fadeUpVariants}
-                      initial="hidden"
-                      animate="visible"
-                      transition={{ ...TRANSITION_FAST, delay: i * 0.04 }}
-                    >
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: w.severity === "high" ? "#8a2f2a" : "#c23b30" }} />
-                      <div className="text-[18px] lg:text-[16px] leading-snug">
-                        <span className="font-bold" style={{ color: w.severity === "high" ? "#8a2f2a" : "#c23b30" }}>{w.title}: </span>
-                        <span style={{ color: "var(--text-primary)" }}>{w.detail}</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
         </motion.div>
       ) : !loading && !error ? (
         <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-primary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
@@ -985,11 +995,32 @@ export default function BobbyPanel({
       </AnimatePresence>
 
       </div>
+      )}
+
+      {activeTab === "journal" && (
+        <div className="flex-1 overflow-y-auto">
+          <JournalPanel />
+        </div>
+      )}
+
+      {activeTab === "checklist" && (
+        <div className="flex-1 overflow-y-auto">
+          <ChecklistPanel />
+        </div>
+      )}
+
+      {activeTab === "wendy" && (
+        <div className="flex-1 overflow-hidden">
+          <WendyPanel />
+        </div>
+      )}
 
       {/* Mobile only — pinned to the bottom so the controls stay in thumb reach.
           Desktop renders the same footerControls inline, right under Taylor's
-          thread instead (see the block right before the Warnings section). */}
-      {onClose && (
+          thread instead (see the block right before the Warnings section).
+          Analysis tab only — Journal/Checklist have their own in-content controls,
+          Wendy carries her own input bar inside WendyPanel. */}
+      {onClose && activeTab === "analysis" && (
         <div
           className="flex flex-col gap-2 px-4 py-3 shrink-0"
           style={{

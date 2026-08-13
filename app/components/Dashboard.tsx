@@ -526,7 +526,7 @@ export default function Dashboard() {
   const tickerItems: { text: string; color: string }[] = useMemo(() => {
     if (!analysis) return [];
     const items: { text: string; color: string }[] = [];
-    const sigColor = analysis.signal === "GO_LONG" ? "#1c7d4c" : analysis.signal === "GO_SHORT" ? "#8a2f2a" : "#c23b30";
+    const sigColor = analysis.signal === "GO_LONG" ? "#1c7d4c" : analysis.signal === "GO_SHORT" ? "#8a2f2a" : "#f2f5f8";
     const sigLabel = analysis.signal === "GO_LONG" ? "LONG" : analysis.signal === "GO_SHORT" ? "SHORT" : "WAIT";
     items.push({ text: `${sigLabel} · ${analysis.probability}% PROB`, color: sigColor });
     if (opportunity) {
@@ -541,7 +541,7 @@ export default function Dashboard() {
       items.push({ text: `R:R ${fmtRatio(analysis.tradeSetup.rrRatio)}`, color: "var(--text-secondary)" });
     }
     if (analysis.warnings.length > 0) {
-      items.push({ text: `${analysis.warnings.length} WARNING${analysis.warnings.length > 1 ? "S" : ""}`, color: "#c23b30" });
+      items.push({ text: `${analysis.warnings.length} WARNING${analysis.warnings.length > 1 ? "S" : ""}`, color: "#f2f5f8" });
     }
     return items;
   }, [analysis, opportunity, cfg]);
@@ -577,8 +577,8 @@ export default function Dashboard() {
                 className="absolute left-4 right-4 rounded-lg p-4 z-10"
                 style={{
                   top: "3.5rem",
-                  ...glassStyle(opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"),
-                  border: `2px solid ${opportunity.direction === "long" ? "#c23b30" : "#8a2f2a"}`,
+                  ...glassStyle(opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"),
+                  border: `2px solid ${opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"}`,
                   boxShadow: `0 0 28px ${opportunity.direction === "long" ? "rgba(28,125,76,0.35)" : "rgba(138,47,42,0.35)"}`,
                 }}
                 variants={popVariants}
@@ -587,7 +587,7 @@ export default function Dashboard() {
                 exit="hidden"
                 transition={TRANSITION_BASE}
               >
-                <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#c23b30" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
+                <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                   <FiZap size={16} /> RETEST ACTIVE — {fmtPrice(opportunity.level)}
                 </div>
                 <div className="text-sm mt-0.5" style={{ color: "var(--text-primary)" }}>

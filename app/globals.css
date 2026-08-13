@@ -7,11 +7,15 @@
   --bg-elevated:  #0d2338;
   --bg-card:      #132d47;
 
-  /* ── Accent — AXE CAPITAL brand red ──────────────────────────── */
-  --gold:         #c23b30;
-  --gold-bright:  #d9584b;
-  --gold-dim:     rgba(194,59,48,0.10);
-  --gold-border:  rgba(194,59,48,0.22);
+  /* ── Accent — neutral white. Red is reserved for loss/short only now (see
+     --down below) — it no longer doubles as the brand/decoration color, so
+     buttons, active states, and chrome all read from this instead. Kept the
+     --gold* names since they're referenced all over the app; only the values
+     changed. ─────────────────────────────────────────────────────────── */
+  --gold:         #f2f5f8;
+  --gold-bright:  #ffffff;
+  --gold-dim:     rgba(255,255,255,0.10);
+  --gold-border:  rgba(255,255,255,0.22);
 
   /* ── Prices ─────────────────────────────────────────────────── */
   --up:           #1c7d4c;
@@ -45,9 +49,9 @@
      mounted over the chart (the mobile sheet, the desktop aside) can apply
      the exact same wash the page itself uses, not just the html/body root. */
   --ambient-gradient:
-    radial-gradient(ellipse 70% 50% at 15% -10%, rgba(194,59,48,0.16), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 15% -10%, rgba(255,255,255,0.10), transparent 60%),
     radial-gradient(ellipse 60% 45% at 100% 0%,  rgba(28,125,76,0.10), transparent 60%),
-    radial-gradient(ellipse 55% 40% at 100% 100%, rgba(194,59,48,0.08), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 100% 100%, rgba(255,255,255,0.06), transparent 55%),
     var(--bg);
 }
 
@@ -84,5 +88,5 @@ html, body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: rgba(194,59,48,0.18); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(194,59,48,0.38); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.32); }
