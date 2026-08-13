@@ -131,7 +131,7 @@ function pickChartCandles(c1m: RawCandle[], c5m: RawCandle[], slPoints: number):
 
 function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (tf: Timeframe) => void }) {
   return (
-    <div className="flex items-center rounded-md overflow-hidden shrink-0" style={glassChipStyle()}>
+    <div className="flex items-center rounded overflow-hidden shrink-0" style={glassChipStyle()}>
       {TIMEFRAMES.map(tf => (
         <button
           key={tf.key}
@@ -574,7 +574,7 @@ export default function Dashboard() {
           <AnimatePresence>
             {opportunity?.phase === "RETEST_ACTIVE" && (
               <motion.div
-                className="absolute left-4 right-4 rounded-lg p-4 z-10"
+                className="absolute left-4 right-4 rounded-md p-4 z-10"
                 style={{
                   top: "3.5rem",
                   ...glassStyle(opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"),
@@ -660,7 +660,7 @@ export default function Dashboard() {
                   <button
                     key={key}
                     onClick={() => handleMarketChange(key)}
-                    className="flex-1 py-4 rounded-md text-base font-black tracking-wider transition-all duration-200"
+                    className="flex-1 py-4 rounded text-base font-black tracking-wider transition-all duration-200"
                     style={{
                       ...glassChipStyle(active ? m.color : undefined),
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -682,7 +682,7 @@ export default function Dashboard() {
             {newsTicker.length > 0 && (
               <motion.button
                 onClick={() => setNewsOpen(true)}
-                className="overflow-hidden rounded-md flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
+                className="overflow-hidden rounded flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
                 style={{ ...glassChipStyle(), cursor: "pointer" }}
                 variants={fadeVariants}
                 initial="hidden"
@@ -764,7 +764,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTaylorOpen(true)}
-              className="flex items-center justify-center w-14 h-14 rounded-md transition-all duration-150 active:scale-95"
+              className="flex items-center justify-center w-14 h-14 rounded transition-all duration-150 active:scale-95"
               style={{
                 ...glassChipStyle(cfg.color),
                 color: "var(--text-primary)",
@@ -781,7 +781,7 @@ export default function Dashboard() {
           <AnimatePresence>
             {tickerItems.length > 0 && (
               <motion.div
-                className="overflow-hidden rounded-md"
+                className="overflow-hidden rounded"
                 style={glassChipStyle()}
                 variants={fadeVariants}
                 initial="hidden"
@@ -876,7 +876,7 @@ export default function Dashboard() {
               <button
                 key={key}
                 onClick={() => handleMarketChange(key)}
-                className="px-4 py-2 rounded-md text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
+                className="px-4 py-2 rounded text-sm font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
                   ...glassChipStyle(active ? m.color : undefined),
                   color: active ? "var(--text-primary)" : "var(--text-muted)",

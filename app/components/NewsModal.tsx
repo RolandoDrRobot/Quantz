@@ -24,7 +24,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex gap-3 rounded-lg p-3 transition-colors"
+      className="flex gap-3 rounded-md p-3 transition-colors"
       style={glassChipStyle(IMPACT_META[article.impact].color !== "var(--text-muted)" ? IMPACT_META[article.impact].color : undefined)}
       variants={fadeUpVariants}
       initial="hidden"
@@ -36,7 +36,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
         <img
           src={article.image}
           alt=""
-          className="w-20 h-20 rounded-md object-cover shrink-0"
+          className="w-20 h-20 rounded object-cover shrink-0"
           style={{ background: "var(--bg-elevated)" }}
           onError={e => { e.currentTarget.style.display = "none"; }}
         />
@@ -149,7 +149,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
           transition={TRANSITION_BACKDROP}
         >
           <motion.div
-            className="w-full lg:max-w-2xl h-[92dvh] lg:h-[88vh] rounded-t-lg lg:rounded-lg overflow-hidden flex flex-col"
+            className="w-full lg:max-w-2xl h-[92dvh] lg:h-[88vh] rounded-t-md lg:rounded-md overflow-hidden flex flex-col"
             style={{ ...glassStyle(), boxShadow: "0 -8px 60px rgba(0,0,0,0.5)" }}
             onClick={e => e.stopPropagation()}
             variants={modalVariants}
@@ -176,7 +176,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                   onClick={() => load(true)}
                   disabled={loading}
                   title="Refresh news"
-                  className="flex items-center justify-center w-9 h-9 rounded-md"
+                  className="flex items-center justify-center w-9 h-9 rounded"
                   style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: loading ? "not-allowed" : "pointer" }}
                 >
                   <FiRefreshCw size={14} className={loading ? "animate-spin" : ""} />
@@ -216,7 +216,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                   {visibleCount < articles.length && (
                     <button
                       onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
-                      className="mt-2 py-3 rounded-md text-sm font-bold tracking-wider"
+                      className="mt-2 py-3 rounded text-sm font-bold tracking-wider"
                       style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
                     >
                       LOAD MORE

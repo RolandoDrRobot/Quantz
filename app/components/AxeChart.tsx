@@ -463,7 +463,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       <AnimatePresence>
         {livePrice !== null && (
           <motion.div
-            className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-md"
+            className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded"
             style={glassChipStyle(stale ? "#d98c14" : "#c23b30")}
             variants={popVariants}
             initial="hidden"
@@ -482,7 +482,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       {/* Legend toggle */}
       <button
         onClick={() => setShowLegend(v => !v)}
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-bold tracking-wider"
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-4 py-2 rounded text-sm font-bold tracking-wider"
         style={{ ...glassChipStyle("#c23b30"), color: "#c23b30", cursor: "pointer" }}
       >
         {showLegend ? <FiX size={13} /> : <FiHelpCircle size={13} />} LEGEND
@@ -492,7 +492,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       <AnimatePresence>
         {showLegend && (
           <motion.div
-            className="absolute top-14 right-4 rounded-md p-5 flex flex-col gap-4"
+            className="absolute top-14 right-4 rounded p-5 flex flex-col gap-4"
             style={{ ...glassStyle(), minWidth: 210 }}
             variants={fadeUpVariants}
             initial="hidden"

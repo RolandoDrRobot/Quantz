@@ -234,7 +234,7 @@ function OpportunityCard({
 
   return (
     <div
-      className="rounded-lg overflow-hidden"
+      className="rounded-md overflow-hidden"
       style={glassStyle(meta.color)}
     >
       {/* Header: phase + resolved-outcome badge + check button + direction pill */}
@@ -242,7 +242,7 @@ function OpportunityCard({
         <div className="flex items-center gap-2 min-w-0">
           {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: meta.color }} />}
           {isTerminal && (
-            <span className="flex items-center justify-center w-4 h-4 rounded-full shrink-0" style={{ background: `${meta.color}22`, color: meta.color }}>
+            <span className="flex items-center justify-center w-4 h-4 rounded-md shrink-0" style={{ background: `${meta.color}22`, color: meta.color }}>
               {opp.phase === "TP_HIT" ? <FiCheck size={11} /> : opp.phase === "SL_HIT" ? <FiX size={11} /> : <FiAlertTriangle size={10} />}
             </span>
           )}
@@ -256,7 +256,7 @@ function OpportunityCard({
               onClick={onCheckOpportunity}
               disabled={checking}
               title="Check current opportunity"
-              className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150"
+              className="flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150"
               style={{
                 ...glassChipStyle(),
                 color: "var(--text-secondary)",
@@ -267,7 +267,7 @@ function OpportunityCard({
             </button>
           )}
           <span
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[13px] lg:text-[12px] font-black tracking-wider whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[13px] lg:text-[12px] font-black tracking-wider whitespace-nowrap"
             style={{ ...glassChipStyle(dirColor), color: dirColor, fontFamily: "var(--font-display)" }}
           >
             {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
@@ -662,11 +662,44 @@ export default function BobbyPanel({
   // so it doubles as the mobile/desktop switch here).
   const footerControls = (
     <>
+      <form
+        onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
+        className="flex items-center gap-2"
+      >
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          disabled={!result || chatSending || aiLoading}
+          placeholder={result ? "Ask Taylor about this setup…" : "Run an analysis first"}
+          className="flex-1 min-w-0 px-4 py-4 rounded text-base lg:text-sm outline-none"
+          style={{
+            ...glassChipStyle(),
+            color: "var(--text-primary)",
+            opacity: !result ? 0.6 : 1,
+          }}
+        />
+        <button
+          type="submit"
+          disabled={!chatInput.trim() || !result || chatSending || aiLoading}
+          title="Send"
+          className="flex items-center justify-center w-14 h-14 rounded shrink-0 transition-all duration-150"
+          style={{
+            ...glassChipStyle(),
+            color: "var(--text-primary)",
+            cursor: !chatInput.trim() || !result || chatSending || aiLoading ? "not-allowed" : "pointer",
+            opacity: !chatInput.trim() || !result ? 0.5 : 1,
+          }}
+        >
+          <FiSend size={20} />
+        </button>
+      </form>
+
       <div className="flex items-center gap-2">
         <button
           onClick={analyze}
           disabled={loading || aiLoading}
-          className="flex-1 px-3 py-3.5 rounded-md font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
+          className="flex-1 px-3 py-3.5 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -683,7 +716,7 @@ export default function BobbyPanel({
           onClick={generateComment}
           disabled={!result || loading || aiLoading}
           title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
-          className="flex-1 px-3 py-3.5 rounded-md font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
+          className="flex-1 px-3 py-3.5 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -698,39 +731,6 @@ export default function BobbyPanel({
           </span>
         </button>
       </div>
-
-      <form
-        onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
-        className="flex items-center gap-2"
-      >
-        <input
-          type="text"
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          disabled={!result || chatSending || aiLoading}
-          placeholder={result ? "Ask Taylor about this setup…" : "Run an analysis first"}
-          className="flex-1 min-w-0 px-4 py-4 rounded-md text-base lg:text-sm outline-none"
-          style={{
-            ...glassChipStyle(),
-            color: "var(--text-primary)",
-            opacity: !result ? 0.6 : 1,
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!chatInput.trim() || !result || chatSending || aiLoading}
-          title="Send"
-          className="flex items-center justify-center w-14 h-14 rounded-md shrink-0 transition-all duration-150"
-          style={{
-            ...glassChipStyle(),
-            color: "var(--text-primary)",
-            cursor: !chatInput.trim() || !result || chatSending || aiLoading ? "not-allowed" : "pointer",
-            opacity: !chatInput.trim() || !result ? 0.5 : 1,
-          }}
-        >
-          <FiSend size={20} />
-        </button>
-      </form>
     </>
   );
 
@@ -754,7 +754,7 @@ export default function BobbyPanel({
           <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto" />
           <button
             onClick={onClose}
-            className="p-2.5 rounded-md shrink-0"
+            className="p-2.5 rounded shrink-0"
             style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
           >
             <FiX size={18} />
@@ -779,7 +779,7 @@ export default function BobbyPanel({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded-md text-[10px] font-black tracking-wide transition-all duration-150"
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded text-[10px] font-black tracking-wide transition-all duration-150"
               style={{
                 ...glassChipStyle(active ? "#f2f5f8" : undefined),
                 color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -800,7 +800,7 @@ export default function BobbyPanel({
       <AnimatePresence>
         {error && (
           <motion.div
-            className="mx-6 mt-5 p-4 rounded-md text-lg lg:text-base"
+            className="mx-6 mt-5 p-4 rounded text-lg lg:text-base"
             style={{ ...glassStyle("#8a2f2a"), color: "#8a2f2a" }}
             variants={fadeUpVariants}
             initial="hidden"
@@ -831,7 +831,7 @@ export default function BobbyPanel({
             ) : (
               <motion.div
                 key="no-setup"
-                className="rounded-lg overflow-hidden"
+                className="rounded-md overflow-hidden"
                 style={glassStyle()}
                 variants={fadeVariants}
                 initial="hidden"
@@ -863,7 +863,7 @@ export default function BobbyPanel({
           {/* Signal + probability gauge — the verdict itself is a snapshot (see the
               "entry-time read" caption below), but the box is never just sitting
               there: the live price + elapsed-time caption both tick every update. */}
-          <div className="rounded-lg px-4 py-3" style={glassStyle(sig.color)}>
+          <div className="rounded-md px-4 py-3" style={glassStyle(sig.color)}>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
                 <sig.Icon size={18} color={sig.color} />
@@ -901,7 +901,7 @@ export default function BobbyPanel({
           </div>
 
           {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-            <div className="rounded-lg px-5 py-3 text-lg lg:text-base" style={{ ...glassStyle(), color: "var(--text-secondary)" }}>
+            <div className="rounded-md px-5 py-3 text-lg lg:text-base" style={{ ...glassStyle(), color: "var(--text-secondary)" }}>
               Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
             </div>
           )}
@@ -919,7 +919,7 @@ export default function BobbyPanel({
                   variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
                 >
                   <div
-                    className="rounded-lg px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
+                    className="rounded-md px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
                     style={
                       m.role === "user"
                         ? { ...glassChipStyle(), color: "var(--text-secondary)" }
@@ -946,7 +946,7 @@ export default function BobbyPanel({
                     className="flex justify-start"
                     variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
                   >
-                    <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
+                    <div className="rounded-md px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
                       <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
                       <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>
                         {aiLoading ? "Taylor's taking a look…" : "Taylor's typing…"}
@@ -968,7 +968,7 @@ export default function BobbyPanel({
               analyze/take buttons + chat bar sit right under Taylor's thread instead of
               pinned to the panel edge, since there's no thumb-reach constraint here. */}
           {!onClose && (
-            <div className="rounded-lg px-5 py-4 flex flex-col gap-3" style={glassStyle()}>
+            <div className="rounded-md px-5 py-4 flex flex-col gap-3" style={glassStyle()}>
               {footerControls}
             </div>
           )}

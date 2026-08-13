@@ -121,7 +121,7 @@ export default function WendyPanel() {
               variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
             >
               <div
-                className="rounded-lg px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
+                className="rounded-md px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
                 style={{ ...glassChipStyle(m.role === "wendy" ? "#f2f5f8" : undefined), color: "var(--text-secondary)" }}
               >
                 {m.role === "wendy" && (
@@ -141,7 +141,7 @@ export default function WendyPanel() {
               className="flex justify-start"
               variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
             >
-              <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
+              <div className="rounded-md px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
                 <FiHeart size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
                 <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>Wendy&apos;s thinking…</span>
               </div>
@@ -167,14 +167,14 @@ export default function WendyPanel() {
           onChange={(e) => setInput(e.target.value)}
           disabled={sending}
           placeholder="How are you doing right now?"
-          className="flex-1 min-w-0 px-4 py-4 rounded-md text-base lg:text-sm outline-none"
+          className="flex-1 min-w-0 px-4 py-4 rounded text-base lg:text-sm outline-none"
           style={{ ...glassChipStyle(), color: "var(--text-primary)" }}
         />
         <button
           type="submit"
           disabled={!input.trim() || sending}
           title="Send"
-          className="flex items-center justify-center w-14 h-14 rounded-md shrink-0 transition-all duration-150"
+          className="flex items-center justify-center w-14 h-14 rounded shrink-0 transition-all duration-150"
           style={{
             ...glassChipStyle("#f2f5f8"),
             color: "var(--text-primary)",

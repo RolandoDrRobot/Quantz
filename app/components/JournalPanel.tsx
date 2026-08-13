@@ -86,7 +86,7 @@ export default function JournalPanel() {
   return (
     <div className="p-6 flex flex-col gap-5">
       {/* Stats — the running picture of real capital, not the automatic prediction log */}
-      <div className="rounded-lg px-5 py-4 grid grid-cols-3 gap-3" style={glassStyle(stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a")}>
+      <div className="rounded-md px-5 py-4 grid grid-cols-3 gap-3" style={glassStyle(stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a")}>
         <div>
           <div className="text-[11px] font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>TOTAL P/L</div>
           <div className="text-2xl font-black leading-tight" style={{ color: stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
@@ -110,7 +110,7 @@ export default function JournalPanel() {
       {!formOpen && (
         <button
           onClick={openNew}
-          className="flex items-center justify-center gap-2 py-3 rounded-md font-black text-sm tracking-wide"
+          className="flex items-center justify-center gap-2 py-3 rounded font-black text-sm tracking-wide"
           style={{ ...glassChipStyle(), color: "var(--text-primary)", cursor: "pointer", fontFamily: "var(--font-display)" }}
         >
           <FiPlus size={16} /> ADD TRADE
@@ -123,7 +123,7 @@ export default function JournalPanel() {
       <AnimatePresence>
         {formOpen && (
           <motion.div
-            className="rounded-lg p-4 flex flex-col gap-3"
+            className="rounded-md p-4 flex flex-col gap-3"
             style={glassStyle()}
             variants={fadeUpVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
           >
@@ -143,7 +143,7 @@ export default function JournalPanel() {
                   type="date"
                   value={toDateInputValue(form.date)}
                   onChange={e => setForm(f => ({ ...f, date: fromDateInputValue(e.target.value) }))}
-                  className="px-3 py-2 rounded-md text-sm outline-none"
+                  className="px-3 py-2 rounded text-sm outline-none"
                   style={inputStyle}
                 />
               </label>
@@ -154,7 +154,7 @@ export default function JournalPanel() {
                   value={form.market}
                   onChange={e => setForm(f => ({ ...f, market: e.target.value }))}
                   placeholder="US100, XAUUSD…"
-                  className="px-3 py-2 rounded-md text-sm outline-none"
+                  className="px-3 py-2 rounded text-sm outline-none"
                   style={inputStyle}
                 />
               </label>
@@ -165,7 +165,7 @@ export default function JournalPanel() {
                 <button
                   key={d}
                   onClick={() => setForm(f => ({ ...f, direction: d }))}
-                  className="flex-1 py-2 rounded-md text-sm font-black tracking-wide"
+                  className="flex-1 py-2 rounded text-sm font-black tracking-wide"
                   style={{
                     ...glassChipStyle(d === "long" ? "#1c7d4c" : "#8a2f2a"),
                     color: form.direction === d ? (d === "long" ? "#1c7d4c" : "#8a2f2a") : "var(--text-muted)",
@@ -186,7 +186,7 @@ export default function JournalPanel() {
                   type="number" inputMode="decimal" step="any"
                   value={form.entry ?? ""}
                   onChange={e => setForm(f => ({ ...f, entry: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                  className="px-3 py-2 rounded-md text-sm outline-none"
+                  className="px-3 py-2 rounded text-sm outline-none"
                   style={inputStyle}
                 />
               </label>
@@ -196,7 +196,7 @@ export default function JournalPanel() {
                   type="number" inputMode="decimal" step="any"
                   value={form.exit ?? ""}
                   onChange={e => setForm(f => ({ ...f, exit: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                  className="px-3 py-2 rounded-md text-sm outline-none"
+                  className="px-3 py-2 rounded text-sm outline-none"
                   style={inputStyle}
                 />
               </label>
@@ -206,7 +206,7 @@ export default function JournalPanel() {
                   type="number" inputMode="decimal" step="any"
                   value={form.size ?? ""}
                   onChange={e => setForm(f => ({ ...f, size: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                  className="px-3 py-2 rounded-md text-sm outline-none"
+                  className="px-3 py-2 rounded text-sm outline-none"
                   style={inputStyle}
                 />
               </label>
@@ -219,7 +219,7 @@ export default function JournalPanel() {
                 value={form.pnl ?? ""}
                 onChange={e => setForm(f => ({ ...f, pnl: e.target.value === "" ? null : parseFloat(e.target.value) }))}
                 placeholder="+25 or -18"
-                className="px-3 py-2 rounded-md text-sm outline-none"
+                className="px-3 py-2 rounded text-sm outline-none"
                 style={inputStyle}
               />
             </label>
@@ -231,7 +231,7 @@ export default function JournalPanel() {
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2}
                 placeholder="What happened, what you'd do differently…"
-                className="px-3 py-2 rounded-md text-sm outline-none resize-none"
+                className="px-3 py-2 rounded text-sm outline-none resize-none"
                 style={inputStyle}
               />
             </label>
@@ -239,7 +239,7 @@ export default function JournalPanel() {
             <button
               onClick={submit}
               disabled={!form.market.trim()}
-              className="flex items-center justify-center gap-2 py-2.5 rounded-md font-black text-sm tracking-wide"
+              className="flex items-center justify-center gap-2 py-2.5 rounded font-black text-sm tracking-wide"
               style={{
                 ...glassChipStyle("#1c7d4c"),
                 color: "#1c7d4c",
@@ -270,7 +270,7 @@ export default function JournalPanel() {
           {entries.map(e => (
             <motion.div
               key={e.id}
-              className="rounded-lg px-4 py-3"
+              className="rounded-md px-4 py-3"
               style={glassChipStyle(e.pnl !== null ? (e.pnl >= 0 ? "#1c7d4c" : "#8a2f2a") : undefined)}
               variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
             >
@@ -280,7 +280,7 @@ export default function JournalPanel() {
                     {e.market || "—"}
                   </span>
                   <span
-                    className="px-2 py-0.5 rounded-full text-[11px] font-black tracking-wide shrink-0"
+                    className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wide shrink-0"
                     style={{ color: e.direction === "long" ? "#1c7d4c" : "#8a2f2a" }}
                   >
                     {e.direction === "long" ? "▲ LONG" : "▼ SHORT"}

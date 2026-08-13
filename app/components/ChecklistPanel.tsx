@@ -39,7 +39,7 @@ export default function ChecklistPanel() {
 
   return (
     <div className="p-6 flex flex-col gap-5">
-      <div className="rounded-lg px-5 py-4 flex items-center justify-between" style={glassStyle(allDone ? "#1c7d4c" : undefined)}>
+      <div className="rounded-md px-5 py-4 flex items-center justify-between" style={glassStyle(allDone ? "#1c7d4c" : undefined)}>
         <div>
           <div className="text-lg font-black tracking-wider" style={{ color: allDone ? "#1c7d4c" : "var(--text-primary)", fontFamily: "var(--font-display)" }}>
             {allDone ? "READY TO TRADE" : "PRE-TRADE CHECKLIST"}
@@ -49,7 +49,7 @@ export default function ChecklistPanel() {
         <button
           onClick={reset}
           title="Reset for the next setup"
-          className="flex items-center justify-center w-10 h-10 rounded-md shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded shrink-0"
           style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
         >
           <FiRotateCcw size={16} />
@@ -63,7 +63,7 @@ export default function ChecklistPanel() {
             <motion.button
               key={i}
               onClick={() => toggle(i)}
-              className="flex items-start gap-3 rounded-lg px-4 py-3.5 text-left"
+              className="flex items-start gap-3 rounded-md px-4 py-3.5 text-left"
               style={glassChipStyle(done ? "#1c7d4c" : undefined)}
               variants={fadeUpVariants} initial="hidden" animate="visible" transition={{ ...TRANSITION_FAST, delay: i * 0.03 }}
             >
