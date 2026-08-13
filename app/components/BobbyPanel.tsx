@@ -779,7 +779,7 @@ export default function BobbyPanel({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 rounded text-[10px] font-black tracking-wide transition-all duration-150"
+              className="flex-1 flex flex-row items-center justify-center gap-1.5 py-1.5 rounded text-[10px] font-black tracking-wide transition-all duration-150"
               style={{
                 ...glassChipStyle(active ? "#f2f5f8" : undefined),
                 color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -787,7 +787,7 @@ export default function BobbyPanel({
                 fontFamily: "var(--font-display)",
               }}
             >
-              <tab.Icon size={16} />
+              <tab.Icon size={14} />
               {tab.label}
             </button>
           );
