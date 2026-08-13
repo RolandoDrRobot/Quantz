@@ -21,7 +21,7 @@ import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../li
 import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
 import { glassStyle, glassChipStyle } from "../lib/glass";
 
-const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin", "ethereum", "ethbtc"];
+const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin"];
 
 // Mirrors the exact condition AxeChart.tsx uses to decide whether its Twelve
 // Data WS branch can actually run — a market with a `tdSymbol` but no live

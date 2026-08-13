@@ -320,8 +320,8 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
 
   // ── Live data ────────────────────────────────────────────────────────────
-  // Coinbase Exchange's public trade stream for Bitcoin/Ethereum; Twelve
-  // Data's WS for everything else (indices, commodities, 24/5 real-time).
+  // Coinbase Exchange's public trade stream for Bitcoin; Twelve Data's WS
+  // for everything else (indices, commodities, 24/5 real-time).
   useEffect(() => {
     if (!symbol) return;
 

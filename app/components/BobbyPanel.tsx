@@ -6,7 +6,7 @@ import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiSend,
-  FiBarChart2, FiBookOpen, FiTarget, FiHeart,
+  FiBarChart2, FiBookOpen, FiHeart,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -18,14 +18,12 @@ import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTa
 import { buildPredictionProfileSummary, type PredictionProfileSummary } from "../lib/predictionProfile";
 import { glassStyle, glassChipStyle } from "../lib/glass";
 import JournalPanel from "./JournalPanel";
-import PlanPanel from "./PlanPanel";
 import WendyPanel from "./WendyPanel";
 
-export type PanelTab = "analysis" | "journal" | "plan" | "wendy";
+export type PanelTab = "analysis" | "journal" | "wendy";
 const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
   { key: "analysis", label: "ANALYSIS", Icon: FiBarChart2 },
   { key: "journal",  label: "JOURNAL",  Icon: FiBookOpen },
-  { key: "plan",     label: "PLAN",     Icon: FiTarget },
   { key: "wendy",    label: "WENDY",    Icon: FiHeart },
 ];
 
@@ -928,12 +926,6 @@ export default function BobbyPanel({
       {activeTab === "journal" && (
         <div className="flex-1 overflow-y-auto">
           <JournalPanel />
-        </div>
-      )}
-
-      {activeTab === "plan" && (
-        <div className="flex-1 overflow-y-auto">
-          <PlanPanel />
         </div>
       )}
 

@@ -26,14 +26,6 @@ const KEYWORDS: Record<MarketKey, string[]> = {
   dowjones: ["dow jones", "dow industrial", "blue chip", "dow "],
   gold:     ["gold", "xau", "bullion", "precious metal", "safe-haven", "safe haven"],
   bitcoin:  ["bitcoin", "btc"],
-  ethereum: ["ethereum", "eth "],
-  // Nobody writes "eth/btc" in a headline — this market only ever moves on
-  // ETH-vs-BTC relative-performance narratives, so the keywords chase the
-  // phrases financial media actually uses for that story, not ticker
-  // notation. Real coverage here is rare regardless; MACRO_KEYWORDS below
-  // still tags this market on every Fed/CPI print like all the others.
-  ethbtc:   ["ether outperform", "ethereum outperform", "bitcoin outperform", "eth dominance", "ether dominance",
-             "bitcoin dominance", "btc dominance", "altcoin season", "altseason", "flippening", "eth/btc", "ether/bitcoin"],
 };
 
 // Macro news moves every instrument we trade, not just one — a rate

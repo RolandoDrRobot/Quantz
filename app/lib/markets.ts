@@ -76,48 +76,6 @@ export const MARKETS = {
     spreadPoints: 20,
     color: "#f7931a",
   },
-  ethereum: {
-    symbol: "ETH-USD",
-    tdSymbol: "ETH/USD",
-    coinbaseProduct: "ETH-USD",
-    label: "Ethereum",
-    short: "ETHUSD",
-    description: "Ethereum · 24/7",
-    is24h: true,
-    // Same SL-to-price ratio as Bitcoin (~0.13%) for a consistent scalping
-    // feel across both crypto instruments — ETH trades far cheaper than BTC.
-    slPoints: 2.5,
-    slLabel: "$2.50",
-    contractSize: 1,
-    spreadPoints: 0.5,
-    color: "#627eea",
-  },
-  ethbtc: {
-    symbol: "ETH-BTC",
-    tdSymbol: null,
-    coinbaseProduct: "ETH-BTC",
-    label: "Ethereum / Bitcoin",
-    short: "ETHBTC",
-    description: "ETH/BTC · 24/7",
-    is24h: true,
-    // Priced in BTC, not USD (~0.03), so slPoints/spreadPoints live on that
-    // same tiny scale — 0.00005 BTC is roughly a $3 stop at today's BTC/USD
-    // rate. contractSize converts that BTC-denominated distance into the
-    // account's fixed USD risk (ACCOUNT.riskPerTrade), so it's pinned to
-    // BTC/USD at the time this was set (~$65k) — if BTC's dollar price moves
-    // a lot from there, the real dollar risk per trade drifts with it and
-    // this should get re-tuned (same static-contractSize tradeoff Gold's
-    // 100oz contractSize already makes, just more volatile here since BTC/USD
-    // itself moves far more than gold/USD does).
-    slPoints: 0.00005,
-    slLabel: "0.00005 BTC (~$3)",
-    contractSize: 65000,
-    // Live Coinbase spread runs ~0.000006-0.000007 BTC; this keeps a bit of
-    // retail-broker markup above that (same logic as every other market's
-    // spreadPoints here) without being ~2x it like the original guess was.
-    spreadPoints: 0.000008,
-    color: "#22d3ee",
-  },
 } as const;
 
 export type MarketKey = keyof typeof MARKETS;

@@ -169,7 +169,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                 <div className="flex items-center gap-2 font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
                   <LuNewspaper size={18} /> NEWS
                 </div>
-                <div className="text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold, Bitcoin & Ethereum</div>
+                <div className="text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold & Bitcoin</div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -206,7 +206,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
                 <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
                   <LuNewspaper size={48} className="mb-4 opacity-15" />
                   <p className="text-lg">No relevant news right now.</p>
-                  <p className="text-base mt-2 opacity-70">Nothing moving NASDAQ, Dow, Gold, Bitcoin, or Ethereum at the moment.</p>
+                  <p className="text-base mt-2 opacity-70">Nothing moving NASDAQ, Dow, Gold, or Bitcoin at the moment.</p>
                 </div>
               ) : (
                 <>
