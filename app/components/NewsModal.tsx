@@ -46,7 +46,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
           <p className="text-sm font-bold leading-snug" style={{ color: "var(--text-primary)" }}>{article.headline}</p>
           <span
             className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider whitespace-nowrap"
-            style={{ background: `${IMPACT_META[article.impact].color}22`, color: IMPACT_META[article.impact].color, border: `1px solid ${IMPACT_META[article.impact].color}44` }}
+            style={{ background: `${IMPACT_META[article.impact].color}22`, color: IMPACT_META[article.impact].color }}
           >
             {IMPACT_META[article.impact].label}
           </span>
@@ -164,7 +164,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-7 py-5 shrink-0" style={{ borderBottom: "1px solid var(--glass-border)" }}>
+            <div className="flex items-center justify-between px-7 py-5 shrink-0">
               <div>
                 <div className="flex items-center gap-2 font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
                   <LuNewspaper size={18} /> NEWS

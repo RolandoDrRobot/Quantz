@@ -32,15 +32,11 @@
   --font-display: var(--font-josefin), sans-serif;
   --font-body:    var(--font-josefin), sans-serif;
 
-  /* ── Surfaces — flat, sober, corporate. Replaces the earlier "Nosedive"
-     frosted-glass look (gradient sheens + blur) with plain solid panels and
-     a thin neutral border, same navy/red/white palette. Kept the --glass-*
-     names since app/lib/glass.ts's glassStyle()/glassChipStyle() are called
-     in ~50 places across the app — only what they produce changed, not
-     their names or call sites. --ambient-gradient is kept as a flat alias
-     to --bg for the same reason (BobbyPanel references it directly). */
-  --glass-border:  rgba(255,255,255,0.10);
-  --glass-shadow:  none;
+  /* ── Surfaces — flat, sober, corporate, no borders, no shadows. Replaces
+     the earlier "Nosedive" frosted-glass look (gradient sheens + blur +
+     tinted borders) with plain solid panels, same navy/red/white palette.
+     --ambient-gradient is kept as a flat alias to --bg since BobbyPanel
+     references it directly. */
   --ambient-gradient: var(--bg);
 }
 

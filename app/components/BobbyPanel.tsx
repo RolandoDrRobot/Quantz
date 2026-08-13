@@ -29,16 +29,16 @@ const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
   { key: "wendy",     label: "WENDY",     Icon: FiHeart },
 ];
 
-const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; bg: string; border: string; Icon: IconType }> = {
-  GO_LONG:  { label: "LONG",  color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",    border: "rgba(28,125,76,0.35)",    Icon: FiTrendingUp },
-  GO_SHORT: { label: "SHORT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.07)",    border: "rgba(138,47,42,0.35)",    Icon: FiTrendingDown },
-  WAIT:     { label: "WAIT", color: "#f2f5f8", bg: "rgba(255,255,255,0.06)",  border: "rgba(255,255,255,0.24)",  Icon: FiPauseCircle },
+const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; Icon: IconType }> = {
+  GO_LONG:  { label: "LONG",  color: "#1c7d4c", Icon: FiTrendingUp },
+  GO_SHORT: { label: "SHORT",  color: "#8a2f2a", Icon: FiTrendingDown },
+  WAIT:     { label: "WAIT", color: "#f2f5f8", Icon: FiPauseCircle },
 };
 
-const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string; bg: string; border: string }> = {
-  CONFIRM: { label: "TAYLOR CONFIRMS", color: "#1c7d4c", bg: "rgba(28,125,76,0.07)",  border: "rgba(28,125,76,0.35)" },
-  CAUTION: { label: "TAYLOR: CAUTION", color: "#f2f5f8", bg: "rgba(255,255,255,0.06)",  border: "rgba(255,255,255,0.24)" },
-  REJECT:  { label: "TAYLOR: REJECT",  color: "#8a2f2a", bg: "rgba(138,47,42,0.08)",  border: "rgba(138,47,42,0.35)" },
+const AI_VERDICT_STYLE: Record<AiVerdict, { label: string; color: string }> = {
+  CONFIRM: { label: "TAYLOR CONFIRMS", color: "#1c7d4c" },
+  CAUTION: { label: "TAYLOR: CAUTION", color: "#f2f5f8" },
+  REJECT:  { label: "TAYLOR: REJECT",  color: "#8a2f2a" },
 };
 
 // One message in Taylor's chat thread. `verdict` is only set on the
@@ -275,16 +275,16 @@ function OpportunityCard({
       </div>
 
       {/* Entry / SL / TP strip — live values from the opportunity */}
-      <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="grid grid-cols-3">
         <div className="px-5 py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
           <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
         </div>
-        <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-5 py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · {fmtSignedMoney(-ACCOUNT.riskPerTrade)}</div>
           <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
         </div>
-        <div className="px-5 py-3.5" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-5 py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · {fmtSignedMoney(reward)}</div>
           <div className="text-xl lg:text-lg font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
         </div>
@@ -690,10 +690,7 @@ export default function BobbyPanel({
       {onClose && (
         <div
           className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden"
-          style={{
-            background: "var(--bg-panel)",
-            borderBottom: "1px solid var(--glass-border)",
-          }}
+          style={{ background: "var(--bg-panel)" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
           <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto" />
@@ -713,10 +710,7 @@ export default function BobbyPanel({
           market analysis). Always visible on both mobile and desktop. */}
       <div
         className="flex items-center gap-1.5 px-4 py-2.5 shrink-0"
-        style={{
-          background: "var(--bg-panel)",
-          borderBottom: "1px solid var(--glass-border)",
-        }}
+        style={{ background: "var(--bg-panel)" }}
       >
         {TABS.map(tab => {
           const active = activeTab === tab.key;
@@ -959,7 +953,6 @@ export default function BobbyPanel({
           className="flex flex-col gap-2 px-4 py-3 shrink-0"
           style={{
             background: "var(--bg-panel)",
-            borderTop: "1px solid var(--glass-border)",
             paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
           }}
         >

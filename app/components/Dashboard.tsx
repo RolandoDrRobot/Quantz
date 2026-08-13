@@ -578,7 +578,6 @@ export default function Dashboard() {
                 style={{
                   top: "3.5rem",
                   ...glassStyle(opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"),
-                  border: `2px solid ${opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a"}`,
                 }}
                 variants={popVariants}
                 initial="hidden"
@@ -848,10 +847,7 @@ export default function Dashboard() {
         {/* ── Header: título + reloj ── */}
         <div
           className="flex items-center justify-between px-7 py-4 shrink-0"
-          style={{
-            background: "var(--bg-panel)",
-            borderBottom: "1px solid var(--glass-border)",
-          }}
+          style={{ background: "var(--bg-panel)" }}
         >
           <div className="flex items-center gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
@@ -864,10 +860,7 @@ export default function Dashboard() {
         {/* ── Top bar ── */}
         <div
           className="flex items-center gap-2 px-6 py-3 shrink-0 overflow-x-auto"
-          style={{
-            background: "var(--bg-elevated)",
-            borderBottom: "1px solid var(--glass-border)",
-          }}
+          style={{ background: "var(--bg-elevated)" }}
         >
           {MARKET_KEYS.map(key => {
             const m = MARKETS[key];
@@ -894,10 +887,7 @@ export default function Dashboard() {
         {/* ── Timeframe selector + news marquee ── */}
         <div
           className="w-full flex items-center gap-3 px-6 py-2 shrink-0"
-          style={{
-            background: "var(--bg-elevated)",
-            borderBottom: "1px solid var(--glass-border)",
-          }}
+          style={{ background: "var(--bg-elevated)" }}
         >
           <TimeframeSelector value={timeframe} onChange={setTimeframe} />
           <AnimatePresence>
@@ -939,7 +929,7 @@ export default function Dashboard() {
           {/* Taylor + Bobby panel — BobbyPanel manages its own internal scroll now */}
           <aside
             className="shrink-0 overflow-hidden flex flex-col"
-            style={{ width: "46%", borderLeft: "1px solid var(--glass-border)" }}
+            style={{ width: "46%" }}
           >
             <BobbyPanel
               market={MARKETS[market]}
