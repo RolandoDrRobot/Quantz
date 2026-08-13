@@ -74,7 +74,7 @@ export default function ChecklistPanel() {
               )}
               <span
                 className="text-[15px] leading-snug"
-                style={{ color: done ? "var(--text-primary)" : "var(--text-secondary)", textDecoration: done ? "line-through" : "none", opacity: done ? 0.85 : 1 }}
+                style={{ color: "var(--text-secondary)", textDecoration: done ? "line-through" : "none", opacity: done ? 0.85 : 1 }}
               >
                 {item}
               </span>

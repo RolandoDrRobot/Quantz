@@ -258,7 +258,7 @@ export default function JournalPanel() {
       {entries.length === 0 && !formOpen ? (
         <motion.div
           className="flex-1 flex flex-col items-center justify-center px-5 py-16 text-center"
-          style={{ color: "var(--text-primary)" }}
+          style={{ color: "var(--text-secondary)" }}
           variants={fadeVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
         >
           <FiBookOpen size={44} className="mb-4 opacity-15" />
@@ -307,7 +307,7 @@ export default function JournalPanel() {
                 {e.size !== null && ` · ${fmtLots(e.size)} lots`}
               </div>
               {e.notes && (
-                <div className="text-[13px] mt-1.5 leading-snug" style={{ color: "var(--text-primary)" }}>{e.notes}</div>
+                <div className="text-[13px] mt-1.5 leading-snug" style={{ color: "var(--text-secondary)" }}>{e.notes}</div>
               )}
             </motion.div>
           ))}

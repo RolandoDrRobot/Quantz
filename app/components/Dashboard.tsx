@@ -590,7 +590,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 font-black text-lg tracking-wider" style={{ color: opportunity.direction === "long" ? "#f2f5f8" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                   <FiZap size={16} /> RETEST ACTIVE — {fmtPrice(opportunity.level)}
                 </div>
-                <div className="text-sm mt-0.5" style={{ color: "var(--text-primary)" }}>
+                <div className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
                   {opportunity.direction === "long" ? "▲ LONG" : "▼ SHORT"} · Confirm the candle before entering
                 </div>
               </motion.div>
@@ -602,12 +602,12 @@ export default function Dashboard() {
           {chartLoading ? (
             <>
               <div className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "var(--gold)", borderTopColor: "transparent" }} />
-              <p className="text-base" style={{ color: "var(--text-primary)" }}>Loading {cfg.label}...</p>
+              <p className="text-base" style={{ color: "var(--text-secondary)" }}>Loading {cfg.label}...</p>
             </>
           ) : (
             <>
               <FiTrendingUp size={40} className="opacity-10" style={{ color: "var(--text-muted)" }} />
-              <p className="text-base" style={{ color: "var(--text-primary)" }}>Error loading {cfg.label}</p>
+              <p className="text-base" style={{ color: "var(--text-secondary)" }}>Error loading {cfg.label}</p>
             </>
           )}
         </div>

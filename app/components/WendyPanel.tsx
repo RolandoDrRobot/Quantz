@@ -106,7 +106,7 @@ export default function WendyPanel() {
         {messages.length === 0 ? (
           <motion.div
             className="flex-1 flex flex-col items-center justify-center px-5 text-center"
-            style={{ color: "var(--text-primary)" }}
+            style={{ color: "var(--text-secondary)" }}
             variants={fadeVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
           >
             <FiHeart size={44} className="mb-4 opacity-15" />
@@ -122,7 +122,7 @@ export default function WendyPanel() {
             >
               <div
                 className="rounded-lg px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
-                style={{ ...glassChipStyle(m.role === "wendy" ? "#f2f5f8" : undefined), color: "var(--text-primary)" }}
+                style={{ ...glassChipStyle(m.role === "wendy" ? "#f2f5f8" : undefined), color: "var(--text-secondary)" }}
               >
                 {m.role === "wendy" && (
                   <div className="flex items-center gap-1.5 mb-1 text-sm lg:text-xs font-black tracking-[0.15em]" style={{ color: "#f2f5f8" }}>

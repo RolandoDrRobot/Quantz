@@ -76,11 +76,6 @@ export const PHASE_META: Record<OppPhase, { label: string; color: string }> = {
 };
 
 
-function probColor(p: number) {
-  if (p >= 70) return "#1c7d4c";
-  if (p >= 45) return "#f2f5f8";
-  return "#8a2f2a";
-}
 function probLabel(p: number) {
   if (p >= 70) return "HIGH";
   if (p >= 45) return "MEDIUM";
@@ -94,27 +89,29 @@ function formatElapsed(ms: number): string {
   return `${Math.floor(min / 60)}h ago`;
 }
 
-// ── Circular probability gauge ───────────────────────────────────────────────
-function ProbRing({ value, adjusted }: { value: number; adjusted?: boolean }) {
-  const c = probColor(value);
-  const R = 34;
+// ── Circular probability gauge — colored by the signal's own direction
+//    (LONG/SHORT/WAIT), not by how high the probability is, so it always
+//    reads as "which way" at a glance instead of "how confident". ─────────
+function ProbRing({ value, adjusted, color }: { value: number; adjusted?: boolean; color: string }) {
+  const c = color;
+  const R = 26;
   const CIRC = 2 * Math.PI * R;
   return (
-    <div className="relative w-[88px] h-[88px] shrink-0">
-      <svg width="88" height="88" viewBox="0 0 88 88" className="-rotate-90">
-        <circle cx="44" cy="44" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="7" />
+    <div className="relative w-[64px] h-[64px] shrink-0">
+      <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90">
+        <circle cx="32" cy="32" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
         <circle
-          cx="44" cy="44" r={R} fill="none"
-          stroke={c} strokeWidth="7" strokeLinecap="round"
+          cx="32" cy="32" r={R} fill="none"
+          stroke={c} strokeWidth="6" strokeLinecap="round"
           strokeDasharray={`${(value / 100) * CIRC} ${CIRC}`}
           style={{ transition: "stroke-dasharray 0.6s ease" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
+        <span className="text-lg font-black leading-none" style={{ color: c, fontFamily: "var(--font-display)" }}>{value}%</span>
         {adjusted && (
-          <span className="flex items-center gap-0.5 mt-0.5 text-[8px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
-            <FiCpu size={7} /> TAYLOR
+          <span className="flex items-center gap-0.5 mt-0.5 text-[7px] font-bold tracking-wider" style={{ color: "var(--text-muted)" }}>
+            <FiCpu size={6} /> TAYLOR
           </span>
         )}
       </div>
@@ -285,7 +282,7 @@ function OpportunityCard({
 
       {/* Status + P/L */}
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-        <p className="text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-primary)" }}>{statusLine}</p>
+        <p className="text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>{statusLine}</p>
         {pnl !== null && (
           <div className="text-right shrink-0">
             <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
@@ -856,7 +853,7 @@ export default function BobbyPanel({
                     NO SETUP YET
                   </span>
                 </div>
-                <div className="px-5 py-3.5 text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-primary)" }}>
+                <div className="px-5 py-3.5 text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>
                   {nearestLevel
                     ? `Watching ${nearestLevel.type} at ${fmtPrice(nearestLevel.price)} · ${fmtPrice(Math.abs(livePrice! - nearestLevel.price))} pts away`
                     : "No tradeable setup — run a new analysis once the market moves."}
@@ -874,11 +871,11 @@ export default function BobbyPanel({
           {/* Signal + probability gauge — the verdict itself is a snapshot (see the
               "entry-time read" caption below), but the box is never just sitting
               there: the live price + elapsed-time caption both tick every update. */}
-          <div className="rounded-lg px-5 py-4" style={glassStyle(sig.color)}>
+          <div className="rounded-lg px-4 py-3" style={glassStyle(sig.color)}>
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <sig.Icon size={22} color={sig.color} />
-                <span className="text-3xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
+              <div className="flex items-center gap-1.5">
+                <sig.Icon size={18} color={sig.color} />
+                <span className="text-xl font-black tracking-wider" style={{ color: sig.color, fontFamily: "var(--font-display)" }}>{sig.label}</span>
               </div>
               {livePrice !== null && (
                 <div className="flex items-center gap-1.5 text-[12px] lg:text-[11px] font-bold tracking-widest shrink-0" style={{ color: "var(--text-secondary)" }}>
@@ -887,15 +884,15 @@ export default function BobbyPanel({
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-5 mt-3">
-              <ProbRing value={displayProbability} adjusted={isBlended} />
+            <div className="flex items-center gap-3 mt-2">
+              <ProbRing value={displayProbability} adjusted={isBlended} color={sig.color} />
               <div className="flex-1">
-                <div className="text-lg lg:text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                <div className="text-base lg:text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
                   {probLabel(displayProbability)} · {result.probFactors.filter(f => f.points === f.max).length}/{result.probFactors.length} factors
                   {result.penalties.length > 0 && ` · ${result.penalties.length} penalt${result.penalties.length > 1 ? "ies" : "y"}`}
                 </div>
                 {isBlended && aiTake && (
-                  <div className="text-base lg:text-sm mt-0.5" style={{ color: "var(--text-primary)" }}>
+                  <div className="text-sm lg:text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
                     Engine {result.probability}% · Taylor {aiTake.confidenceDelta > 0 ? "+" : ""}{aiTake.confidenceDelta}
                   </div>
                 )}
@@ -903,7 +900,7 @@ export default function BobbyPanel({
                     recomputes on its own. The opportunity card (or the watching strip
                     above, before one exists) is the live piece that ticks with price. */}
                 {opportunity && (
-                  <div className="text-sm lg:text-xs mt-1" style={{ color: "var(--text-primary)" }}>
+                  <div className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
                     Entry-time read · {formatElapsed(now - opportunity.startedAt)}
                   </div>
                 )}
@@ -933,8 +930,8 @@ export default function BobbyPanel({
                     className="rounded-lg px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
                     style={
                       m.role === "user"
-                        ? { ...glassChipStyle(), color: "var(--text-primary)" }
-                        : { ...glassChipStyle(m.verdict ? AI_VERDICT_STYLE[m.verdict].color : undefined), color: "var(--text-primary)" }
+                        ? { ...glassChipStyle(), color: "var(--text-secondary)" }
+                        : { ...glassChipStyle(m.verdict ? AI_VERDICT_STYLE[m.verdict].color : undefined), color: "var(--text-secondary)" }
                     }
                   >
                     {m.role === "taylor" && (
@@ -986,7 +983,7 @@ export default function BobbyPanel({
 
         </motion.div>
       ) : !loading && !error ? (
-        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-primary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
+        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-secondary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
           <FiZap size={48} className="mb-4 opacity-15" />
           <p className="text-xl lg:text-lg">Press <strong style={{ color: "var(--gold)" }}>New Analysis</strong> to analyze {market.label}.</p>
           <p className="text-lg lg:text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>
