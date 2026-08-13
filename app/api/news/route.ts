@@ -22,8 +22,8 @@ interface FinnhubArticle {
 // crypto) are broad market feeds, not per-symbol, so this is what turns "all
 // finance news" into "only news for the pairs we trade".
 const KEYWORDS: Record<MarketKey, string[]> = {
-  nasdaq:   ["nasdaq", "s&p 500", "s&p500", "tech stock", "big tech", "nvidia", "apple", "tesla", "microsoft", "amazon", "meta ", "alphabet", "google"],
-  dowjones: ["dow jones", "dow industrial", "blue chip", "dow "],
+  nasdaq:   ["nasdaq", "s&p 500", "s&p500", "tech stock", "big tech", "nvidia", "apple", "tesla", "microsoft", "amazon", "meta", "alphabet", "google"],
+  dowjones: ["dow jones", "dow industrial", "blue chip", "dow"],
   gold:     ["gold", "xau", "bullion", "precious metal", "safe-haven", "safe haven"],
   bitcoin:  ["bitcoin", "btc"],
 };
@@ -31,18 +31,37 @@ const KEYWORDS: Record<MarketKey, string[]> = {
 // Macro news moves every instrument we trade, not just one — a rate
 // decision or CPI print matters equally to NASDAQ, Gold, and Bitcoin.
 const MACRO_KEYWORDS = [
-  "federal reserve", " fed ", "fed rate", "interest rate", "inflation",
-  "cpi ", "jobs report", "nonfarm payroll", "fomc", "powell", "rate cut",
+  "federal reserve", "fed", "fed rate", "interest rate", "inflation",
+  "cpi", "jobs report", "nonfarm payroll", "fomc", "powell", "rate cut",
   "rate hike", "recession", "treasury yield",
 ];
 
+// Whole-word matching, not String.includes() — a naive substring check made
+// "gold" match every "Goldman Sachs" headline, tagging unrelated Goldman
+// corporate news as Gold-relevant (and, worse, macro-broadcasting it to
+// every other market too). \b anchors each keyword to real word boundaries
+// so "gold" only matches "gold", never the inside of "Goldman".
+function buildMatcher(words: string[]): (text: string) => boolean {
+  const pattern = words
+    .map(w => w.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .map(w => `\\b${w}\\b`)
+    .join("|");
+  const re = new RegExp(pattern, "i");
+  return (text: string) => re.test(text);
+}
+
+const KEYWORD_MATCHERS = Object.fromEntries(
+  (Object.entries(KEYWORDS) as [MarketKey, string[]][]).map(([key, words]) => [key, buildMatcher(words)])
+) as Record<MarketKey, (text: string) => boolean>;
+
+const MACRO_MATCHER = buildMatcher(MACRO_KEYWORDS);
+
 function relevantMarkets(text: string): MarketKey[] {
-  const lower = text.toLowerCase();
   const hits = new Set<MarketKey>();
-  for (const [key, words] of Object.entries(KEYWORDS) as [MarketKey, string[]][]) {
-    if (words.some(w => lower.includes(w))) hits.add(key);
+  for (const [key, matches] of Object.entries(KEYWORD_MATCHERS) as [MarketKey, (text: string) => boolean][]) {
+    if (matches(text)) hits.add(key);
   }
-  if (MACRO_KEYWORDS.some(w => lower.includes(w))) {
+  if (MACRO_MATCHER(text)) {
     (Object.keys(KEYWORDS) as MarketKey[]).forEach(k => hits.add(k));
   }
   return [...hits];
@@ -66,12 +85,17 @@ const MEDIUM_IMPACT_WORDS = [
   "launch", "acquisition", "merger", "ipo", "guidance", "buyback",
 ];
 
+// Same whole-word matching as relevantMarkets() above — plain .includes()
+// let "war" match inside "warning"/"software" and "ban" match inside
+// "banner"/"urban", inflating impact on totally unrelated articles.
+const HIGH_IMPACT_MATCHER = buildMatcher(HIGH_IMPACT_WORDS);
+const MEDIUM_IMPACT_MATCHER = buildMatcher(MEDIUM_IMPACT_WORDS);
+
 function classifyImpact(text: string, relevantCount: number): NewsImpact {
-  const lower = text.toLowerCase();
-  if (MACRO_KEYWORDS.some(w => lower.includes(w))) return "high";
-  if (HIGH_IMPACT_WORDS.some(w => lower.includes(w))) return "high";
+  if (MACRO_MATCHER(text)) return "high";
+  if (HIGH_IMPACT_MATCHER(text)) return "high";
   if (relevantCount >= 3) return "high";
-  if (MEDIUM_IMPACT_WORDS.some(w => lower.includes(w))) return "medium";
+  if (MEDIUM_IMPACT_MATCHER(text)) return "medium";
   if (relevantCount === 2) return "medium";
   return "low";
 }
