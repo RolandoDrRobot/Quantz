@@ -11,7 +11,7 @@ import {
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
 import { ACCOUNT, lotsFor, type Market } from "../lib/markets";
-import { livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
+import type { Opportunity, OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
 import { buildAiAnalysisRequest, type AiTake, type AiVerdict } from "../lib/aiTake";
@@ -200,13 +200,6 @@ function OpportunityCard({
   const dirColor = opp.direction === "long" ? "#1c7d4c" : "#8a2f2a";
   const dist = price !== null ? Math.abs(price - opp.level) : null;
 
-  const pnl = (() => {
-    if (opp.phase === "CONFIRMED" && price !== null) return livePnl(opp, price);
-    if (opp.phase === "TP_HIT") return livePnl(opp, opp.tp);
-    if (opp.phase === "SL_HIT") return livePnl(opp, opp.sl);
-    return null;
-  })();
-
   let statusLine = "";
   switch (opp.phase) {
     case "HUNTING":
@@ -276,58 +269,10 @@ function OpportunityCard({
         </div>
       </div>
 
-      {/* Status + P/L */}
-      <div className="flex items-center justify-between gap-3 px-5 py-3.5">
+      {/* Status */}
+      <div className="px-5 py-3">
         <p className="text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>{statusLine}</p>
-        {pnl !== null && (
-          <div className="text-right shrink-0">
-            <div className="text-3xl font-black leading-none" style={{ color: pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
-              {fmtSignedMoney(pnl)}
-            </div>
-            <div className="text-[12px] lg:text-[11px] font-bold tracking-widest mt-0.5" style={{ color: "var(--text-secondary)" }}>
-              {opp.phase === "CONFIRMED" ? "LIVE P/L" : "RESULT"}
-            </div>
-            {/* Nothing is ever placed by the app — this line exists so the big
-                dollar figure never reads as "a transaction just happened". */}
-            <div className="text-[10px] lg:text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-              {opp.phase === "CONFIRMED" ? "reference only — not a placed trade" : "tracked outcome — no trade executed"}
-            </div>
-          </div>
-        )}
       </div>
-
-      {/* Live TP/SL progress — the visual heartbeat of the card: moves with
-          every price tick from the moment the retest confirms, so the trader
-          can see the call actually playing out instead of a frozen snapshot. */}
-      {(opp.phase === "CONFIRMED" || opp.phase === "TP_HIT" || opp.phase === "SL_HIT") && (() => {
-        const dirUp = opp.direction === "long";
-        const trackPrice = opp.phase === "TP_HIT" ? opp.tp : opp.phase === "SL_HIT" ? opp.sl : (price ?? opp.entry);
-        const lo = dirUp ? opp.sl : opp.tp;
-        const hi = dirUp ? opp.tp : opp.sl;
-        const range = hi - lo || 1;
-        const dotPct = Math.max(0, Math.min(100, ((trackPrice - lo) / range) * 100));
-        const entryPct = Math.max(0, Math.min(100, ((opp.entry - lo) / range) * 100));
-        const toTargetPct = Math.round(Math.max(-100, Math.min(100,
-          dirUp ? ((trackPrice - opp.entry) / (opp.tp - opp.entry)) * 100 : ((opp.entry - trackPrice) / (opp.entry - opp.tp)) * 100
-        )));
-        const dotColor = pnl !== null && pnl >= 0 ? "#1c7d4c" : "#8a2f2a";
-        return (
-          <div className="px-5 pb-4">
-            <div className="relative h-2 rounded-full" style={{ background: "linear-gradient(90deg, #8a2f2a55 0%, #8a2f2a22 45%, #1c7d4c22 55%, #1c7d4c55 100%)" }}>
-              <div className="absolute top-1/2 w-px h-3.5 -translate-y-1/2" style={{ left: `${entryPct}%`, background: "#d4a72c" }} />
-              <div
-                className="absolute top-1/2 rounded-full transition-all duration-500"
-                style={{ left: `${dotPct}%`, width: 11, height: 11, marginLeft: -5.5, transform: "translateY(-50%)", background: dotColor, boxShadow: `0 0 8px ${dotColor}` }}
-              />
-            </div>
-            <div className="flex items-center justify-between mt-1.5 text-[11px] lg:text-[10px] font-bold tracking-wide" style={{ color: "var(--text-muted)" }}>
-              <span>SL</span>
-              <span style={{ color: toTargetPct >= 0 ? "#1c7d4c" : "#8a2f2a" }}>{toTargetPct >= 0 ? toTargetPct : Math.abs(toTargetPct)}% {toTargetPct >= 0 ? "to target" : "toward stop"}</span>
-              <span>TP</span>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
