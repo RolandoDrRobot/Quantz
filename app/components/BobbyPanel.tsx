@@ -10,7 +10,7 @@ import {
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
-import { ACCOUNT, lotsFor, type Market } from "../lib/markets";
+import { ACCOUNT, lotsFor, MARKETS, type Market, type MarketKey } from "../lib/markets";
 import type { Opportunity, OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
@@ -20,6 +20,8 @@ import { glassStyle, glassChipStyle } from "../lib/glass";
 import { getSessionInfo, sessionColor } from "../lib/sessions";
 import JournalPanel from "./JournalPanel";
 import WendyPanel from "./WendyPanel";
+
+const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin"];
 
 export type PanelTab = "analysis" | "journal" | "wendy";
 const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
@@ -366,11 +368,22 @@ interface Props {
   onCheckOpportunity: () => void;
   checkingOpportunity: boolean;
   onClose?: () => void;
+  // Whether this instance is actually visible right now. Only meaningful on
+  // mobile, where the panel is a sheet that stays mounted (state persists)
+  // but slides off-screen instead of unmounting — defaults true, which is
+  // always correct for the desktop aside (no onClose = always visible).
+  isOpen?: boolean;
+  // Mobile only — the desktop layout already shows a persistent market
+  // switcher above the chart regardless of tab, but on mobile the sheet
+  // covers the whole screen, so the trader had no way to switch assets
+  // without closing it first. Optional since the desktop aside doesn't need
+  // its own switcher.
+  onMarketChange?: (key: MarketKey) => void;
 }
 
 export default function BobbyPanel({
   market, analysis, opportunity, livePrice,
-  onCheckOpportunity, checkingOpportunity, onClose,
+  onCheckOpportunity, checkingOpportunity, onClose, isOpen = true, onMarketChange,
 }: Props) {
   const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
 
@@ -576,10 +589,16 @@ export default function BobbyPanel({
     }
   }, [chatInput, chatMessages, result, market, chatSending, aiLoading]);
 
-  // Auto-scroll the chat thread into view as new messages land.
+  // Auto-scroll the chat thread into view as new messages land. Skipped
+  // while the panel isn't actually visible (mobile sheet closed, still
+  // mounted off-screen) — a Taylor reply landing after the trader closed
+  // the sheet used to call scrollIntoView() on an element that's still in
+  // the layout flow just translated off-screen, and mobile browsers would
+  // force-scroll it back into view, visually reopening the sheet.
   useEffect(() => {
+    if (!isOpen) return;
     chatScrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chatMessages, aiLoading, chatSending]);
+  }, [chatMessages, aiLoading, chatSending, isOpen]);
 
   const sig = result?.signal ? SIGNAL_CONFIG[result.signal] : null;
   const lots = lotsFor(market);
@@ -713,6 +732,37 @@ export default function BobbyPanel({
           );
         })}
       </div>
+
+      {/* Mobile-only asset switcher — the sheet covers the whole screen, so
+          the market buttons above the chart (behind it) are unreachable
+          without closing the sheet first. Mirrors that same switcher, just
+          reachable from in here too, on any tab. */}
+      {onMarketChange && (
+        <div
+          className="flex items-center gap-1.5 px-4 pb-2.5 shrink-0 overflow-x-auto"
+          style={{ background: "var(--bg-panel)" }}
+        >
+          {MARKET_KEYS.map(key => {
+            const m = MARKETS[key];
+            const active = key === market.key;
+            return (
+              <button
+                key={key}
+                onClick={() => onMarketChange(key)}
+                className="flex-1 py-2 rounded text-xs font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
+                style={{
+                  ...glassChipStyle(active ? m.color : undefined),
+                  color: active ? "var(--text-primary)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                {m.short}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {activeTab === "analysis" && (
       <div className="flex-1 overflow-y-auto">

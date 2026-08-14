@@ -910,7 +910,17 @@ export default function Dashboard() {
               livePrice={livePrice}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
-              onClose={() => setTaylorOpen(false)}
+              isOpen={taylorOpen}
+              onMarketChange={handleMarketChange}
+              onClose={() => {
+                setTaylorOpen(false);
+                // The chat input can still hold focus after the sheet slides
+                // off-screen (it stays mounted, just translated) — leaving it
+                // focused is what let a later Taylor reply force the browser
+                // to scroll/reopen it. Blur so nothing inside the closed
+                // sheet still has focus.
+                (document.activeElement as HTMLElement | null)?.blur();
+              }}
             />
           </div>
         </motion.div>
