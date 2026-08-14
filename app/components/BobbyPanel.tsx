@@ -23,8 +23,8 @@ import WendyPanel from "./WendyPanel";
 
 export type PanelTab = "analysis" | "journal" | "wendy";
 const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
-  { key: "analysis", label: "ANALYSIS", Icon: FiBarChart2 },
-  { key: "journal",  label: "JOURNAL",  Icon: FiBookOpen },
+  { key: "analysis", label: "TAYLOR", Icon: FiBarChart2 },
+  { key: "journal",  label: "AXE",    Icon: FiBookOpen },
   { key: "wendy",    label: "WENDY",    Icon: FiHeart },
 ];
 
