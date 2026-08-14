@@ -7,8 +7,8 @@ import { LuBrainCircuit, LuNewspaper } from "react-icons/lu";
 import AxeChart from "./AxeChart";
 import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
-import type { AnalysisResult, TradeSetup, BreakoutEvent, Level } from "../lib/analysis";
-import { MARKETS, type MarketKey } from "../lib/markets";
+import { runAnalysis, type AnalysisResult, type TradeSetup, type BreakoutEvent, type Level } from "../lib/analysis";
+import { MARKETS, type Market, type MarketKey } from "../lib/markets";
 import NewsModal from "./NewsModal";
 import type { NewsArticle } from "../lib/news";
 import { createOpportunity, advanceOpportunity, livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
@@ -129,6 +129,28 @@ function pickChartCandles(c1m: RawCandle[], c5m: RawCandle[], slPoints: number):
   return c1m;
 }
 
+// Extends the analysis engine's own 1m candle buffer with a live tick,
+// locally — no server round-trip. Mirrors the bucket logic AxeChart already
+// runs for its own rendering, but kept separate from `rawCandles1m` (the
+// chart's state) on purpose: feeding this same array back into the chart's
+// props on every tick would change its identity constantly and force a full
+// chart rebuild (new candlestick series, lost zoom) every few seconds. This
+// buffer exists purely so the deterministic engine can re-run continuously
+// for cheap, decoupled from what the chart is doing.
+function applyTickToCandles(candles: RawCandle[], price: number): RawCandle[] {
+  if (candles.length === 0 || !isFinite(price) || price <= 0) return candles;
+  const bucket = Math.floor(Date.now() / 1000 / 60) * 60; // 1min buckets — matches the engine's own basis
+  const last = candles[candles.length - 1];
+  if (last.time === bucket) {
+    const updated: RawCandle = { ...last, high: Math.max(last.high, price), low: Math.min(last.low, price), close: price };
+    return [...candles.slice(0, -1), updated];
+  }
+  if (bucket > last.time) {
+    return [...candles, { time: bucket, open: price, high: price, low: price, close: price, volume: 0 }];
+  }
+  return candles; // a tick for a bucket that's already passed — ignore rather than corrupt history
+}
+
 function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (tf: Timeframe) => void }) {
   return (
     <div className="flex items-center rounded overflow-hidden shrink-0" style={glassChipStyle()}>
@@ -209,6 +231,20 @@ export default function Dashboard() {
   // mount) sets the real value inside its own effect body; a literal here
   // keeps this a pure render instead of an impure call on every re-render.
   const lastTickAtRef = useRef(0);
+  const cfgRef = useRef<Market>(cfg);
+
+  // The auto-analysis engine's own candle buffer — see applyTickToCandles()
+  // above. Seeded from the market-load fetch, extended locally on every tick,
+  // never touches rawCandles1m/rawCandles5m (the chart's state).
+  const analysisCandlesRef = useRef<RawCandle[]>([]);
+  const prevCloseRef = useRef<number>(0);
+  const lastAutoAnalysisAtRef = useRef(0);
+  const AUTO_ANALYSIS_THROTTLE_MS = 2500;
+  // How long a resolved (TP/SL/INVALIDATED) call stays on screen before the
+  // engine clears it and starts hunting the next setup on its own — long
+  // enough to actually register the result, short enough that the app never
+  // just sits there once a call is done.
+  const TERMINAL_GRACE_MS = 20000;
 
   // Callbacks (handleTick, advancePrice, etc.) read these refs instead of
   // closing over state, so they always see the latest value without being
@@ -218,6 +254,7 @@ export default function Dashboard() {
   useEffect(() => { marketShortRef.current = cfg.short; }, [cfg.short]);
   useEffect(() => { hasOwnTickPollRef.current = !cfg.coinbaseProduct && !(TD_WS_VIABLE && cfg.tdSymbol); }, [cfg.coinbaseProduct, cfg.tdSymbol]);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
+  useEffect(() => { cfgRef.current = cfg; }, [cfg]);
 
   // News ticker feed — scoped to the selected market, so switching markets
   // reloads it. The server keeps one shared cache of all 5 markets' news
@@ -266,6 +303,67 @@ export default function Dashboard() {
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Re-runs the deterministic engine (analysis.ts) against the tick-extended
+  // local candle buffer — no fetch, no AI, just the same pure computation
+  // "New Analysis" used to trigger by hand, now driven by price itself.
+  // Throttled internally so a burst of ticks (crypto WS can fire several
+  // times a second) still only recomputes a couple times a second at most.
+  //
+  // Opportunity handling is deliberately conservative: this NEVER supersedes
+  // a live, still-unresolved opportunity — it only proposes a fresh one when
+  // there's genuinely nothing being tracked (null), or once a resolved
+  // TP/SL/INVALIDATED call has sat for TERMINAL_GRACE_MS. Without that
+  // guard, re-running every couple seconds while a breakout sits in
+  // AWAIT_RETEST would otherwise create (and log a fresh prediction for)
+  // a "new" call every single throttle tick — the same setup, spammed.
+  const runAutoAnalysis = useCallback((price: number, force = false) => {
+    const nowMs = Date.now();
+    if (!force && nowMs - lastAutoAnalysisAtRef.current < AUTO_ANALYSIS_THROTTLE_MS) return;
+    if (analysisCandlesRef.current.length === 0) return; // market data hasn't loaded yet
+    lastAutoAnalysisAtRef.current = nowMs;
+
+    analysisCandlesRef.current = applyTickToCandles(analysisCandlesRef.current, price);
+    const activeCfg = cfgRef.current;
+    const result = runAnalysis(
+      analysisCandlesRef.current,
+      price,
+      prevCloseRef.current,
+      activeCfg.is24h,
+      activeCfg.slPoints,
+      activeCfg.label
+    );
+    analysisRef.current = result;
+    setAnalysis(result);
+
+    const prevOpp = opportunityRef.current;
+    if (prevOpp && TERMINAL_PHASES.has(prevOpp.phase)) {
+      if (nowMs - prevOpp.updatedAt > TERMINAL_GRACE_MS) {
+        updateOpportunity(null); // let the next tick hunt fresh from a clean slate
+      }
+      saveState(symbolRef.current, result, prevOpp);
+      return;
+    }
+    if (!prevOpp) {
+      const opp = createOpportunity(result, activeCfg.slPoints, tradeCostFor(activeCfg));
+      if (opp) {
+        // Only logs once there's an actual breakout to call (see
+        // syncPrediction) — a bare HUNTING setup isn't a real prediction yet;
+        // it becomes one at the HUNTING->AWAIT_RETEST transition in
+        // advancePrice() if/when that happens live.
+        syncPrediction(null, opp, marketShortRef.current, result.currentPrice);
+        updateOpportunity(opp);
+        saveState(symbolRef.current, result, opp);
+      } else {
+        saveState(symbolRef.current, result, null);
+      }
+      return;
+    }
+    // Already tracking something live and non-terminal — leave it alone,
+    // advancePrice()'s own state machine (right below) is what progresses
+    // it. This call only refreshed the displayed read.
+    saveState(symbolRef.current, result, prevOpp);
+  }, [updateOpportunity]);
+
   // Resets chart/analysis state whenever the selected market changes, then
   // loads that market's data — the reset has to run as a side effect since it
   // depends on cfg.symbol changing, not just on mount.
@@ -279,6 +377,9 @@ export default function Dashboard() {
     setChartLoading(true);
     lastTickAtRef.current = Date.now(); // don't flag stale mid-switch before the new feed connects
     setIsStale(false);
+    analysisCandlesRef.current = [];
+    prevCloseRef.current = 0;
+    lastAutoAnalysisAtRef.current = 0;
     let cancelled = false;
     // Rapidly clicking through markets used to leave every prior fetch
     // running to completion in the background even though only the last
@@ -294,6 +395,11 @@ export default function Dashboard() {
         const c5m: RawCandle[] = data.candles5m ?? [];
         setRawCandles1m(c1m);
         setRawCandles5m(c5m);
+        // Same buffer + fallback threshold the old manual analyze() used —
+        // 1m history is preferred, but falls back to 5m when the feed hasn't
+        // built up 60 bars yet (e.g. right after an index market's open).
+        analysisCandlesRef.current = c1m.length >= 60 ? c1m : c5m;
+        prevCloseRef.current = data.prevClose;
         try {
           const raw = localStorage.getItem(storageKey(cfg.symbol));
           if (raw) {
@@ -320,42 +426,20 @@ export default function Dashboard() {
             }
           }
         } catch { /* corrupt entry */ }
+        // Forces the very first analysis run for this market — bypasses the
+        // throttle since there's nothing to throttle against yet. This is
+        // what replaces the old manual "New Analysis" button for the
+        // initial-load case; every run after this is tick-driven.
+        if (typeof data.currentPrice === "number" && isFinite(data.currentPrice)) {
+          runAutoAnalysis(data.currentPrice, true);
+        }
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setChartLoading(false); });
 
     return () => { cancelled = true; controller.abort(); };
-  }, [cfg.symbol, cfg.slPoints, cfg.short, updateOpportunity]);
+  }, [cfg.symbol, cfg.slPoints, cfg.short, updateOpportunity, runAutoAnalysis]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  const handleAnalysis = useCallback((result: AnalysisResult, c5m: RawCandle[], c1m: RawCandle[]) => {
-    setRawCandles1m(c1m);
-    setRawCandles5m(c5m);
-    setAnalysis(result);
-
-    // A fresh analysis replaces whatever opportunity was live — if that one
-    // was still unresolved (never hit TP/SL/INVALIDATED on its own), it
-    // would otherwise be silently abandoned as PENDING forever. Grade it
-    // honestly as SUPERSEDED instead: we genuinely don't know how it would
-    // have played out, so it's excluded from the hit-rate math, not lost.
-    const outgoing = opportunityRef.current;
-    if (outgoing?.predictionId && !TERMINAL_PHASES.has(outgoing.phase)) {
-      resolvePrediction(outgoing.predictionId, "SUPERSEDED", livePriceRef.current ?? outgoing.level);
-    }
-
-    const opp = createOpportunity(result, MARKETS[market].slPoints, tradeCostFor(MARKETS[market]));
-    if (opp) {
-      // Only logs once there's an actual breakout to call (see
-      // syncPrediction) — a bare HUNTING setup isn't a real prediction yet;
-      // it becomes one at the HUNTING->AWAIT_RETEST transition in
-      // advancePrice() if/when that happens live.
-      syncPrediction(null, opp, MARKETS[market].short, result.currentPrice);
-    }
-    updateOpportunity(opp);
-    saveState(MARKETS[market].symbol, result, opp);
-    const sig = result.signal === "GO_LONG" ? "▲ long" : result.signal === "GO_SHORT" ? "▼ short" : "wait";
-    toast(`taylor · ${sig} · ${result.probability}%`, { duration: 3000 });
-  }, [market, updateOpportunity]);
 
   // Shared by both the live WS tick stream and the manual "check opportunity"
   // button, so a manual check goes through exactly the same state machine —
@@ -365,6 +449,7 @@ export default function Dashboard() {
     lastTickAtRef.current = Date.now();
     setLivePrice(price);
     livePriceRef.current = price;
+    runAutoAnalysis(price);
     const prev = opportunityRef.current;
     if (!prev) {
       if (announce) toast(`Price updated · ${fmtPrice(price)}`, { duration: 2500 });
@@ -409,7 +494,7 @@ export default function Dashboard() {
       const pnlPart = pnl !== null ? ` · ${fmtSignedMoney(pnl)}` : "";
       toast(`No change · ${PHASE_META[next.phase].label} · ${fmtPrice(price)}${pnlPart}`, { duration: 3500 });
     }
-  }, []);
+  }, [runAutoAnalysis]);
 
   const handleTick = useCallback((price: number) => advancePrice(price), [advancePrice]);
 
@@ -821,7 +906,6 @@ export default function Dashboard() {
             <BobbyPanel
               market={MARKETS[market]}
               analysis={analysis}
-              onAnalysis={handleAnalysis}
               opportunity={opportunity}
               livePrice={livePrice}
               onCheckOpportunity={handleCheckOpportunity}
@@ -934,7 +1018,6 @@ export default function Dashboard() {
             <BobbyPanel
               market={MARKETS[market]}
               analysis={analysis}
-              onAnalysis={handleAnalysis}
               opportunity={opportunity}
               livePrice={livePrice}
               onCheckOpportunity={handleCheckOpportunity}

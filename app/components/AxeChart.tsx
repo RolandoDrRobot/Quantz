@@ -74,9 +74,14 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   const volSeriesRef  = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const priceLinesRef = useRef<any[]>([]);
-  const prevCandlesRef = useRef<RawCandle[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const roRef = useRef<any>(null);
+  // Cached once the chart effect's dynamic import resolves — the overlay
+  // effect below needs LW.LineSeries/LW.LineStyle too, but re-importing is
+  // pointless (the module is already loaded; import() just resolves the
+  // cached instance), so it reads from here instead of importing again.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const LWRef = useRef<any>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const onTickRef = useRef(onTick);
@@ -84,13 +89,113 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
   useEffect(() => { onTickRef.current = onTick; }, [onTick]);
   useEffect(() => { candlesRef.current = candles; }, [candles]);
 
-  // ── Single effect: rebuilds chart only when candles change; overlays always ─
+  // ── Overlay refresh — S/R lines, entry/SL/TP, breakout zone, MA. Kept as a
+  // ref-mirrored function, reassigned in the effect below (never during
+  // render — refs can't be written mid-render) so it always closes over the
+  // latest props, rather than inline in one effect, because it's called from
+  // two places: once by the chart-lifecycle effect right after building a
+  // fresh chart, and once right here on every analysis update. Never touches
+  // the chart/series instances themselves.
+  const refreshOverlayRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    refreshOverlayRef.current = () => {
+    const LW = LWRef.current;
+    const cs = seriesRef.current;
+    const activeChart = chartRef.current;
+    if (!LW || !cs || !activeChart) return;
+
+    priceLinesRef.current.forEach(pl => { try { cs.removePriceLine(pl); } catch { /* ignore */ } });
+    priceLinesRef.current = [];
+    if (maSeriesRef.current) { try { activeChart.removeSeries(maSeriesRef.current); } catch { /* ignore */ } maSeriesRef.current = null; }
+
+    if (ma20 > 0) {
+      const seen2 = new Set<number>();
+      const clean2 = candles
+        .filter(c => { if (seen2.has(c.time)) return false; seen2.add(c.time); return true; })
+        .sort((a, b) => a.time - b.time)
+        .map(c => ({ time: c.time as number, close: c.close }));
+      if (clean2.length >= 20) {
+        const maSeries = activeChart.addSeries(LW.LineSeries, {
+          color: accentColor + "55", lineWidth: 1,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        });
+        // Rolling sum instead of re-summing a 20-candle slice per point —
+        // this overlay re-runs on every analysis tick (every ~2.5s as price
+        // moves), not just on genuine candle-set changes, so O(n) matters.
+        const maData: { time: number; value: number }[] = [];
+        let rollingSum = 0;
+        for (let i = 0; i < clean2.length; i++) {
+          rollingSum += clean2[i].close;
+          if (i >= 20) rollingSum -= clean2[i - 20].close;
+          if (i >= 19) maData.push({ time: clean2[i].time, value: rollingSum / 20 });
+        }
+        maSeries.setData(maData);
+        maSeriesRef.current = maSeries;
+      }
+    }
+
+    const addLine = (opts: object) => { priceLinesRef.current.push(cs.createPriceLine(opts)); };
+
+    const seen3 = new Set<number>();
+    const cleanPrices = candles
+      .filter(c => { if (seen3.has(c.time)) return false; seen3.add(c.time); return true; })
+      .sort((a, b) => a.time - b.time);
+    const currentPrice = cleanPrices[cleanPrices.length - 1]?.close ?? 0;
+    // Tight enough to only catch "basically the same line" (rounding/
+    // clustering artifacts) — the old 0.06% was 30-40% of a typical
+    // instrument's SL distance and could hide a genuinely distinct nearby
+    // S/R level under the entry/SL/TP lines.
+    const eps = currentPrice * 0.00015;
+    const near = (a: number, b: number) => Math.abs(a - b) < eps;
+
+    const entryIsBrokenLevel = !!(tradeSetup && breakout && near(tradeSetup.entryPrice, breakout.level));
+    const taken: number[] = [];
+    if (tradeSetup) taken.push(tradeSetup.entryPrice, tradeSetup.stopLoss, tradeSetup.takeProfit);
+    if (breakout) taken.push(breakout.level);
+
+    const topR = levels
+      .filter(l => l.type === "resistance" && l.price > currentPrice && !taken.some(p => near(p, l.price)))
+      .sort((a, b) => b.strength - a.strength)[0];
+    const topS = levels
+      .filter(l => l.type === "support" && l.price < currentPrice && !taken.some(p => near(p, l.price)))
+      .sort((a, b) => b.strength - a.strength)[0];
+
+    if (topR) addLine({ price: topR.price, color: P.resistance, lineWidth: 1, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "R" });
+    if (topS) addLine({ price: topS.price, color: P.support,    lineWidth: 1, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "S" });
+
+    if (tradeSetup) {
+      addLine({ price: tradeSetup.entryPrice, color: P.entry, lineWidth: 2, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: tradeSetup.direction === "long" ? "E▲" : "E▼" });
+      addLine({ price: tradeSetup.stopLoss,   color: P.sl,    lineWidth: 2, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "SL" });
+      addLine({ price: tradeSetup.takeProfit, color: P.tp,    lineWidth: 2, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "TP" });
+    }
+
+    if (breakout) {
+      const bColor = breakout.direction === "long" ? "rgba(42,150,95,0.7)" : "rgba(196,74,64,0.7)";
+      const bZone  = breakout.direction === "long" ? "rgba(42,150,95,0.25)" : "rgba(196,74,64,0.25)";
+      if (!entryIsBrokenLevel) addLine({ price: breakout.level, color: bColor, lineWidth: 2, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: breakout.direction === "long" ? "B▲" : "B▼" });
+      addLine({ price: breakout.level + breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
+      addLine({ price: breakout.level - breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
+    }
+    };
+    refreshOverlayRef.current();
+  }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
+
+  // ── Chart + candlestick/volume series lifecycle — rebuilds ONLY when the
+  // candle set itself changes (market switch, timeframe toggle, initial
+  // load). Deliberately excludes levels/tradeSetup/breakout/ma20 from its
+  // deps: those now update automatically every couple seconds as price
+  // moves (see Dashboard's auto-analysis engine), and used to live in this
+  // same effect — every recompute re-ran this effect, whose cleanup
+  // unconditionally tore the chart down, forcing a full rebuild (including
+  // fitContent/setVisibleLogicalRange) that reset the user's zoom/pan back
+  // to the default view on every single analysis tick. The overlay now
+  // lives in refreshOverlayRef above and its own effect below, which only
+  // touches price lines — never the chart or candlestick series instance.
   useEffect(() => {
     if (!containerRef.current || candles.length === 0) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let chart: any = null;
     let cancelled = false;
-    const needRebuild = candles !== prevCandlesRef.current || !chartRef.current;
 
     async function run() {
       const LW = await import("lightweight-charts");
@@ -101,6 +206,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       // newer run already built, and overwrite chartRef.current with its own
       // stale candles — silently reverting the UI to outdated data.
       if (cancelled) return;
+      LWRef.current = LW;
 
       // The container can unmount while the dynamic import above is in
       // flight (fast market switching, Fast Refresh) — bail rather than
@@ -108,216 +214,135 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       const el = containerRef.current;
       if (!el) return;
 
-      // ── Rebuild chart + candle series only when candles actually changed ──
-      if (needRebuild) {
-        prevCandlesRef.current = candles;
-        if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
-        priceLinesRef.current = [];
-        maSeriesRef.current = null;
-        seriesRef.current = null;
-        volSeriesRef.current = null;
-
-        chart = LW.createChart(el, {
-          width:  el.clientWidth,
-          height: el.clientHeight,
-          layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: 13 },
-          grid: { vertLines: { color: P.grid }, horzLines: { color: P.grid } },
-          crosshair: {
-            mode: LW.CrosshairMode.Normal,
-            vertLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
-            horzLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
-          },
-          // Bottom margin reserves room for the volume histogram, which
-          // overlays this same pane on its own (bottom-anchored) price scale.
-          rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.24 } },
-          // Thousands-grouped axis/crosshair/tooltip labels (lightweight-charts'
-          // own default formatter has no comma grouping — "29722.30" instead
-          // of "29,722.30" on an instrument like NASDAQ or Dow).
-          localization: { priceFormatter: fmtPrice },
-          timeScale: {
-            borderColor: P.grid,
-            timeVisible: true,
-            secondsVisible: false,
-            tickMarkFormatter: (time: number) =>
-              new Date(time * 1000).toLocaleTimeString("en-US", {
-                timeZone: "America/Costa_Rica",
-                hour: "2-digit", minute: "2-digit", hour12: true,
-              }),
-          },
-        });
-        chartRef.current = chart;
-
-        const cs = chart.addSeries(LW.CandlestickSeries, {
-          upColor: P.upBody, downColor: P.downBody,
-          borderUpColor: P.upBorder, borderDownColor: P.downBorder,
-          wickUpColor: P.upWick, wickDownColor: P.downWick,
-        });
-        const seen = new Set<number>();
-        const clean = candles
-          .filter(c => { if (seen.has(c.time)) return false; seen.add(c.time); return true; })
-          .sort((a, b) => a.time - b.time)
-          .map(c => ({ time: c.time as number, open: c.open, high: c.high, low: c.low, close: c.close }));
-        cs.setData(clean);
-        seriesRef.current = cs;
-
-        // During a genuinely flat/thin period (e.g. Gold pinned to a ~0.3pt
-        // range for 90 straight minutes in quiet Asian-session hours) the
-        // chart's autoscale zooms in so tight that ordinary tick noise looks
-        // like a chaotic zigzag dominating the whole view. Floor the visible
-        // range to 0.05% of price so quiet periods render as a calm, mostly
-        // flat band instead — this doesn't touch the underlying data, only
-        // how much vertical room the (unchanged) candles get to breathe in.
-        cs.applyOptions({
-          autoscaleInfoProvider: (original: () => { priceRange: { minValue: number; maxValue: number } } | null) => {
-            const res = original();
-            if (!res?.priceRange) return res;
-            const { minValue, maxValue } = res.priceRange;
-            const mid = (minValue + maxValue) / 2;
-            const minSpan = Math.abs(mid) * 0.0005;
-            const span = maxValue - minValue;
-            if (span < minSpan) {
-              const pad = (minSpan - span) / 2;
-              return { priceRange: { minValue: minValue - pad, maxValue: maxValue + pad } };
-            }
-            return res;
-          },
-        });
-
-        // Not every source reports volume (e.g. a forex/index feed can come
-        // back all-zero) — skip the histogram entirely rather than draw a
-        // flat, meaningless zero pane for those instruments.
-        const hasVolumeData = candles.some(c => c.volume > 0);
-        if (hasVolumeData) {
-          const vs = chart.addSeries(LW.HistogramSeries, {
-            priceFormat: { type: "volume" },
-            priceScaleId: "",
-          });
-          vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-          const seenVol = new Set<number>();
-          const volData = candles
-            .filter(c => { if (seenVol.has(c.time)) return false; seenVol.add(c.time); return true; })
-            .sort((a, b) => a.time - b.time)
-            .map(c => ({
-              time: c.time as number,
-              value: c.volume,
-              color: c.close >= c.open ? "rgba(26,115,70,0.55)" : "rgba(138,47,42,0.55)",
-            }));
-          vs.setData(volData);
-          volSeriesRef.current = vs;
-        }
-
-        // Tighter default zoom for scalping — fewer bars on screen means
-        // each candle reads bigger and price action is easier to react to.
-        const barsToShow = 90;
-        if (clean.length > barsToShow) {
-          chart.timeScale().setVisibleLogicalRange({ from: clean.length - barsToShow, to: clean.length + 5 });
-        } else {
-          chart.timeScale().fitContent();
-        }
-
-        if (roRef.current) roRef.current.disconnect();
-        roRef.current = new ResizeObserver(() => {
-          if (el && chartRef.current) chartRef.current.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-        });
-        roRef.current.observe(el);
-      }
-
-      // ── Always: refresh analysis overlay (price lines + MA) ───────────────
-      const cs = seriesRef.current;
-      const activeChart = chartRef.current;
-      if (!cs || !activeChart) return;
-
-      priceLinesRef.current.forEach(pl => { try { cs.removePriceLine(pl); } catch { /* ignore */ } });
+      if (chartRef.current) { chartRef.current.remove(); chartRef.current = null; }
       priceLinesRef.current = [];
-      if (maSeriesRef.current) { try { activeChart.removeSeries(maSeriesRef.current); } catch { /* ignore */ } maSeriesRef.current = null; }
+      maSeriesRef.current = null;
+      seriesRef.current = null;
+      volSeriesRef.current = null;
 
-      if (ma20 > 0 && seriesRef.current) {
-        // Compute MA from the current series data length via candles prop
-        const seen2 = new Set<number>();
-        const clean2 = candles
-          .filter(c => { if (seen2.has(c.time)) return false; seen2.add(c.time); return true; })
-          .sort((a, b) => a.time - b.time)
-          .map(c => ({ time: c.time as number, close: c.close }));
-        if (clean2.length >= 20) {
-          const maSeries = activeChart.addSeries(LW.LineSeries, {
-            color: accentColor + "55", lineWidth: 1,
-            priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-          });
-          // Rolling sum instead of re-summing a 20-candle slice per point —
-          // this overlay effect re-runs on every phase transition, not just
-          // on genuine candle-set changes, so O(n) matters on ~3000 candles.
-          const maData: { time: number; value: number }[] = [];
-          let rollingSum = 0;
-          for (let i = 0; i < clean2.length; i++) {
-            rollingSum += clean2[i].close;
-            if (i >= 20) rollingSum -= clean2[i - 20].close;
-            if (i >= 19) maData.push({ time: clean2[i].time, value: rollingSum / 20 });
+      chart = LW.createChart(el, {
+        width:  el.clientWidth,
+        height: el.clientHeight,
+        layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: 13 },
+        grid: { vertLines: { color: P.grid }, horzLines: { color: P.grid } },
+        crosshair: {
+          mode: LW.CrosshairMode.Normal,
+          vertLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
+          horzLine: { color: P.crosshair, labelBackgroundColor: P.bgLabel, width: 1, style: LW.LineStyle.Dashed },
+        },
+        // Bottom margin reserves room for the volume histogram, which
+        // overlays this same pane on its own (bottom-anchored) price scale.
+        rightPriceScale: { borderColor: P.grid, scaleMargins: { top: 0.1, bottom: 0.24 } },
+        // Thousands-grouped axis/crosshair/tooltip labels (lightweight-charts'
+        // own default formatter has no comma grouping — "29722.30" instead
+        // of "29,722.30" on an instrument like NASDAQ or Dow).
+        localization: { priceFormatter: fmtPrice },
+        timeScale: {
+          borderColor: P.grid,
+          timeVisible: true,
+          secondsVisible: false,
+          tickMarkFormatter: (time: number) =>
+            new Date(time * 1000).toLocaleTimeString("en-US", {
+              timeZone: "America/Costa_Rica",
+              hour: "2-digit", minute: "2-digit", hour12: true,
+            }),
+        },
+      });
+      chartRef.current = chart;
+
+      const cs = chart.addSeries(LW.CandlestickSeries, {
+        upColor: P.upBody, downColor: P.downBody,
+        borderUpColor: P.upBorder, borderDownColor: P.downBorder,
+        wickUpColor: P.upWick, wickDownColor: P.downWick,
+      });
+      const seen = new Set<number>();
+      const clean = candles
+        .filter(c => { if (seen.has(c.time)) return false; seen.add(c.time); return true; })
+        .sort((a, b) => a.time - b.time)
+        .map(c => ({ time: c.time as number, open: c.open, high: c.high, low: c.low, close: c.close }));
+      cs.setData(clean);
+      seriesRef.current = cs;
+
+      // During a genuinely flat/thin period (e.g. Gold pinned to a ~0.3pt
+      // range for 90 straight minutes in quiet Asian-session hours) the
+      // chart's autoscale zooms in so tight that ordinary tick noise looks
+      // like a chaotic zigzag dominating the whole view. Floor the visible
+      // range to 0.05% of price so quiet periods render as a calm, mostly
+      // flat band instead — this doesn't touch the underlying data, only
+      // how much vertical room the (unchanged) candles get to breathe in.
+      cs.applyOptions({
+        autoscaleInfoProvider: (original: () => { priceRange: { minValue: number; maxValue: number } } | null) => {
+          const res = original();
+          if (!res?.priceRange) return res;
+          const { minValue, maxValue } = res.priceRange;
+          const mid = (minValue + maxValue) / 2;
+          const minSpan = Math.abs(mid) * 0.0005;
+          const span = maxValue - minValue;
+          if (span < minSpan) {
+            const pad = (minSpan - span) / 2;
+            return { priceRange: { minValue: minValue - pad, maxValue: maxValue + pad } };
           }
-          maSeries.setData(maData);
-          maSeriesRef.current = maSeries;
-        }
+          return res;
+        },
+      });
+
+      // Not every source reports volume (e.g. a forex/index feed can come
+      // back all-zero) — skip the histogram entirely rather than draw a
+      // flat, meaningless zero pane for those instruments.
+      const hasVolumeData = candles.some(c => c.volume > 0);
+      if (hasVolumeData) {
+        const vs = chart.addSeries(LW.HistogramSeries, {
+          priceFormat: { type: "volume" },
+          priceScaleId: "",
+        });
+        vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+        const seenVol = new Set<number>();
+        const volData = candles
+          .filter(c => { if (seenVol.has(c.time)) return false; seenVol.add(c.time); return true; })
+          .sort((a, b) => a.time - b.time)
+          .map(c => ({
+            time: c.time as number,
+            value: c.volume,
+            color: c.close >= c.open ? "rgba(26,115,70,0.55)" : "rgba(138,47,42,0.55)",
+          }));
+        vs.setData(volData);
+        volSeriesRef.current = vs;
       }
 
-      const addLine = (opts: object) => { priceLinesRef.current.push(cs.createPriceLine(opts)); };
-
-      const seen3 = new Set<number>();
-      const cleanPrices = candles
-        .filter(c => { if (seen3.has(c.time)) return false; seen3.add(c.time); return true; })
-        .sort((a, b) => a.time - b.time);
-      const currentPrice = cleanPrices[cleanPrices.length - 1]?.close ?? 0;
-      // Tight enough to only catch "basically the same line" (rounding/
-      // clustering artifacts) — the old 0.06% was 30-40% of a typical
-      // instrument's SL distance and could hide a genuinely distinct nearby
-      // S/R level under the entry/SL/TP lines.
-      const eps = currentPrice * 0.00015;
-      const near = (a: number, b: number) => Math.abs(a - b) < eps;
-
-      const entryIsBrokenLevel = !!(tradeSetup && breakout && near(tradeSetup.entryPrice, breakout.level));
-      const taken: number[] = [];
-      if (tradeSetup) taken.push(tradeSetup.entryPrice, tradeSetup.stopLoss, tradeSetup.takeProfit);
-      if (breakout) taken.push(breakout.level);
-
-      const topR = levels
-        .filter(l => l.type === "resistance" && l.price > currentPrice && !taken.some(p => near(p, l.price)))
-        .sort((a, b) => b.strength - a.strength)[0];
-      const topS = levels
-        .filter(l => l.type === "support" && l.price < currentPrice && !taken.some(p => near(p, l.price)))
-        .sort((a, b) => b.strength - a.strength)[0];
-
-      if (topR) addLine({ price: topR.price, color: P.resistance, lineWidth: 1, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "R" });
-      if (topS) addLine({ price: topS.price, color: P.support,    lineWidth: 1, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "S" });
-
-      if (tradeSetup) {
-        addLine({ price: tradeSetup.entryPrice, color: P.entry, lineWidth: 2, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: tradeSetup.direction === "long" ? "E▲" : "E▼" });
-        addLine({ price: tradeSetup.stopLoss,   color: P.sl,    lineWidth: 2, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "SL" });
-        addLine({ price: tradeSetup.takeProfit, color: P.tp,    lineWidth: 2, lineStyle: LW.LineStyle.Solid,  axisLabelVisible: true, title: "TP" });
+      // Tighter default zoom for scalping — fewer bars on screen means
+      // each candle reads bigger and price action is easier to react to.
+      const barsToShow = 90;
+      if (clean.length > barsToShow) {
+        chart.timeScale().setVisibleLogicalRange({ from: clean.length - barsToShow, to: clean.length + 5 });
+      } else {
+        chart.timeScale().fitContent();
       }
 
-      if (breakout) {
-        const bColor = breakout.direction === "long" ? "rgba(42,150,95,0.7)" : "rgba(196,74,64,0.7)";
-        const bZone  = breakout.direction === "long" ? "rgba(42,150,95,0.25)" : "rgba(196,74,64,0.25)";
-        if (!entryIsBrokenLevel) addLine({ price: breakout.level, color: bColor, lineWidth: 2, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: breakout.direction === "long" ? "B▲" : "B▼" });
-        addLine({ price: breakout.level + breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
-        addLine({ price: breakout.level - breakout.retestZone, color: bZone, lineWidth: 1, lineStyle: LW.LineStyle.Dotted, axisLabelVisible: false, title: "" });
-      }
+      if (roRef.current) roRef.current.disconnect();
+      roRef.current = new ResizeObserver(() => {
+        if (el && chartRef.current) chartRef.current.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+      });
+      roRef.current.observe(el);
+
+      // Draw the current overlay immediately on this fresh chart instance —
+      // the overlay effect below won't otherwise fire again on its own until
+      // levels/tradeSetup/breakout/ma20 next change.
+      refreshOverlayRef.current();
     }
 
-    let cleanup: (() => void) | undefined;
-    run().then(fn => { cleanup = fn as (() => void) | undefined; });
+    run();
 
     return () => {
       cancelled = true;
-      cleanup?.();
-      if (needRebuild) {
-        roRef.current?.disconnect();
-        roRef.current = null;
-        seriesRef.current = null;
-        maSeriesRef.current = null;
-        priceLinesRef.current = [];
-        if (chart) { chart.remove(); chartRef.current = null; }
-      }
+      roRef.current?.disconnect();
+      roRef.current = null;
+      seriesRef.current = null;
+      maSeriesRef.current = null;
+      volSeriesRef.current = null;
+      priceLinesRef.current = [];
+      if (chart) { chart.remove(); chartRef.current = null; }
     };
-  }, [candles, levels, ma20, tradeSetup, breakout, accentColor]);
+  }, [candles]);
 
   // ── Live data ────────────────────────────────────────────────────────────
   // Coinbase Exchange's public trade stream for Bitcoin; Twelve Data's WS

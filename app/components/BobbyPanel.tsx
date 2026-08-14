@@ -361,7 +361,6 @@ function OpportunityCard({
 interface Props {
   market: Market;
   analysis: AnalysisResult | null;
-  onAnalysis: (result: AnalysisResult, candles5m: RawCandle[], candles1m: RawCandle[]) => void;
   opportunity: Opportunity | null;
   livePrice: number | null;
   onCheckOpportunity: () => void;
@@ -370,12 +369,10 @@ interface Props {
 }
 
 export default function BobbyPanel({
-  market, analysis, onAnalysis, opportunity, livePrice,
+  market, analysis, opportunity, livePrice,
   onCheckOpportunity, checkingOpportunity, onClose,
 }: Props) {
   const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   // Ticks the "entry-time read · Xm ago" caption forward without calling
   // Date.now() during render (React forbids impure calls mid-render).
@@ -390,11 +387,12 @@ export default function BobbyPanel({
   // WAIT, nothing to anchor to opportunity.startedAt).
   const result = analysis; // analysis state lives in Dashboard (persisted across reloads)
 
-  // AI second-opinion layer — purely advisory, never gates a trade. Tracks
-  // the CURRENT opportunity: once generated, a take persists (survives tab
-  // switches, live price ticks, phase transitions, even switching to another
-  // market and back — cached per symbol below) and only retires when a fresh
-  // "New Analysis" supersedes it with a new opportunity for that market.
+  // AI second-opinion layer — purely advisory, never gates a trade, and
+  // always manually triggered ("TAYLOR'S TAKE" button below) — the engine's
+  // own auto-analysis re-runs every couple seconds as price moves, but never
+  // calls the AI on its own. A take persists (survives tab switches, live
+  // price ticks, phase transitions, even switching to another market and
+  // back — cached per symbol below) until asked for again on this market.
   const [aiTake, setAiTake] = useState<AiTake | null>(null);
   const [aiProfile, setAiProfile] = useState<PredictionProfileSummary | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -404,18 +402,17 @@ export default function BobbyPanel({
   // generic "unavailable" string.
   const [aiUnavailable, setAiUnavailable] = useState<string | null>(null);
 
-  // Taylor's chat thread — starts with the "take" message (same analysis the
+  // Taylor's chat thread — starts with the "take" message (same read the
   // button always ran, just shown as the first chat bubble instead of a
   // standalone card) and grows with whatever the trader types below. Cached
-  // per market the same way aiTake is, cleared on a fresh "New Analysis"
-  // since a new opportunity makes the old conversation's context stale.
+  // per market the same way aiTake is (see the swap effect below).
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Last candles fetched by either analyze() or generateComment() — reused
-  // for chat replies so every message doesn't need its own market fetch;
+  // Last candles fetched by generateComment() — reused for chat replies so
+  // every message doesn't need its own market fetch;
   // "good enough" recency for a follow-up question about the same setup.
   const lastCandlesRef = useRef<RawCandle[]>([]);
 
@@ -435,15 +432,7 @@ export default function BobbyPanel({
     currentChatRef.current = chatMessages;
   }, [chatMessages]);
 
-  // Clear a stale error from the previous market as soon as the market
-  // changes, without waiting for a post-render effect.
-  const [prevMarket, setPrevMarket] = useState(market);
-  if (market !== prevMarket) {
-    setPrevMarket(market);
-    setError("");
-  }
-
-  // Tracks which symbol is currently selected so an in-flight analyze()
+  // Tracks which symbol is currently selected so an in-flight fetch
   // request from a market the user has since switched away from can detect
   // it's stale and bail instead of overwriting the new market's state.
   const marketSymbolRef = useRef(market.symbol);
@@ -471,9 +460,8 @@ export default function BobbyPanel({
     prevSymbolForCacheRef.current = market.symbol;
   }, [market.symbol]);
 
-  // Fire-and-forget from analyze() — runs after the deterministic engine
-  // already has a result, so the "NEW ANALYSIS" spinner clears on its own
-  // timing and the AI take pops into its card whenever it lands.
+  // Fire-and-forget from generateComment() (the "TAYLOR'S TAKE" button) —
+  // the take pops into its card, and the chat thread, whenever it lands.
   const fetchAiTake = useCallback(async (fresh: AnalysisResult, candles: RawCandle[], requestSymbol: string) => {
     setAiLoading(true);
     setAiUnavailable(null);
@@ -512,67 +500,13 @@ export default function BobbyPanel({
     }
   }, [market]);
 
-  const analyze = useCallback(async () => {
-    // Don't stomp an in-flight Taylor comment (analyze() clears aiTake/
-    // aiProfile below, which would otherwise race a generateComment() call).
-    if (loading || aiLoading) return;
-    const requestSymbol = market.symbol;
-    setLoading(true);
-    setError("");
-    // A fresh analysis means a new opportunity for this market — the old
-    // take was about the setup that's now gone, so it retires here (and
-    // only here, besides an explicit generateComment() overwrite).
-    setAiTake(null);
-    setAiProfile(null);
-    setAiUnavailable(null);
-    delete aiCacheRef.current[requestSymbol];
-    // A fresh setup means the old conversation was about a call that no
-    // longer exists — retire the whole thread along with the take.
-    setChatMessages([]);
-    delete chatCacheRef.current[requestSymbol];
-    try {
-      const res = await fetch(`/api/market?symbol=${encodeURIComponent(market.symbol)}`, { cache: "no-store" });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to fetch market data");
-      }
-      const data = await res.json();
-
-      // Scalping runs the analysis engine (levels, trend, breakout) on 1min
-      // candles — much faster reads than the old 5min basis. Falls back to
-      // 5min only if 1min data is too thin to trust (e.g. a gappy session).
-      const candles1m: RawCandle[] = data.candles1m ?? [];
-      const analysisCandles = candles1m.length >= 60 ? candles1m : data.candles5m;
-      lastCandlesRef.current = analysisCandles;
-
-      const { runAnalysis } = await import("../lib/analysis");
-      const fresh = runAnalysis(
-        analysisCandles,
-        data.currentPrice,
-        data.prevClose,
-        market.is24h,
-        market.slPoints,
-        market.label
-      );
-      if (marketSymbolRef.current !== requestSymbol) return; // user switched markets — discard
-      onAnalysis(fresh, data.candles5m, candles1m);
-    } catch (e: unknown) {
-      if (marketSymbolRef.current !== requestSymbol) return;
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      // Always clear the spinner for this component instance — only the
-      // analysis/error *data* is guarded against staleness above.
-      setLoading(false);
-    }
-  }, [market, onAnalysis, loading, aiLoading]);
-
-  // Separate, explicit trigger for Taylor's comment — decoupled from
-  // analyze() so a Claude call only happens when the user asks for it, not
-  // on every "New Analysis" tap. Re-fetches live market data itself (so the
+  // Separate, explicit trigger for Taylor's comment — a Claude call only
+  // happens when the user asks for it, never automatically as the engine's
+  // own auto-analysis re-runs. Re-fetches live market data itself (so the
   // comment reflects price action right now) but reuses the current
   // deterministic `result` rather than re-running the analysis engine.
   const generateComment = useCallback(async () => {
-    if (!result || loading || aiLoading) return;
+    if (!result || aiLoading) return;
     const requestSymbol = market.symbol;
     setAiLoading(true);
     setAiUnavailable(null);
@@ -593,7 +527,7 @@ export default function BobbyPanel({
         setAiLoading(false);
       }
     }
-  }, [result, market, loading, aiLoading, fetchAiTake]);
+  }, [result, market, aiLoading, fetchAiTake]);
 
   // Free-form follow-up in the chat bar — separate from the take/comment
   // flows above (still exactly one Claude call per send, only ever
@@ -665,11 +599,11 @@ export default function BobbyPanel({
     ? result.levels.reduce((a, b) => Math.abs(b.price - livePrice) < Math.abs(a.price - livePrice) ? b : a)
     : null;
 
-  // Shared controls (compact analyze/take buttons + Taylor chat bar) — placed
-  // differently depending on where BobbyPanel is mounted: pinned to the
-  // bottom on the mobile sheet (thumb reach), inline right under Taylor's
-  // chat thread on the desktop aside (onClose is only ever passed on mobile,
-  // so it doubles as the mobile/desktop switch here).
+  // Shared controls (Taylor's Take button + chat bar) — placed differently
+  // depending on where BobbyPanel is mounted: pinned to the bottom on the
+  // mobile sheet (thumb reach), inline right under Taylor's chat thread on
+  // the desktop aside (onClose is only ever passed on mobile, so it doubles
+  // as the mobile/desktop switch here).
   const footerControls = (
     <>
       <form
@@ -681,7 +615,7 @@ export default function BobbyPanel({
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           disabled={!result || chatSending || aiLoading}
-          placeholder={result ? "Ask Taylor about this setup…" : "Run an analysis first"}
+          placeholder={result ? "Ask Taylor about this setup…" : "Waiting for the market to load…"}
           className="flex-1 min-w-0 px-4 py-4 rounded text-base lg:text-sm outline-none"
           style={{
             ...glassChipStyle(),
@@ -705,42 +639,24 @@ export default function BobbyPanel({
         </button>
       </form>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={analyze}
-          disabled={loading || aiLoading}
-          className="flex-1 px-3 py-3.5 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
-          style={{
-            ...glassChipStyle(),
-            color: "var(--text-primary)",
-            cursor: loading || aiLoading ? "not-allowed" : "pointer",
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-            {loading ? <FiRefreshCw size={15} className="animate-spin shrink-0" /> : <FiRefreshCw size={15} className="shrink-0" />}
-            {loading ? "LOADING..." : "NEW ANALYSIS"}
-          </span>
-        </button>
-        <button
-          onClick={generateComment}
-          disabled={!result || loading || aiLoading}
-          title={result ? "Ask Taylor for a live read on this setup" : "Run an analysis first"}
-          className="flex-1 px-3 py-3.5 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
-          style={{
-            ...glassChipStyle(),
-            color: "var(--text-primary)",
-            cursor: !result || loading || aiLoading ? "not-allowed" : "pointer",
-            opacity: !result ? 0.5 : 1,
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-            {aiLoading ? <FiCpu size={15} className="animate-pulse shrink-0" /> : <FiCpu size={15} className="shrink-0" />}
-            {aiLoading ? "THINKING..." : "TAYLOR'S TAKE"}
-          </span>
-        </button>
-      </div>
+      <button
+        onClick={generateComment}
+        disabled={!result || aiLoading}
+        title={result ? "Ask Taylor for a live read on this setup" : "Waiting for the market to load…"}
+        className="w-full px-3 py-3.5 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
+        style={{
+          ...glassChipStyle(),
+          color: "var(--text-primary)",
+          cursor: !result || aiLoading ? "not-allowed" : "pointer",
+          opacity: !result ? 0.5 : 1,
+          fontFamily: "var(--font-display)",
+        }}
+      >
+        <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+          {aiLoading ? <FiCpu size={15} className="animate-pulse shrink-0" /> : <FiCpu size={15} className="shrink-0" />}
+          {aiLoading ? "THINKING..." : "TAYLOR'S TAKE"}
+        </span>
+      </button>
     </>
   );
 
@@ -800,23 +716,6 @@ export default function BobbyPanel({
 
       {activeTab === "analysis" && (
       <div className="flex-1 overflow-y-auto">
-      {/* Error */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            className="mx-6 mt-5 p-4 rounded text-lg lg:text-base"
-            style={{ ...glassStyle("#8a2f2a"), color: "#8a2f2a" }}
-            variants={fadeUpVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            transition={TRANSITION_BASE}
-          >
-            {error}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence mode="wait">
       {result && sig ? (
         <motion.div key="result" className="p-6 flex flex-col gap-5" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
@@ -971,8 +870,8 @@ export default function BobbyPanel({
           )}
 
           {/* Desktop only (no onClose = the desktop aside, not the mobile sheet) — the
-              analyze/take buttons + chat bar sit right under Taylor's thread instead of
-              pinned to the panel edge, since there's no thumb-reach constraint here. */}
+              take button + chat bar sit right under Taylor's thread instead of pinned
+              to the panel edge, since there's no thumb-reach constraint here. */}
           {!onClose && (
             <div className="rounded-md px-5 py-4 flex flex-col gap-3" style={glassStyle()}>
               {footerControls}
@@ -980,13 +879,13 @@ export default function BobbyPanel({
           )}
 
         </motion.div>
-      ) : !loading && !error ? (
-        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 text-center" style={{ color: "var(--text-secondary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
-          <FiZap size={48} className="mb-4 opacity-15" />
-          <p className="text-xl lg:text-lg">Press <strong style={{ color: "var(--gold)" }}>New Analysis</strong> to analyze {market.label}.</p>
-          <p className="text-lg lg:text-base mt-2 opacity-70">Signal, probability, levels, and live trade tracking.</p>
+      ) : (
+        <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 pt-10 text-center" style={{ color: "var(--text-secondary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
+          <FiZap size={48} className="mb-4 opacity-15 animate-pulse" />
+          <p className="text-xl lg:text-lg">Reading {market.label}…</p>
+          <p className="text-lg lg:text-base mt-2 opacity-70">Signal, probability, and levels update automatically as price moves.</p>
         </motion.div>
-      ) : null}
+      )}
       </AnimatePresence>
 
       </div>
