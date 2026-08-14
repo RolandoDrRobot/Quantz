@@ -736,8 +736,9 @@ export default function BobbyPanel({
       {/* Mobile-only asset switcher — the sheet covers the whole screen, so
           the market buttons above the chart (behind it) are unreachable
           without closing the sheet first. Mirrors that same switcher, just
-          reachable from in here too, on any tab. */}
-      {onMarketChange && (
+          reachable from in here too. Analysis tab only — Journal/Wendy
+          aren't per-market views, so switching there doesn't apply. */}
+      {onMarketChange && activeTab === "analysis" && (
         <div
           className="flex items-center gap-1.5 px-4 pb-2.5 shrink-0 overflow-x-auto"
           style={{ background: "var(--bg-panel)" }}
