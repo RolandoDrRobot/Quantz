@@ -24,7 +24,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex gap-3 rounded-md p-3 transition-colors"
+      className="flex gap-3 rounded-md p-2.5 lg:p-3 transition-colors"
       style={glassChipStyle(IMPACT_META[article.impact].color !== "var(--text-muted)" ? IMPACT_META[article.impact].color : undefined)}
       variants={fadeUpVariants}
       initial="hidden"
@@ -36,7 +36,7 @@ function ArticleCard({ article, index }: { article: NewsArticle; index: number }
         <img
           src={article.image}
           alt=""
-          className="w-20 h-20 rounded object-cover shrink-0"
+          className="w-16 h-16 lg:w-20 lg:h-20 rounded object-cover shrink-0"
           style={{ background: "var(--bg-elevated)" }}
           onError={e => { e.currentTarget.style.display = "none"; }}
         />
@@ -159,17 +159,17 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
             transition={TRANSITION_BASE}
           >
             {/* Mobile drag handle */}
-            <div className="lg:hidden flex justify-center pt-3 pb-1 shrink-0">
+            <div className="lg:hidden flex justify-center pt-2 shrink-0">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-7 py-5 shrink-0">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-7 lg:py-5 shrink-0">
               <div>
-                <div className="flex items-center gap-2 font-black text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+                <div className="flex items-center gap-2 font-black text-base lg:text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
                   <LuNewspaper size={18} /> NEWS
                 </div>
-                <div className="text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold & Bitcoin</div>
+                <div className="text-xs lg:text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold & Bitcoin</div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -191,7 +191,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col gap-2.5">
+            <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 lg:p-5 flex flex-col gap-2 lg:gap-2.5">
               {error ? (
                 <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
                   <LuNewspaper size={48} className="mb-4 opacity-15" />

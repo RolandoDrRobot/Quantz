@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle,
-  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiArrowUpRight, FiArrowDownRight, FiCheck, FiX, FiSend,
+  FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiCheck, FiX, FiSend,
   FiBarChart2, FiBookOpen, FiHeart, FiClock,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
@@ -200,7 +200,7 @@ function ProbRow({
   showSignalLabel: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
+    <div className="flex items-center gap-3 px-3.5 py-2.5 lg:px-5 lg:py-3.5">
       <ProbRing value={displayProbability} adjusted={isBlended} color={sig.color} />
       <div className="flex-1 min-w-0">
         {showSignalLabel && (
@@ -291,7 +291,7 @@ function OpportunityCard({
       style={glassStyle(meta.color)}
     >
       {/* Header: phase + resolved-outcome badge + check button + direction pill */}
-      <div className="flex items-center justify-between gap-2 px-5 pt-4">
+      <div className="flex items-center justify-between gap-2 px-3.5 pt-3 lg:px-5 lg:pt-4">
         <div className="flex items-center gap-2 min-w-0">
           {!isTerminal && <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: meta.color }} />}
           {isTerminal && (
@@ -299,7 +299,7 @@ function OpportunityCard({
               {opp.phase === "TP_HIT" ? <FiCheck size={11} /> : opp.phase === "SL_HIT" ? <FiX size={11} /> : <FiAlertTriangle size={10} />}
             </span>
           )}
-          <span className="font-black text-lg lg:text-base tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
+          <span className="font-black text-sm lg:text-base tracking-wider truncate" style={{ color: meta.color, fontFamily: "var(--font-display)" }}>
             {meta.label}
           </span>
         </div>
@@ -320,18 +320,17 @@ function OpportunityCard({
             </button>
           )}
           <span
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[13px] lg:text-[12px] font-black tracking-wider whitespace-nowrap"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] lg:text-[12px] font-black tracking-wider whitespace-nowrap"
             style={{ ...glassChipStyle(dirColor), color: dirColor, fontFamily: "var(--font-display)" }}
           >
-            {opp.direction === "long" ? <FiArrowUpRight size={13} /> : <FiArrowDownRight size={13} />}
             {opp.direction === "long" ? "▲ LONG" : "▼ SHORT"} · {fmtLots(lots)} LOTS
           </span>
         </div>
       </div>
 
       {/* Status */}
-      <div className="px-5 pt-3">
-        <p className="text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>{statusLine}</p>
+      <div className="px-3.5 pt-2 lg:px-5 lg:pt-3">
+        <p className="text-[13px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>{statusLine}</p>
       </div>
 
       {/* Probability read — no signal label here, the direction pill above
@@ -343,17 +342,17 @@ function OpportunityCard({
 
       {/* Entry / SL / TP strip — live values from the opportunity */}
       <div className="grid grid-cols-3">
-        <div className="px-5 py-3.5">
+        <div className="px-3.5 pt-1 pb-3 lg:px-5 lg:py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#d4a72c" }}>E</div>
-          <div className="text-base lg:text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
+          <div className="text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.entry)}</div>
         </div>
-        <div className="px-5 py-3.5">
+        <div className="px-3.5 pt-1 pb-3 lg:px-5 lg:py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#8a2f2a" }}>SL · {fmtSignedMoney(-ACCOUNT.riskPerTrade)}</div>
-          <div className="text-base lg:text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
+          <div className="text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.sl)}</div>
         </div>
-        <div className="px-5 py-3.5">
+        <div className="px-3.5 pt-1 pb-3 lg:px-5 lg:py-3.5">
           <div className="text-[11px] lg:text-[10px] font-bold tracking-[0.2em]" style={{ color: "#1c7d4c" }}>TP · {fmtSignedMoney(reward)}</div>
-          <div className="text-base lg:text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
+          <div className="text-sm font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{fmtPrice(opp.tp)}</div>
         </div>
       </div>
     </div>
@@ -635,7 +634,7 @@ export default function BobbyPanel({
           onChange={(e) => setChatInput(e.target.value)}
           disabled={!result || chatSending || aiLoading}
           placeholder={result ? "Ask Taylor about this setup…" : "Waiting for the market to load…"}
-          className="flex-1 min-w-0 px-4 py-4 rounded text-base lg:text-sm outline-none"
+          className="flex-1 min-w-0 px-3 h-10 lg:h-12 rounded text-sm outline-none"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -646,7 +645,7 @@ export default function BobbyPanel({
           type="submit"
           disabled={!chatInput.trim() || !result || chatSending || aiLoading}
           title="Send"
-          className="flex items-center justify-center w-14 h-14 rounded shrink-0 transition-all duration-150"
+          className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded shrink-0 transition-all duration-150"
           style={{
             ...glassChipStyle(),
             color: "var(--text-primary)",
@@ -654,7 +653,7 @@ export default function BobbyPanel({
             opacity: !chatInput.trim() || !result ? 0.5 : 1,
           }}
         >
-          <FiSend size={20} />
+          <FiSend size={16} />
         </button>
       </form>
 
@@ -662,7 +661,7 @@ export default function BobbyPanel({
         onClick={generateComment}
         disabled={!result || aiLoading}
         title={result ? "Ask Taylor for a live read on this setup" : "Waiting for the market to load…"}
-        className="w-full px-3 py-3.5 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
+        className="w-full px-3 h-10 lg:h-12 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
         style={{
           ...glassChipStyle(),
           color: "var(--text-primary)",
@@ -689,17 +688,17 @@ export default function BobbyPanel({
           this row hides there since onClose is only passed for the mobile sheet. */}
       {onClose && (
         <div
-          className="flex items-center justify-between px-6 py-3 shrink-0 lg:hidden"
+          className="flex items-center justify-between px-3 py-2 shrink-0 lg:hidden"
           style={{ background: "var(--bg-panel)" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
-          <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto" />
+          <img src="/quantz-logo-header.png" alt="Quantz" className="h-5 w-auto" />
           <button
             onClick={onClose}
-            className="p-2.5 rounded shrink-0"
+            className="p-2 rounded shrink-0"
             style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
           >
-            <FiX size={18} />
+            <FiX size={16} />
           </button>
         </div>
       )}
@@ -709,7 +708,7 @@ export default function BobbyPanel({
           ritual against the actual strategy rules), Wendy (psychology check-in, not
           market analysis). Always visible on both mobile and desktop. */}
       <div
-        className="flex items-center gap-1.5 px-4 py-2.5 shrink-0"
+        className="flex items-center gap-1.5 px-3 pb-2 lg:px-4 lg:py-2.5 shrink-0"
         style={{ background: "var(--bg-panel)" }}
       >
         {TABS.map(tab => {
@@ -718,7 +717,7 @@ export default function BobbyPanel({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="flex-1 flex flex-row items-center justify-center gap-1.5 py-1.5 rounded text-[10px] font-black tracking-wide transition-all duration-150"
+              className="flex-1 flex flex-row items-center justify-center gap-1.5 py-2 rounded text-[10px] font-black tracking-wide transition-all duration-150"
               style={{
                 ...glassChipStyle(active ? "#f2f5f8" : undefined),
                 color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -740,7 +739,7 @@ export default function BobbyPanel({
           aren't per-market views, so switching there doesn't apply. */}
       {onMarketChange && activeTab === "analysis" && (
         <div
-          className="flex items-center gap-1.5 px-4 pb-2.5 shrink-0 overflow-x-auto"
+          className="flex items-center gap-1.5 px-3 pb-2 shrink-0 overflow-x-auto"
           style={{ background: "var(--bg-panel)" }}
         >
           {MARKET_KEYS.map(key => {
@@ -750,7 +749,7 @@ export default function BobbyPanel({
               <button
                 key={key}
                 onClick={() => onMarketChange(key)}
-                className="flex-1 py-2 rounded text-xs font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
+                className="flex-1 px-2.5 py-1.5 rounded text-[11px] font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
                 style={{
                   ...glassChipStyle(active ? m.color : undefined),
                   color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -769,7 +768,7 @@ export default function BobbyPanel({
       <div className="flex-1 overflow-y-auto">
       <AnimatePresence mode="wait">
       {result && sig ? (
-        <motion.div key="result" className="p-6 flex flex-col gap-5" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
+        <motion.div key="result" className="p-3 flex flex-col gap-3 lg:p-6 lg:gap-5" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
 
           {/* Session intelligence — specific to this exact instrument, not a
               generic world-clock. `now` (ticking every 30s) is what keeps this
@@ -780,7 +779,7 @@ export default function BobbyPanel({
             const session = getSessionInfo(market.key);
             const color = sessionColor(session.quality);
             return (
-              <div className="rounded-md px-5 py-3.5" style={glassStyle(session.quality === "good" ? color : undefined)}>
+              <div className="rounded-md px-3.5 py-2.5 lg:px-5 lg:py-3.5" style={glassStyle(session.quality === "good" ? color : undefined)}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <FiClock size={15} style={{ color }} className="shrink-0" />
@@ -794,7 +793,7 @@ export default function BobbyPanel({
                     </span>
                   )}
                 </div>
-                <p className="text-[13px] leading-snug mt-1.5" style={{ color: "var(--text-secondary)" }}>{session.note}</p>
+                <p className="text-xs lg:text-[13px] leading-snug mt-1" style={{ color: "var(--text-secondary)" }}>{session.note}</p>
               </div>
             );
           })()}
@@ -831,13 +830,13 @@ export default function BobbyPanel({
                 exit="hidden"
                 transition={TRANSITION_FAST}
               >
-                <div className="flex items-center gap-2 px-5 pt-4">
+                <div className="flex items-center gap-2 px-3.5 pt-3 lg:px-5 lg:pt-4">
                   <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: "#9ba5b2" }} />
-                  <span className="font-black text-lg lg:text-base tracking-wider" style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>
+                  <span className="font-black text-sm lg:text-base tracking-wider" style={{ color: "#9ba5b2", fontFamily: "var(--font-display)" }}>
                     NO SETUP YET
                   </span>
                 </div>
-                <div className="px-5 pt-3 text-[16px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+                <div className="px-3.5 pt-2 lg:px-5 lg:pt-3 text-[13px] lg:text-[14px] leading-snug" style={{ color: "var(--text-secondary)" }}>
                   {nearestLevel
                     ? `Watching ${nearestLevel.type} at ${fmtPrice(nearestLevel.price)} · ${fmtPrice(Math.abs(livePrice! - nearestLevel.price))} pts away`
                     : "No tradeable setup — run a new analysis once the market moves."}
@@ -847,7 +846,7 @@ export default function BobbyPanel({
                   result={result} opportunity={null} now={now} showSignalLabel
                 />
                 {livePrice !== null && (
-                  <div className="flex items-center gap-1.5 px-5 pb-4 text-[12px] lg:text-[11px] font-bold tracking-widest" style={{ color: "var(--text-secondary)" }}>
+                  <div className="flex items-center gap-1.5 px-3.5 pb-3 lg:px-5 lg:pb-4 text-[11px] font-bold tracking-widest" style={{ color: "var(--text-secondary)" }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#1c7d4c" }} />
                     LIVE · {fmtPrice(livePrice)}
                   </div>
@@ -857,7 +856,7 @@ export default function BobbyPanel({
           </AnimatePresence>
 
           {!result.is24h && !result.inSetupWindow && result.minutesToOpen > 0 && (
-            <div className="rounded-md px-5 py-3 text-lg lg:text-base" style={{ ...glassStyle(), color: "var(--text-secondary)" }}>
+            <div className="rounded-md px-3.5 py-2.5 lg:px-5 lg:py-3 text-sm lg:text-base" style={{ ...glassStyle(), color: "var(--text-secondary)" }}>
               Setup window opens in {result.minutesToOpen} min — this is the pre-open bias.
             </div>
           )}
@@ -867,7 +866,7 @@ export default function BobbyPanel({
               conversation going. Everything here is grounded in the same market
               context the take used (see buildAiAnalysisRequest in sendChatMessage). */}
           {(chatMessages.length > 0 || aiLoading || chatSending || aiUnavailable) && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 lg:gap-3">
               {chatMessages.map(m => (
                 <motion.div
                   key={m.id}
@@ -875,7 +874,7 @@ export default function BobbyPanel({
                   variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
                 >
                   <div
-                    className="rounded-md px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-sm leading-relaxed"
+                    className="rounded-md px-3 py-2.5 lg:px-4 lg:py-3 max-w-[88%] whitespace-pre-wrap text-sm leading-relaxed"
                     style={
                       m.role === "user"
                         ? { ...glassChipStyle(), color: "var(--text-secondary)" }
@@ -884,7 +883,7 @@ export default function BobbyPanel({
                   >
                     {m.role === "taylor" && (
                       <div
-                        className="flex items-center gap-1.5 mb-1 text-sm lg:text-xs font-black tracking-[0.15em]"
+                        className="flex items-center gap-1.5 mb-1 text-xs font-black tracking-[0.15em]"
                         style={{ color: m.verdict ? AI_VERDICT_STYLE[m.verdict].color : "var(--text-muted)" }}
                       >
                         <FiCpu size={11} /> {m.verdict ? AI_VERDICT_STYLE[m.verdict].label : "TAYLOR"}
@@ -902,9 +901,9 @@ export default function BobbyPanel({
                     className="flex justify-start"
                     variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
                   >
-                    <div className="rounded-md px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
+                    <div className="rounded-md px-3 py-2.5 lg:px-4 lg:py-3 flex items-center gap-2.5" style={glassChipStyle()}>
                       <FiCpu size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
-                      <span className="text-lg lg:text-base" style={{ color: "var(--text-muted)" }}>
+                      <span className="text-sm lg:text-base" style={{ color: "var(--text-muted)" }}>
                         {aiLoading ? "Taylor's taking a look…" : "Taylor's typing…"}
                       </span>
                     </div>
@@ -913,7 +912,7 @@ export default function BobbyPanel({
               </AnimatePresence>
 
               {aiUnavailable && !aiLoading && !chatSending && (
-                <div className="px-2 text-base lg:text-sm" style={{ color: "var(--text-muted)" }}>{aiUnavailable}</div>
+                <div className="px-2 text-sm" style={{ color: "var(--text-muted)" }}>{aiUnavailable}</div>
               )}
 
               <div ref={chatScrollRef} />
@@ -932,9 +931,9 @@ export default function BobbyPanel({
         </motion.div>
       ) : (
         <motion.div key="empty" className="flex-1 flex flex-col items-center justify-center px-5 pt-10 text-center" style={{ color: "var(--text-secondary)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_BASE}>
-          <FiZap size={48} className="mb-4 opacity-15 animate-pulse" />
-          <p className="text-xl lg:text-lg">Reading {market.label}…</p>
-          <p className="text-lg lg:text-base mt-2 opacity-70">Signal, probability, and levels update automatically as price moves.</p>
+          <FiZap size={40} className="mb-3 opacity-15 animate-pulse" />
+          <p className="text-base lg:text-lg">Reading {market.label}…</p>
+          <p className="text-sm lg:text-base mt-1.5 opacity-70">Signal, probability, and levels update automatically as price moves.</p>
         </motion.div>
       )}
       </AnimatePresence>
@@ -961,10 +960,10 @@ export default function BobbyPanel({
           Wendy carries her own input bar inside WendyPanel. */}
       {onClose && activeTab === "analysis" && (
         <div
-          className="flex flex-col gap-2 px-4 py-3 shrink-0"
+          className="flex flex-col gap-2 px-3 pt-2 shrink-0"
           style={{
             background: "var(--bg-panel)",
-            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+            paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))",
           }}
         >
           {footerControls}

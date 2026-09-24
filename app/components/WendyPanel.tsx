@@ -102,7 +102,7 @@ export default function WendyPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto p-3 lg:p-6 flex flex-col gap-2 lg:gap-3">
         {messages.length === 0 ? (
           <motion.div
             className="flex-1 flex flex-col items-center justify-center px-5 text-center"
@@ -110,8 +110,8 @@ export default function WendyPanel() {
             variants={fadeVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
           >
             <FiHeart size={44} className="mb-4 opacity-15" />
-            <p className="text-xl">This is between us.</p>
-            <p className="text-lg mt-2 opacity-70">Not about the chart — about how you&apos;re actually doing in the seat. Talk to me.</p>
+            <p className="text-base lg:text-xl">This is between us.</p>
+            <p className="text-sm lg:text-lg mt-1.5 opacity-70">Not about the chart — about how you&apos;re actually doing in the seat. Talk to me.</p>
           </motion.div>
         ) : (
           messages.map(m => (
@@ -121,11 +121,11 @@ export default function WendyPanel() {
               variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
             >
               <div
-                className="rounded-md px-4 py-3 max-w-[88%] whitespace-pre-wrap text-lg lg:text-base leading-relaxed"
+                className="rounded-md px-3 py-2.5 lg:px-4 lg:py-3 max-w-[88%] whitespace-pre-wrap text-sm lg:text-base leading-relaxed"
                 style={{ ...glassChipStyle(m.role === "wendy" ? "#f2f5f8" : undefined), color: "var(--text-secondary)" }}
               >
                 {m.role === "wendy" && (
-                  <div className="flex items-center gap-1.5 mb-1 text-sm font-black tracking-[0.15em]" style={{ color: "#f2f5f8" }}>
+                  <div className="flex items-center gap-1.5 mb-1 text-xs lg:text-sm font-black tracking-[0.15em]" style={{ color: "#f2f5f8" }}>
                     <FiHeart size={11} /> WENDY
                   </div>
                 )}
@@ -141,16 +141,16 @@ export default function WendyPanel() {
               className="flex justify-start"
               variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
             >
-              <div className="rounded-md px-4 py-3 flex items-center gap-2.5" style={glassChipStyle()}>
+              <div className="rounded-md px-3 py-2.5 lg:px-4 lg:py-3 flex items-center gap-2.5" style={glassChipStyle()}>
                 <FiHeart size={14} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
-                <span className="text-lg" style={{ color: "var(--text-muted)" }}>Wendy&apos;s thinking…</span>
+                <span className="text-sm lg:text-lg" style={{ color: "var(--text-muted)" }}>Wendy&apos;s thinking…</span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {unavailable && !sending && (
-          <div className="px-2 text-base" style={{ color: "var(--text-muted)" }}>{unavailable}</div>
+          <div className="px-2 text-sm lg:text-base" style={{ color: "var(--text-muted)" }}>{unavailable}</div>
         )}
 
         <div ref={scrollRef} />
@@ -158,7 +158,7 @@ export default function WendyPanel() {
 
       <form
         onSubmit={(e) => { e.preventDefault(); send(); }}
-        className="flex items-center gap-2 px-4 py-3 shrink-0"
+        className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-3 shrink-0"
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <input
@@ -167,14 +167,14 @@ export default function WendyPanel() {
           onChange={(e) => setInput(e.target.value)}
           disabled={sending}
           placeholder="How are you doing right now?"
-          className="flex-1 min-w-0 px-4 py-4 rounded text-base outline-none"
+          className="flex-1 min-w-0 px-3 h-10 lg:h-12 rounded text-sm lg:text-base outline-none"
           style={{ ...glassChipStyle(), color: "var(--text-primary)" }}
         />
         <button
           type="submit"
           disabled={!input.trim() || sending}
           title="Send"
-          className="flex items-center justify-center w-14 h-14 rounded shrink-0 transition-all duration-150"
+          className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded shrink-0 transition-all duration-150"
           style={{
             ...glassChipStyle("#f2f5f8"),
             color: "var(--text-primary)",

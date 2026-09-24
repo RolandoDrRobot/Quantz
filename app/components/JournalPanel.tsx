@@ -84,24 +84,24 @@ export default function JournalPanel() {
   }, [editingId, closeForm]);
 
   return (
-    <div className="p-6 flex flex-col gap-5">
+    <div className="p-3 flex flex-col gap-3 lg:p-6 lg:gap-5">
       {/* Stats — the running picture of real capital, not the automatic prediction log */}
-      <div className="rounded-md px-5 py-4 grid grid-cols-3 gap-3" style={glassStyle(stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a")}>
+      <div className="rounded-md px-3.5 py-3 lg:px-5 lg:py-4 grid grid-cols-3 gap-3" style={glassStyle(stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a")}>
         <div>
           <div className="text-[11px] font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>TOTAL P/L</div>
-          <div className="text-2xl font-black leading-tight" style={{ color: stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
+          <div className="text-lg lg:text-2xl font-black leading-tight" style={{ color: stats.totalPnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
             {fmtSignedMoney(stats.totalPnl)}
           </div>
         </div>
         <div>
           <div className="text-[11px] font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>WIN RATE</div>
-          <div className="text-2xl font-black leading-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+          <div className="text-lg lg:text-2xl font-black leading-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
             {stats.wins + stats.losses > 0 ? `${stats.winRate}%` : "—"}
           </div>
         </div>
         <div>
           <div className="text-[11px] font-bold tracking-widest" style={{ color: "var(--text-muted)" }}>TRADES</div>
-          <div className="text-2xl font-black leading-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+          <div className="text-lg lg:text-2xl font-black leading-tight" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
             {stats.count}
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function JournalPanel() {
       {!formOpen && (
         <button
           onClick={openNew}
-          className="flex items-center justify-center gap-2 py-3 rounded font-black text-sm tracking-wide"
+          className="flex items-center justify-center gap-2 h-10 lg:h-12 rounded font-black text-sm tracking-wide"
           style={{ ...glassChipStyle(), color: "var(--text-primary)", cursor: "pointer", fontFamily: "var(--font-display)" }}
         >
           <FiPlus size={16} /> ADD TRADE
@@ -123,7 +123,7 @@ export default function JournalPanel() {
       <AnimatePresence>
         {formOpen && (
           <motion.div
-            className="rounded-md p-4 flex flex-col gap-3"
+            className="rounded-md p-3 lg:p-4 flex flex-col gap-3"
             style={glassStyle()}
             variants={fadeUpVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}
           >
@@ -257,20 +257,20 @@ export default function JournalPanel() {
       {/* Entries list */}
       {entries.length === 0 && !formOpen ? (
         <motion.div
-          className="flex-1 flex flex-col items-center justify-center px-5 py-16 text-center"
+          className="flex-1 flex flex-col items-center justify-center px-4 py-10 lg:py-16 text-center"
           style={{ color: "var(--text-secondary)" }}
           variants={fadeVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
         >
           <FiBookOpen size={44} className="mb-4 opacity-15" />
-          <p className="text-lg">No trades logged yet.</p>
-          <p className="text-base mt-2 opacity-70">Log what you actually took manually — this is your own record, nothing here is automatic.</p>
+          <p className="text-base lg:text-lg">No trades logged yet.</p>
+          <p className="text-sm lg:text-base mt-1.5 opacity-70">Log what you actually took manually — this is your own record, nothing here is automatic.</p>
         </motion.div>
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2 lg:gap-2.5">
           {entries.map(e => (
             <motion.div
               key={e.id}
-              className="rounded-md px-4 py-3"
+              className="rounded-md px-3.5 py-2.5 lg:px-4 lg:py-3"
               style={glassChipStyle(e.pnl !== null ? (e.pnl >= 0 ? "#1c7d4c" : "#8a2f2a") : undefined)}
               variants={fadeUpVariants} initial="hidden" animate="visible" transition={TRANSITION_FAST}
             >
@@ -288,7 +288,7 @@ export default function JournalPanel() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {e.pnl !== null && (
-                    <span className="text-lg font-black mr-1" style={{ color: e.pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
+                    <span className="text-base lg:text-lg font-black mr-1" style={{ color: e.pnl >= 0 ? "#1c7d4c" : "#8a2f2a", fontFamily: "var(--font-display)" }}>
                       {fmtSignedMoney(e.pnl)}
                     </span>
                   )}

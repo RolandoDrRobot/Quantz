@@ -721,22 +721,22 @@ export default function Dashboard() {
 
         {/* ── Overlay superior: título + mercados + historial ── */}
         <div
-          className="absolute top-0 left-0 right-0 z-10 flex flex-col gap-2 px-4 pb-5"
+          className="absolute top-0 left-0 right-0 z-10 flex flex-col gap-2 px-3 pb-3"
           style={{
             background: "linear-gradient(to bottom, rgba(5,14,26,0.88) 60%, transparent 100%)",
             // Clears the notch/Dynamic Island on iOS PWA installs — "pt-safe"
             // isn't a real Tailwind utility in this project, it resolved to
             // nothing, so the safe-area inset was never actually applied.
-            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)",
           }}
         >
           <div className="flex items-center justify-between gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
-            <img src="/quantz-logo-header.png" alt="Quantz" className="h-7 w-auto shrink-0" />
+            <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto shrink-0" />
             <Clock is24h={cfg.is24h} />
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex gap-2 flex-1 min-w-0 overflow-x-auto">
+            <div className="flex gap-1.5 flex-1 min-w-0 overflow-x-auto">
               {MARKET_KEYS.map(key => {
                 const m = MARKETS[key];
                 const active = key === market;
@@ -744,7 +744,7 @@ export default function Dashboard() {
                   <button
                     key={key}
                     onClick={() => handleMarketChange(key)}
-                    className="flex-1 shrink-0 px-3 py-2.5 sm:py-4 rounded text-sm sm:text-base font-black tracking-wider whitespace-nowrap transition-all duration-200"
+                    className="flex-1 shrink-0 px-3 py-2 rounded text-xs sm:text-sm font-black tracking-wider whitespace-nowrap transition-all duration-200"
                     style={{
                       ...glassChipStyle(active ? m.color : undefined),
                       color: active ? "var(--text-primary)" : "var(--text-muted)",
@@ -766,7 +766,7 @@ export default function Dashboard() {
             {newsTicker.length > 0 && (
               <motion.button
                 onClick={() => setNewsOpen(true)}
-                className="overflow-hidden rounded flex items-center gap-2 px-3 py-2 flex-1 min-w-0"
+                className="overflow-hidden rounded flex items-center gap-2 px-2.5 py-1.5 flex-1 min-w-0"
                 style={{ ...glassChipStyle(), cursor: "pointer" }}
                 variants={fadeVariants}
                 initial="hidden"
@@ -778,7 +778,7 @@ export default function Dashboard() {
                 <div className="overflow-hidden flex-1">
                   <div className="flex w-max animate-marquee" style={{ animationDuration: `${newsMarqueeDuration}s` }}>
                     {[...newsTicker, ...newsTicker].map((a, i) => (
-                      <span key={i} className="flex items-center shrink-0 text-sm font-bold pl-4" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-display)" }}>
+                      <span key={i} className="flex items-center shrink-0 text-xs font-bold pl-4" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-display)" }}>
                         {a.headline}
                         <span className="pl-4 opacity-25">•</span>
                       </span>
@@ -793,13 +793,13 @@ export default function Dashboard() {
 
         {/* ── Overlay inferior: precio + botón Taylor + ticker de oportunidad ── */}
         <div
-          className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-3 px-5 pt-16"
+          className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-2 px-3 pt-10"
           style={{
             background: "linear-gradient(to top, rgba(5,14,26,0.92) 50%, transparent 100%)",
             // Clears the home-indicator gesture bar on notched iOS devices —
             // no extra fixed padding on top, the ticker row already gives
             // this section enough bottom breathing room.
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))",
           }}
         >
         <div className="flex items-end justify-between">
@@ -808,12 +808,12 @@ export default function Dashboard() {
             <AnimatePresence mode="wait">
               {displayPrice !== null ? (
                 <motion.div key="price" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
-                  <div className="text-4xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                  <div className="text-3xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
                     {fmtPrice(displayPrice)}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     {analysis && (
-                      <span className="text-base font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
+                      <span className="text-sm font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
                         {fmtSignedPct(analysis.priceChangePct)}
                       </span>
                     )}
@@ -821,7 +821,7 @@ export default function Dashboard() {
                       {trendDir && (
                         <motion.span
                           key={trendDir}
-                          className="flex items-center gap-0.5 text-sm font-semibold"
+                          className="flex items-center gap-0.5 text-xs font-semibold"
                           style={{ color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)" }}
                           variants={popVariants}
                           initial="hidden"
@@ -848,7 +848,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTaylorOpen(true)}
-              className="flex items-center justify-center w-14 h-14 rounded transition-all duration-150 active:scale-95"
+              className="flex items-center justify-center w-11 h-11 rounded transition-all duration-150 active:scale-95"
               style={{
                 ...glassChipStyle(cfg.color),
                 color: "var(--text-primary)",
@@ -856,7 +856,7 @@ export default function Dashboard() {
               }}
               title="Taylor — open panel"
             >
-              <LuBrainCircuit size={20} />
+              <LuBrainCircuit size={18} />
             </button>
           </div>
         </div>
@@ -873,11 +873,11 @@ export default function Dashboard() {
                 exit="hidden"
                 transition={TRANSITION_FAST}
               >
-                <div className="flex w-max py-2 animate-marquee" style={{ animationDuration: `${oppTickerDuration}s` }}>
+                <div className="flex w-max py-1.5 animate-marquee" style={{ animationDuration: `${oppTickerDuration}s` }}>
                   {[...tickerItems, ...tickerItems].map((item, i) => (
                     <span
                       key={i}
-                      className="flex items-center shrink-0 text-sm font-bold pl-4"
+                      className="flex items-center shrink-0 text-xs font-bold pl-4"
                       style={{ color: item.color, fontFamily: "var(--font-display)" }}
                     >
                       {item.text}
