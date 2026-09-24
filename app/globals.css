@@ -46,17 +46,17 @@ html, body {
   color: var(--text-primary);
   font-family: var(--font-body);
   background: var(--bg);
-  /* Bigger type app-wide — Tailwind's text-* scale and most spacing utilities
+  /* Root type size — Tailwind's text-* scale and most spacing utilities
      are rem-based, so bumping the root size scales text AND the padding/gaps
      around it together (no overflow from text outgrowing its container). */
-  font-size: 18px;
+  font-size: 16px;
 }
 
-/* Bigger still on mobile — matches the app's own mobile/desktop split
-   (`lg:` = 1024px, see useIsDesktop() in Dashboard.tsx). */
+/* Smaller on phones/tablets so content isn't cramped — matches the app's own
+   mobile/desktop split (`lg:` = 1024px, see useIsDesktop() in Dashboard.tsx). */
 @media (max-width: 1023px) {
   html {
-    font-size: 20px;
+    font-size: 14px;
   }
 }
 

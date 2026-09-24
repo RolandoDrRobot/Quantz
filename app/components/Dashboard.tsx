@@ -730,13 +730,13 @@ export default function Dashboard() {
             paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
           }}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
-            <img src="/quantz-logo-header.png" alt="Quantz" className="h-7 w-auto" />
+            <img src="/quantz-logo-header.png" alt="Quantz" className="h-7 w-auto shrink-0" />
             <Clock is24h={cfg.is24h} />
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex gap-2 flex-1">
+            <div className="flex gap-2 flex-1 min-w-0 overflow-x-auto">
               {MARKET_KEYS.map(key => {
                 const m = MARKETS[key];
                 const active = key === market;
@@ -744,7 +744,7 @@ export default function Dashboard() {
                   <button
                     key={key}
                     onClick={() => handleMarketChange(key)}
-                    className="flex-1 py-4 rounded text-base font-black tracking-wider transition-all duration-200"
+                    className="flex-1 shrink-0 px-3 py-2.5 sm:py-4 rounded text-sm sm:text-base font-black tracking-wider whitespace-nowrap transition-all duration-200"
                     style={{
                       ...glassChipStyle(active ? m.color : undefined),
                       color: active ? "var(--text-primary)" : "var(--text-muted)",

@@ -172,10 +172,10 @@ export function Clock({ is24h }: { is24h: boolean }) {
       target="_blank"
       rel="noopener noreferrer"
       title="Economic calendar (Exness)"
-      className="text-right block"
+      className="text-right block min-w-0"
     >
-      <div className="text-xl font-bold tracking-widest leading-none" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{time}</div>
-      <div className="text-sm mt-1 font-semibold" style={{ color: statusColor }}>{statusLabel}</div>
+      <div className="text-base sm:text-xl font-bold tracking-widest leading-none" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{time}</div>
+      <div className="text-xs sm:text-sm mt-1 font-semibold" style={{ color: statusColor }}>{statusLabel}</div>
     </a>
   );
 }
