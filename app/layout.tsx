@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Josefin_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import UpdateWatcher from "./components/UpdateWatcher";
 
 // Josefin Sans is a true variable font (weight 100-700) — Next.js loads the
 // variable instance automatically when no fixed `weight` is given, same as
@@ -66,17 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             duration: 3500,
           }}
         />
-        {process.env.NODE_ENV === "production" && (
-          <script dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
-                });
-              }
-            `
-          }} />
-        )}
+        <UpdateWatcher />
       </body>
     </html>
   );

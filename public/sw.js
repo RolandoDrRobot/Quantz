@@ -1,9 +1,9 @@
-// Bumping this forces every installed PWA to drop its old cache on the next
-// activate — needed once, here, because the cache-first "/" entry below
-// used to never expire (same CACHE_NAME across deploys meant `activate`'s
-// cleanup never saw it as stale), so an installed app could keep serving a
-// JS bundle from before a fix shipped, indefinitely, even on a fresh network.
-const CACHE_NAME = 'quantz-v2';
+// One cache per deploy — UpdateWatcher registers this file as sw.js?v=<build id>,
+// so every deploy installs a fresh worker and `activate` below drops the
+// previous deploy's cache. A fixed name here is what used to let an installed
+// app keep serving an old build indefinitely.
+const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE_NAME = `quantz-${VERSION}`;
 
 const STATIC_ASSETS = [
   '/favicon-32x32.png',
@@ -29,11 +29,22 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+function putInCache(request, res) {
+  if (res.ok) {
+    const copy = res.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+  }
+  return res;
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Network-first for API calls (live market data must be fresh)
+  // Only same-origin GETs — everything else goes straight to the network.
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+
+  // Network-only for API calls (live market data must be fresh)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() => new Response('{"error":"offline"}', {
@@ -43,32 +54,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for page navigations. Cache-first on "/" is what caused
-  // the installed PWA to keep running an old build indefinitely — it never
-  // re-checked the network once cached. Falls back to the cache only when
-  // actually offline.
-  if (request.mode === 'navigate') {
+  // Cache-first only for files whose URL changes when their content does:
+  // Next.js's content-hashed /_next/static/ chunks, plus the icons precached
+  // above. Anything else served cache-first would never pick up a new deploy.
+  if (url.pathname.startsWith('/_next/static/') || STATIC_ASSETS.includes(url.pathname)) {
     event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return res;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+      caches.match(request).then((cached) => cached || fetch(request).then((res) => putInCache(request, res)))
     );
     return;
   }
 
-  // Cache-first for everything else (icons, Next.js's content-hashed JS/CSS
-  // chunks) — safe here since a changed file gets a new hashed URL, never a
-  // stale hit on the same request.
+  // Network-first for everything else (pages, RSC payloads, manifest, logo) —
+  // the cache is only an offline fallback.
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-      return res;
-    }))
+    fetch(request)
+      .then((res) => putInCache(request, res))
+      .catch(async () =>
+        (await caches.match(request)) ||
+        (request.mode === 'navigate' && (await caches.match('/'))) ||
+        Response.error()
+      )
   );
 });
 
