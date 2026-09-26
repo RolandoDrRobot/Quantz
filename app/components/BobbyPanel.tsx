@@ -10,7 +10,7 @@ import {
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
-import { ACCOUNT, lotsFor, MARKETS, type Market, type MarketKey } from "../lib/markets";
+import { ACCOUNT, lotsFor, type Market } from "../lib/markets";
 import type { Opportunity, OppPhase } from "../lib/opportunity";
 import { fadeVariants, fadeUpVariants, TRANSITION_BASE, TRANSITION_FAST } from "../lib/motionVariants";
 import { fmtPrice, fmtMoney2, fmtSignedMoney, fmtLots } from "../lib/format";
@@ -19,8 +19,8 @@ import { buildPredictionProfileSummary, type PredictionProfileSummary } from "..
 import { glassStyle, glassChipStyle } from "../lib/glass";
 import { getSessionInfo, sessionColor } from "../lib/sessions";
 import JournalPanel from "./JournalPanel";
-
-const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin"];
+import MobileScreenHeader from "./MobileScreenHeader";
+import { PiSparkle } from "react-icons/pi";
 
 export type PanelTab = "analysis" | "journal";
 const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
@@ -364,23 +364,19 @@ interface Props {
   livePrice: number | null;
   onCheckOpportunity: () => void;
   checkingOpportunity: boolean;
-  onClose?: () => void;
+  // Mobile only — the panel is the Taylor screen of the bottom tab bar:
+  // no inner Taylor/Axe tabs (Axe is its own tab there), controls pinned to
+  // the bottom for thumb reach. The desktop aside leaves this off.
+  embedded?: boolean;
   // Whether this instance is actually visible right now. Only meaningful on
-  // mobile, where the panel is a sheet that stays mounted (state persists)
-  // but slides off-screen instead of unmounting — defaults true, which is
-  // always correct for the desktop aside (no onClose = always visible).
+  // mobile, where the Taylor tab stays mounted (state persists) while another
+  // tab is showing — defaults true, which is always correct for the desktop aside.
   isOpen?: boolean;
-  // Mobile only — the desktop layout already shows a persistent market
-  // switcher above the chart regardless of tab, but on mobile the sheet
-  // covers the whole screen, so the trader had no way to switch assets
-  // without closing it first. Optional since the desktop aside doesn't need
-  // its own switcher.
-  onMarketChange?: (key: MarketKey) => void;
 }
 
 export default function BobbyPanel({
   market, analysis, opportunity, livePrice,
-  onCheckOpportunity, checkingOpportunity, onClose, isOpen = true, onMarketChange,
+  onCheckOpportunity, checkingOpportunity, embedded = false, isOpen = true,
 }: Props) {
   const [activeTab, setActiveTab] = useState<PanelTab>("analysis");
 
@@ -616,96 +612,81 @@ export default function BobbyPanel({
     : null;
 
   // Shared controls (Taylor's Take button + chat bar) — placed differently
-  // depending on where BobbyPanel is mounted: pinned to the bottom on the
-  // mobile sheet (thumb reach), inline right under Taylor's chat thread on
-  // the desktop aside (onClose is only ever passed on mobile, so it doubles
-  // as the mobile/desktop switch here).
-  const footerControls = (
-    <>
-      <form
-        onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
-        className="flex items-center gap-2"
-      >
-        <input
-          type="text"
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          disabled={!result || chatSending || aiLoading}
-          placeholder={result ? "Ask Taylor about this setup…" : "Waiting for the market to load…"}
-          className="flex-1 min-w-0 px-3 h-10 lg:h-12 rounded text-sm outline-none"
-          style={{
-            ...glassChipStyle(),
-            color: "var(--text-primary)",
-            opacity: !result ? 0.6 : 1,
-          }}
-        />
-        <button
-          type="submit"
-          disabled={!chatInput.trim() || !result || chatSending || aiLoading}
-          title="Send"
-          className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded shrink-0 transition-all duration-150"
-          style={{
-            ...glassChipStyle(),
-            color: "var(--text-primary)",
-            cursor: !chatInput.trim() || !result || chatSending || aiLoading ? "not-allowed" : "pointer",
-            opacity: !chatInput.trim() || !result ? 0.5 : 1,
-          }}
-        >
-          <FiSend size={16} />
-        </button>
-      </form>
-
-      <button
-        onClick={generateComment}
-        disabled={!result || aiLoading}
-        title={result ? "Ask Taylor for a live read on this setup" : "Waiting for the market to load…"}
-        className="w-full px-3 h-10 lg:h-12 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"
+  // depending on where BobbyPanel is mounted. Desktop aside: both inline,
+  // right under Taylor's chat thread. Mobile Taylor tab: chat bar pinned to
+  // the bottom (thumb reach), Take button top-right in the screen's header.
+  const chatForm = (
+    <form
+      onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
+      className="flex items-center gap-2"
+    >
+      <input
+        type="text"
+        value={chatInput}
+        onChange={(e) => setChatInput(e.target.value)}
+        disabled={!result || chatSending || aiLoading}
+        placeholder={result ? "Ask Taylor about this setup…" : "Waiting for the market to load…"}
+        className="flex-1 min-w-0 px-3 h-10 lg:h-12 rounded text-sm outline-none"
         style={{
           ...glassChipStyle(),
           color: "var(--text-primary)",
-          cursor: !result || aiLoading ? "not-allowed" : "pointer",
-          opacity: !result ? 0.5 : 1,
-          fontFamily: "var(--font-display)",
+          opacity: !result ? 0.6 : 1,
+        }}
+      />
+      <button
+        type="submit"
+        disabled={!chatInput.trim() || !result || chatSending || aiLoading}
+        title="Send"
+        className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 rounded shrink-0 transition-all duration-150"
+        style={{
+          ...glassChipStyle(),
+          color: "var(--text-primary)",
+          cursor: !chatInput.trim() || !result || chatSending || aiLoading ? "not-allowed" : "pointer",
+          opacity: !chatInput.trim() || !result ? 0.5 : 1,
         }}
       >
-        <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-          {aiLoading ? <FiCpu size={15} className="animate-pulse shrink-0" /> : <FiCpu size={15} className="shrink-0" />}
-          {aiLoading ? "THINKING..." : "TAYLOR'S TAKE"}
-        </span>
+        <FiSend size={16} />
       </button>
-    </>
+    </form>
+  );
+
+  const takeButton = (compact: boolean) => (
+    <button
+      onClick={generateComment}
+      disabled={!result || aiLoading}
+      title={result ? "Ask Taylor for a live read on this setup" : "Waiting for the market to load…"}
+      className={compact
+        ? "shrink-0 px-3 h-9 rounded font-black text-xs tracking-tight transition-all duration-150"
+        : "w-full px-3 h-10 lg:h-12 rounded font-black text-xs sm:text-sm tracking-tight transition-all duration-150"}
+      style={{
+        ...glassChipStyle(),
+        color: "var(--text-primary)",
+        cursor: !result || aiLoading ? "not-allowed" : "pointer",
+        opacity: !result ? 0.5 : 1,
+        fontFamily: "var(--font-display)",
+      }}
+    >
+      <span className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+        {aiLoading ? <FiCpu size={15} className="animate-pulse shrink-0" /> : <FiCpu size={15} className="shrink-0" />}
+        {aiLoading ? "THINKING..." : "TAYLOR'S TAKE"}
+      </span>
+    </button>
   );
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--ambient-gradient)" }}>
 
-      {/* Logo + close button — mobile sheet only; the analyze/generate-comment buttons used
-          to live in this same row, but on narrow screens their tracked-out labels wrapped to
-          two lines, so they now live in a footer row pinned to the bottom (thumb reach). On
-          desktop lg:order-first pulls that footer back up to where this row used to be, and
-          this row hides there since onClose is only passed for the mobile sheet. */}
-      {onClose && (
-        <div
-          className="flex items-center justify-between px-3 py-2 shrink-0 lg:hidden"
-          style={{ background: "var(--bg-panel)" }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- static PWA header mark, no benefit from next/image's server-side pipeline */}
-          <img src="/quantz-logo-header.png" alt="Quantz" className="h-5 w-auto" />
-          <button
-            onClick={onClose}
-            className="p-2 rounded shrink-0"
-            style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
-          >
-            <FiX size={16} />
-          </button>
-        </div>
+      {embedded && (
+        <MobileScreenHeader Icon={PiSparkle} title="TAYLOR" subtitle={market.label} right={takeButton(true)} />
       )}
 
       {/* Tab bar — Analysis (Taylor's read + chat), Journal (manual, editable trade
           ledger — separate from the automatic prediction log), Checklist (pre-trade
-          ritual against the actual strategy rules). Always visible on both mobile and desktop. */}
+          ritual against the actual strategy rules). Desktop only — on mobile the app's
+          bottom tab bar does this job. */}
+      {!embedded && (
       <div
-        className="flex items-center gap-1.5 px-3 pb-2 lg:px-4 lg:py-2.5 shrink-0"
+        className="flex items-center gap-1.5 px-4 py-2.5 shrink-0"
         style={{ background: "var(--bg-panel)" }}
       >
         {TABS.map(tab => {
@@ -729,36 +710,6 @@ export default function BobbyPanel({
         })}
       </div>
 
-      {/* Mobile-only asset switcher — the sheet covers the whole screen, so
-          the market buttons above the chart (behind it) are unreachable
-          without closing the sheet first. Mirrors that same switcher, just
-          reachable from in here too. Analysis tab only — Journal
-          isn't a per-market view, so switching there doesn't apply. */}
-      {onMarketChange && activeTab === "analysis" && (
-        <div
-          className="flex items-center gap-1.5 px-3 pb-2 shrink-0 overflow-x-auto"
-          style={{ background: "var(--bg-panel)" }}
-        >
-          {MARKET_KEYS.map(key => {
-            const m = MARKETS[key];
-            const active = key === market.key;
-            return (
-              <button
-                key={key}
-                onClick={() => onMarketChange(key)}
-                className="flex-1 px-2.5 py-1.5 rounded text-[11px] font-bold tracking-wider transition-all duration-150 whitespace-nowrap"
-                style={{
-                  ...glassChipStyle(active ? m.color : undefined),
-                  color: active ? "var(--text-primary)" : "var(--text-muted)",
-                  cursor: "pointer",
-                  fontFamily: "var(--font-display)",
-                }}
-              >
-                {m.short}
-              </button>
-            );
-          })}
-        </div>
       )}
 
       {activeTab === "analysis" && (
@@ -916,12 +867,13 @@ export default function BobbyPanel({
             </div>
           )}
 
-          {/* Desktop only (no onClose = the desktop aside, not the mobile sheet) — the
+          {/* Desktop only (not embedded in the mobile tab bar) — the
               take button + chat bar sit right under Taylor's thread instead of pinned
               to the panel edge, since there's no thumb-reach constraint here. */}
-          {!onClose && (
+          {!embedded && (
             <div className="rounded-md px-5 py-4 flex flex-col gap-3" style={glassStyle()}>
-              {footerControls}
+              {chatForm}
+              {takeButton(false)}
             </div>
           )}
 
@@ -944,19 +896,15 @@ export default function BobbyPanel({
         </div>
       )}
 
-      {/* Mobile only — pinned to the bottom so the controls stay in thumb reach.
-          Desktop renders the same footerControls inline, right under Taylor's
-          thread instead (see the block right before the Warnings section).
+      {/* Mobile only — chat bar pinned to the bottom so it stays in thumb reach.
+          Desktop renders it inline, right under Taylor's thread instead.
           Analysis tab only — Journal/Checklist have their own in-content controls. */}
-      {onClose && activeTab === "analysis" && (
+      {embedded && activeTab === "analysis" && (
         <div
-          className="flex flex-col gap-2 px-3 pt-2 shrink-0"
-          style={{
-            background: "var(--bg-panel)",
-            paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))",
-          }}
+          className="flex flex-col gap-2 px-3 py-2 shrink-0"
+          style={{ background: "var(--bg-panel)" }}
         >
-          {footerControls}
+          {chatForm}
         </div>
       )}
     </div>

@@ -49,15 +49,24 @@ html, body {
   /* Root type size — Tailwind's text-* scale and most spacing utilities
      are rem-based, so bumping the root size scales text AND the padding/gaps
      around it together (no overflow from text outgrowing its container). */
-  font-size: 16px;
+  font-size: 17px;
 }
 
 /* Smaller on phones/tablets so content isn't cramped — matches the app's own
    mobile/desktop split (`lg:` = 1024px, see useIsDesktop() in Dashboard.tsx). */
 @media (max-width: 1023px) {
   html {
-    font-size: 15px;
+    font-size: 16px;
   }
+}
+
+/* Native-app feel on iOS: no grey tap flash, no double-tap-zoom delay, and
+   long-pressing a button doesn't start a text selection. */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Ticker — content is duplicated once in the markup, so a 50% translate

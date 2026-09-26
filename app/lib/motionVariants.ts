@@ -6,7 +6,6 @@ export const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 export const TRANSITION_FAST = { duration: 0.15, ease: EASE_OUT };
 export const TRANSITION_BASE = { duration: 0.22, ease: EASE_OUT };
-export const TRANSITION_SHEET = { duration: 0.32, ease: EASE_OUT };
 export const TRANSITION_BACKDROP = { duration: 0.18, ease: "easeOut" as const };
 // One-time app-shell entrance (first mount only, not AnimatePresence-driven).
 export const TRANSITION_APP = { duration: 0.4, ease: EASE_OUT };

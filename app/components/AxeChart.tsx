@@ -223,7 +223,7 @@ export default function AxeChart({ candles, levels, ma20, tradeSetup, breakout, 
       chart = LW.createChart(el, {
         width:  el.clientWidth,
         height: el.clientHeight,
-        layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: window.innerWidth < 1024 ? 11 : 13 },
+        layout: { background: { type: LW.ColorType.Solid, color: P.bg }, textColor: P.text, fontSize: window.innerWidth < 1024 ? 12 : 13 },
         grid: { vertLines: { color: P.grid }, horzLines: { color: P.grid } },
         crosshair: {
           mode: LW.CrosshairMode.Normal,

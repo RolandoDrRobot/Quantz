@@ -3,20 +3,27 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { FiZap, FiTrendingUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
-import { LuBrainCircuit, LuNewspaper } from "react-icons/lu";
+import { LuNewspaper } from "react-icons/lu";
+import {
+  PiChartLineUpLight, PiChartLineUpFill, PiSparkleLight, PiSparkleFill,
+  PiNotebookLight, PiNotebookFill, PiNotebook, PiNewspaperLight, PiNewspaperFill, PiNewspaper,
+} from "react-icons/pi";
+import type { IconType } from "react-icons";
 import AxeChart from "./AxeChart";
 import BobbyPanel, { PHASE_META, Clock } from "./BobbyPanel";
 import type { RawCandle } from "../api/market/route";
 import { runAnalysis, type AnalysisResult, type TradeSetup, type BreakoutEvent, type Level } from "../lib/analysis";
 import { MARKETS, type Market, type MarketKey } from "../lib/markets";
-import NewsModal from "./NewsModal";
+import NewsModal, { NewsFeed } from "./NewsModal";
+import JournalPanel from "./JournalPanel";
+import MobileScreenHeader from "./MobileScreenHeader";
 import type { NewsArticle } from "../lib/news";
 import { createOpportunity, advanceOpportunity, livePnl, type Opportunity, type OppPhase } from "../lib/opportunity";
 import { playBreakoutSound, playRetestSound, playResolvedSound } from "../lib/alerts";
 import { toast } from "sonner";
 import { addPrediction, resolvePrediction, updatePredictionLevels } from "../lib/predictions";
 import { tradeCostFor, lotsFor } from "../lib/markets";
-import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_SHEET, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
+import { popVariants, fadeVariants, TRANSITION_BASE, TRANSITION_FAST, TRANSITION_APP } from "../lib/motionVariants";
 import { fmtPrice, fmtSignedPct, fmtSignedMoney, fmtLots, fmtRatio } from "../lib/format";
 import { resampleCandles, TIMEFRAMES, type Timeframe } from "../lib/candles";
 import { glassStyle, glassChipStyle } from "../lib/glass";
@@ -181,6 +188,19 @@ function TimeframeSelector({ value, onChange }: { value: Timeframe; onChange: (t
 // actually showing. Returns null until the first effect runs (no `window`
 // during SSR), so there's one blank frame on load — a fair trade for not
 // running a full invisible second app in the background all session.
+// ── Mobile app chrome — bottom tab bar sections ─────────────────────────────
+type MobileTab = "chart" | "taylor" | "axe" | "news";
+// Thin outline when idle, filled when selected — the iOS tab bar convention
+const MOBILE_TABS: { key: MobileTab; label: string; Icon: IconType; ActiveIcon: IconType }[] = [
+  { key: "chart",  label: "Chart",  Icon: PiChartLineUpLight, ActiveIcon: PiChartLineUpFill },
+  { key: "taylor", label: "Taylor", Icon: PiSparkleLight,     ActiveIcon: PiSparkleFill },
+  { key: "axe",    label: "Axe",    Icon: PiNotebookLight,    ActiveIcon: PiNotebookFill },
+  { key: "news",   label: "News",   Icon: PiNewspaperLight,   ActiveIcon: PiNewspaperFill },
+];
+
+// Full-screen tab surfaces sit under the notch/Dynamic Island on iOS PWA installs
+const MOBILE_SCREEN_STYLE = { background: "var(--bg)", paddingTop: "env(safe-area-inset-top, 0px)" };
+
 function useIsDesktop(): boolean | null {
   const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -207,7 +227,7 @@ export default function Dashboard() {
   const [chartLoading, setChartLoading] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
   const [newsTicker, setNewsTicker] = useState<NewsArticle[]>([]);
-  const [taylorOpen, setTaylorOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("chart");
   const [checkingOpportunity, setCheckingOpportunity] = useState(false);
   const [isStale, setIsStale] = useState(false);
 
@@ -703,30 +723,30 @@ export default function Dashboard() {
       <NewsModal open={newsOpen} onClose={() => setNewsOpen(false)} market={market} />
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          MOBILE LAYOUT  (< lg) — chart a pantalla completa
+          MOBILE LAYOUT  (< lg) — app-style: one screen at a time, market
+          switcher + bottom tab bar pinned at the bottom (thumb reach).
       ════════════════════════════════════════════════════════════════════════ */}
       {isDesktop === false && (
       <motion.div
-        className="lg:hidden relative overflow-hidden"
+        className="lg:hidden flex flex-col overflow-hidden"
         style={{ height: "100dvh" }}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={TRANSITION_APP}
       >
+        <div className="relative flex-1 min-h-0 overflow-hidden">
 
-        {/* ── Chart — cubre toda la pantalla ── */}
+        {/* ── Chart screen — the chart stays mounted under every other tab, so
+            switching back to it is instant (no chart rebuild, no refetch). ── */}
         <div className="absolute inset-0">
           {chartBlock}
         </div>
 
-        {/* ── Overlay superior: título + mercados + historial ── */}
+        {/* ── Overlay superior: logo + reloj + timeframe + noticias ── */}
         <div
           className="absolute top-0 left-0 right-0 z-10 flex flex-col gap-2 px-3 pb-3"
           style={{
             background: "linear-gradient(to bottom, rgba(5,14,26,0.88) 60%, transparent 100%)",
-            // Clears the notch/Dynamic Island on iOS PWA installs — "pt-safe"
-            // isn't a real Tailwind utility in this project, it resolved to
-            // nothing, so the safe-area inset was never actually applied.
             paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)",
           }}
         >
@@ -735,37 +755,14 @@ export default function Dashboard() {
             <img src="/quantz-logo-header.png" alt="Quantz" className="h-6 w-auto shrink-0" />
             <Clock is24h={cfg.is24h} />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1.5 flex-1 min-w-0 overflow-x-auto">
-              {MARKET_KEYS.map(key => {
-                const m = MARKETS[key];
-                const active = key === market;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleMarketChange(key)}
-                    className="flex-1 shrink-0 px-3 py-2 rounded text-xs sm:text-sm font-black tracking-wider whitespace-nowrap transition-all duration-200"
-                    style={{
-                      ...glassChipStyle(active ? m.color : undefined),
-                      color: active ? "var(--text-primary)" : "var(--text-muted)",
-                      fontFamily: "var(--font-display)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {m.short}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Timeframe selector + news marquee — tap the marquee to open the full feed */}
+          {/* Timeframe selector + news marquee — tap the marquee to open the News tab */}
           <div className="flex items-center gap-2">
             <TimeframeSelector value={timeframe} onChange={setTimeframe} />
             <AnimatePresence>
             {newsTicker.length > 0 && (
               <motion.button
-                onClick={() => setNewsOpen(true)}
+                onClick={() => setMobileTab("news")}
                 className="overflow-hidden rounded flex items-center gap-2 px-2.5 py-1.5 flex-1 min-w-0"
                 style={{ ...glassChipStyle(), cursor: "pointer" }}
                 variants={fadeVariants}
@@ -774,7 +771,7 @@ export default function Dashboard() {
                 exit="hidden"
                 transition={TRANSITION_FAST}
               >
-                <LuNewspaper size={14} className="shrink-0" style={{ color: "var(--gold)" }} />
+                <PiNewspaper size={15} className="shrink-0" style={{ color: "var(--gold)" }} />
                 <div className="overflow-hidden flex-1">
                   <div className="flex w-max animate-marquee" style={{ animationDuration: `${newsMarqueeDuration}s` }}>
                     {[...newsTicker, ...newsTicker].map((a, i) => (
@@ -791,82 +788,56 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Overlay inferior: precio + botón Taylor + ticker de oportunidad ── */}
+        {/* ── Overlay inferior: precio + ticker de oportunidad (tap → Taylor) ── */}
         <div
-          className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-2 px-3 pt-10"
-          style={{
-            background: "linear-gradient(to top, rgba(5,14,26,0.92) 50%, transparent 100%)",
-            // Clears the home-indicator gesture bar on notched iOS devices —
-            // no extra fixed padding on top, the ticker row already gives
-            // this section enough bottom breathing room.
-            paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom, 0px))",
-          }}
+          className="absolute bottom-0 left-0 right-0 z-10 flex flex-col gap-2 px-3 pt-10 pb-2"
+          style={{ background: "linear-gradient(to top, rgba(5,14,26,0.92) 50%, transparent 100%)" }}
         >
-        <div className="flex items-end justify-between">
-          {/* Precio en vivo */}
-          <div>
-            <AnimatePresence mode="wait">
-              {displayPrice !== null ? (
-                <motion.div key="price" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
-                  <div className="text-3xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
-                    {fmtPrice(displayPrice)}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {analysis && (
-                      <span className="text-sm font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
-                        {fmtSignedPct(analysis.priceChangePct)}
-                      </span>
+          <AnimatePresence mode="wait">
+            {displayPrice !== null ? (
+              <motion.div key="price" variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+                <div className="text-3xl font-black text-white leading-none" style={{ fontFamily: "var(--font-display)" }}>
+                  {fmtPrice(displayPrice)}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {analysis && (
+                    <span className="text-sm font-bold" style={{ color: priceUp ? "#1c7d4c" : "#8a2f2a" }}>
+                      {fmtSignedPct(analysis.priceChangePct)}
+                    </span>
+                  )}
+                  <AnimatePresence>
+                    {trendDir && (
+                      <motion.span
+                        key={trendDir}
+                        className="flex items-center gap-0.5 text-xs font-semibold"
+                        style={{ color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)" }}
+                        variants={popVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        transition={TRANSITION_FAST}
+                      >
+                        {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
+                        {trendDir === "bullish" ? "BULLISH" : trendDir === "bearish" ? "BEARISH" : "NEUTRAL"}
+                      </motion.span>
                     )}
-                    <AnimatePresence>
-                      {trendDir && (
-                        <motion.span
-                          key={trendDir}
-                          className="flex items-center gap-0.5 text-xs font-semibold"
-                          style={{ color: trendDir === "bullish" ? "#1c7d4c" : trendDir === "bearish" ? "#8a2f2a" : "var(--text-muted)" }}
-                          variants={popVariants}
-                          initial="hidden"
-                          animate="visible"
-                          exit="hidden"
-                          transition={TRANSITION_FAST}
-                        >
-                          {trendDir === "bullish" ? <FiArrowUpRight size={11} /> : trendDir === "bearish" ? <FiArrowDownRight size={11} /> : null}
-                          {trendDir === "bullish" ? "BULLISH" : trendDir === "bearish" ? "BEARISH" : "NEUTRAL"}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.span key="label" className="text-base" style={{ color: "var(--text-muted)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
-                  {cfg.label}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </div>
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.span key="label" className="text-base" style={{ color: "var(--text-muted)" }} variants={fadeVariants} initial="hidden" animate="visible" exit="hidden" transition={TRANSITION_FAST}>
+                {cfg.label}
+              </motion.span>
+            )}
+          </AnimatePresence>
 
-          {/* Botón Taylor — abre el panel de análisis */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTaylorOpen(true)}
-              className="flex items-center justify-center w-11 h-11 rounded transition-all duration-150 active:scale-95"
-              style={{
-                ...glassChipStyle(cfg.color),
-                color: "var(--text-primary)",
-                cursor: "pointer",
-              }}
-              title="Taylor — open panel"
-            >
-              <LuBrainCircuit size={18} />
-            </button>
-          </div>
-        </div>
-
-          {/* Ticker — resumen de la oportunidad, sin abrir Taylor */}
+          {/* Ticker — resumen de la oportunidad; tap para abrir Taylor */}
           <AnimatePresence>
             {tickerItems.length > 0 && (
-              <motion.div
-                className="overflow-hidden rounded"
-                style={glassChipStyle()}
+              <motion.button
+                onClick={() => setMobileTab("taylor")}
+                className="overflow-hidden rounded text-left"
+                style={{ ...glassChipStyle(), cursor: "pointer" }}
                 variants={fadeVariants}
                 initial="hidden"
                 animate="visible"
@@ -885,24 +856,16 @@ export default function Dashboard() {
                     </span>
                   ))}
                 </div>
-              </motion.div>
+              </motion.button>
             )}
           </AnimatePresence>
         </div>
 
-        {/* ── Taylor sheet — cubre pantalla completa ── */}
-        <motion.div
-          className="absolute inset-0 z-50 flex flex-col"
-          style={{
-            background: "var(--bg-panel)",
-            paddingTop: "env(safe-area-inset-top, 0px)",
-          }}
-          animate={{ y: taylorOpen ? "0%" : "100%" }}
-          initial={false}
-          transition={TRANSITION_SHEET}
-        >
-          {/* BobbyPanel maneja su propio scroll interno */}
-          <div className="flex-1 overflow-hidden">
+        {/* ── Taylor, Axe, News — full screens over the chart. Kept mounted and
+            just hidden while another tab shows, so Taylor's chat, the journal
+            form and the loaded news survive switching tabs. ── */}
+        <div className="absolute inset-0 z-20 flex flex-col" style={MOBILE_SCREEN_STYLE} hidden={mobileTab !== "taylor"}>
+          <div className="flex-1 min-h-0">
             <BobbyPanel
               market={MARKETS[market]}
               analysis={analysis}
@@ -910,20 +873,78 @@ export default function Dashboard() {
               livePrice={livePrice}
               onCheckOpportunity={handleCheckOpportunity}
               checkingOpportunity={checkingOpportunity}
-              isOpen={taylorOpen}
-              onMarketChange={handleMarketChange}
-              onClose={() => {
-                setTaylorOpen(false);
-                // The chat input can still hold focus after the sheet slides
-                // off-screen (it stays mounted, just translated) — leaving it
-                // focused is what let a later Taylor reply force the browser
-                // to scroll/reopen it. Blur so nothing inside the closed
-                // sheet still has focus.
-                (document.activeElement as HTMLElement | null)?.blur();
-              }}
+              embedded
+              isOpen={mobileTab === "taylor"}
             />
           </div>
-        </motion.div>
+        </div>
+
+        <div className="absolute inset-0 z-20 flex flex-col" style={MOBILE_SCREEN_STYLE} hidden={mobileTab !== "axe"}>
+          <MobileScreenHeader Icon={PiNotebook} title="AXE" subtitle="Your trade journal" />
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <JournalPanel />
+          </div>
+        </div>
+
+        <div className="absolute inset-0 z-20 flex flex-col" style={MOBILE_SCREEN_STYLE} hidden={mobileTab !== "news"}>
+          <NewsFeed market={market} active={mobileTab === "news"} />
+        </div>
+
+        </div>
+
+        {/* ── Market switcher + tab bar — the app's bottom chrome ── */}
+        <div className="shrink-0" style={{ background: "var(--bg-panel)", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          {/* Journal isn't per-market, so the switcher steps aside on Axe */}
+          {mobileTab !== "axe" && (
+            <div className="px-3 pt-2">
+              <div className="flex p-1 rounded-lg" style={{ background: "var(--bg)" }}>
+                {MARKET_KEYS.map(key => {
+                  const active = key === market;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleMarketChange(key)}
+                      className="flex-1 py-2.5 rounded-md text-sm font-black tracking-wide whitespace-nowrap transition-colors duration-150"
+                      style={{
+                        background: active ? "var(--bg-card)" : "transparent",
+                        color: active ? "var(--text-primary)" : "var(--text-muted)",
+                        fontFamily: "var(--font-display)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {MARKETS[key].short}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <nav className="flex" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+            {MOBILE_TABS.map(tab => {
+              const active = mobileTab === tab.key;
+              // Live-setup dot on Taylor's icon, so an active call is visible from any tab
+              const showDot = tab.key === "taylor" && opportunity !== null && !["TP_HIT", "SL_HIT", "INVALIDATED"].includes(opportunity.phase);
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setMobileTab(tab.key)}
+                  aria-current={active ? "page" : undefined}
+                  className="flex-1 flex flex-col items-center gap-1 pt-2 pb-1.5 transition-opacity duration-150 active:opacity-50"
+                  style={{ color: active ? "var(--text-primary)" : "var(--text-muted)", opacity: active ? 1 : 0.6, cursor: "pointer" }}
+                >
+                  <span className="relative">
+                    {active ? <tab.ActiveIcon size={24} /> : <tab.Icon size={24} />}
+                    {showDot && (
+                      <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full" style={{ background: PHASE_META[opportunity!.phase].color }} />
+                    )}
+                  </span>
+                  <span className="text-[10px] font-bold tracking-wide" style={{ fontFamily: "var(--font-display)" }}>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </motion.div>
       )}
 

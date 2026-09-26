@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { FiX, FiRefreshCw, FiExternalLink } from "react-icons/fi";
-import { LuNewspaper } from "react-icons/lu";
+import { FiX, FiRefreshCw } from "react-icons/fi";
+import { PiNewspaper } from "react-icons/pi";
 import type { NewsArticle, NewsImpact } from "../lib/news";
 import { fmtTimeAgo } from "../lib/news";
 import { MARKETS, type MarketKey } from "../lib/markets";
@@ -12,68 +12,71 @@ import { glassStyle, glassChipStyle } from "../lib/glass";
 
 const PAGE_SIZE = 15;
 
-const IMPACT_META: Record<NewsImpact, { label: string; color: string }> = {
-  high:   { label: "HIGH IMPACT",   color: "#8a2f2a" },
+// Low impact gets no label at all — it's the default, and tagging every row
+// with it was just noise. Red is a notch brighter than --down so the small
+// label stays readable on navy.
+const IMPACT_META: Record<NewsImpact, { label: string; color: string } | null> = {
+  high:   { label: "HIGH IMPACT",   color: "#c0453d" },
   medium: { label: "MEDIUM IMPACT", color: "#c9a838" },
-  low:    { label: "LOW IMPACT",    color: "var(--text-muted)" },
+  low:    null,
 };
 
+// One row of the grouped feed list — meta line, headline, summary, markets,
+// thumbnail on the right. The whole row is the link.
 function ArticleCard({ article, index }: { article: NewsArticle; index: number }) {
+  const impact = IMPACT_META[article.impact];
   return (
     <motion.a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex gap-3 rounded-md p-2.5 lg:p-3 transition-colors"
-      style={glassChipStyle(IMPACT_META[article.impact].color !== "var(--text-muted)" ? IMPACT_META[article.impact].color : undefined)}
+      className="flex gap-3 px-3.5 py-3 transition-colors duration-150 active:bg-white/5 lg:hover:bg-white/[0.03]"
       variants={fadeUpVariants}
       initial="hidden"
       animate="visible"
       transition={{ ...TRANSITION_FAST, delay: Math.min(index, 10) * 0.02 }}
     >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+          {impact && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: impact.color }} />
+              <span style={{ color: impact.color }}>{impact.label}</span>
+              <span>·</span>
+            </>
+          )}
+          <span className="truncate">{article.source}</span>
+          <span className="shrink-0">· {fmtTimeAgo(article.datetime)}</span>
+        </div>
+        <p className="mt-1 text-sm lg:text-base font-semibold leading-snug line-clamp-3" style={{ color: "var(--text-primary)" }}>
+          {article.headline}
+        </p>
+        {article.summary && (
+          <p className="mt-1 text-xs lg:text-sm leading-snug line-clamp-2" style={{ color: "var(--text-secondary)" }}>{article.summary}</p>
+        )}
+        <div className="mt-1.5 text-[10px] font-black tracking-wider" style={{ color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>
+          {article.relevantTo.map(key => MARKETS[key].short).join("  ·  ")}
+        </div>
+      </div>
       {article.image && (
         // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable-domain thumbnails from the news API; not worth next/image's remote-pattern config for a small feed thumbnail
         <img
           src={article.image}
           alt=""
-          className="w-16 h-16 lg:w-20 lg:h-20 rounded object-cover shrink-0"
+          className="w-[72px] h-[72px] lg:w-20 lg:h-20 rounded-lg object-cover shrink-0 self-start mt-0.5"
           style={{ background: "var(--bg-elevated)" }}
           onError={e => { e.currentTarget.style.display = "none"; }}
         />
       )}
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-bold leading-snug" style={{ color: "var(--text-primary)" }}>{article.headline}</p>
-          <span
-            className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider whitespace-nowrap"
-            style={{ background: `${IMPACT_META[article.impact].color}22`, color: IMPACT_META[article.impact].color }}
-          >
-            {IMPACT_META[article.impact].label}
-          </span>
-        </div>
-        {article.summary && (
-          <p className="text-[13px] leading-snug line-clamp-2" style={{ color: "var(--text-secondary)" }}>{article.summary}</p>
-        )}
-        <div className="flex items-center gap-2 flex-wrap mt-0.5">
-          <span className="text-[11px] font-bold" style={{ color: "var(--text-muted)" }}>{article.source}</span>
-          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>· {fmtTimeAgo(article.datetime)}</span>
-          {article.relevantTo.map(key => (
-            <span
-              key={key}
-              className="px-1.5 py-0.5 rounded text-[10px] font-black tracking-wider"
-              style={{ background: `${MARKETS[key].color}22`, color: MARKETS[key].color }}
-            >
-              {MARKETS[key].short}
-            </span>
-          ))}
-          <FiExternalLink size={11} style={{ color: "var(--text-muted)" }} className="ml-auto" />
-        </div>
-      </div>
     </motion.a>
   );
 }
 
-export default function NewsModal({ open, onClose, market }: { open: boolean; onClose: () => void; market: MarketKey }) {
+// The feed itself — header (title + refresh, plus CLOSE when onClose is given)
+// and the article list. Rendered inside NewsModal on desktop, and directly as
+// the News screen of the mobile bottom tab bar. `active` = visible right now;
+// the first fetch waits for it so news nobody opens is never loaded.
+export function NewsFeed({ market, active, onClose }: { market: MarketKey; active: boolean; onClose?: () => void }) {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
@@ -131,10 +134,84 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
   // avoids fetching news that's never viewed if the user never taps the
   // ticker this session.
   useEffect(() => {
-    if (open && !loaded && !loading) load(false);
-  }, [open, loaded, loading, load]);
+    if (active && !loaded && !loading) load(false);
+  }, [active, loaded, loading, load]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-7 lg:py-5 shrink-0">
+        <div>
+          <div className="flex items-center gap-2 font-black text-base lg:text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+            <PiNewspaper size={18} /> NEWS
+          </div>
+          <div className="text-xs lg:text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold & Bitcoin</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => load(true)}
+            disabled={loading}
+            title="Refresh news"
+            className="flex items-center justify-center w-9 h-9 rounded"
+            style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: loading ? "not-allowed" : "pointer" }}
+          >
+            <FiRefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold"
+              style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
+            >
+              <FiX size={13} /> CLOSE
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 lg:px-5 lg:pb-5">
+        {error ? (
+          <div className="py-12 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
+            <PiNewspaper size={36} className="mb-3 opacity-20" />
+            <p className="text-sm">{error}</p>
+          </div>
+        ) : loading && articles.length === 0 ? (
+          <div className="py-12 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
+            <FiRefreshCw size={22} className="mb-3 animate-spin opacity-40" />
+            <p className="text-sm">Loading news…</p>
+          </div>
+        ) : articles.length === 0 ? (
+          <div className="py-12 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
+            <PiNewspaper size={36} className="mb-3 opacity-20" />
+            <p className="text-sm">No relevant news right now.</p>
+            <p className="text-xs mt-1 opacity-70">Nothing moving NASDAQ, Dow, Gold, or Bitcoin at the moment.</p>
+          </div>
+        ) : (
+          <>
+            {/* Grouped list — one surface, hairline separators, like an iOS inset list */}
+            <div className="rounded-lg overflow-hidden divide-y divide-white/[0.06]" style={glassStyle()}>
+              {articles.slice(0, visibleCount).map((a, i) => (
+                <ArticleCard key={a.id} article={a} index={i} />
+              ))}
+            </div>
+            {visibleCount < articles.length && (
+              <button
+                onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+                className="w-full mt-2 h-10 rounded-lg text-xs font-bold tracking-wider"
+                style={{ color: "var(--text-secondary)", cursor: "pointer" }}
+              >
+                SHOW MORE
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function NewsModal({ open, onClose, market }: { open: boolean; onClose: () => void; market: MarketKey }) {
   return (
     <AnimatePresence>
       {open && (
@@ -163,68 +240,7 @@ export default function NewsModal({ open, onClose, market }: { open: boolean; on
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
             </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-7 lg:py-5 shrink-0">
-              <div>
-                <div className="flex items-center gap-2 font-black text-base lg:text-xl tracking-[0.25em]" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-                  <LuNewspaper size={18} /> NEWS
-                </div>
-                <div className="text-xs lg:text-base mt-0.5" style={{ color: "var(--text-secondary)" }}>Only what moves NASDAQ, Dow, Gold & Bitcoin</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => load(true)}
-                  disabled={loading}
-                  title="Refresh news"
-                  className="flex items-center justify-center w-9 h-9 rounded"
-                  style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: loading ? "not-allowed" : "pointer" }}
-                >
-                  <FiRefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold"
-                  style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
-                >
-                  <FiX size={13} /> CLOSE
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 lg:p-5 flex flex-col gap-2 lg:gap-2.5">
-              {error ? (
-                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
-                  <LuNewspaper size={48} className="mb-4 opacity-15" />
-                  <p className="text-lg">{error}</p>
-                </div>
-              ) : loading && articles.length === 0 ? (
-                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
-                  <FiRefreshCw size={32} className="mb-4 animate-spin opacity-40" />
-                  <p className="text-base">Loading news...</p>
-                </div>
-              ) : articles.length === 0 ? (
-                <div className="py-16 flex flex-col items-center text-center" style={{ color: "var(--text-secondary)" }}>
-                  <LuNewspaper size={48} className="mb-4 opacity-15" />
-                  <p className="text-lg">No relevant news right now.</p>
-                  <p className="text-base mt-2 opacity-70">Nothing moving NASDAQ, Dow, Gold, or Bitcoin at the moment.</p>
-                </div>
-              ) : (
-                <>
-                  {articles.slice(0, visibleCount).map((a, i) => (
-                    <ArticleCard key={a.id} article={a} index={i} />
-                  ))}
-                  {visibleCount < articles.length && (
-                    <button
-                      onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
-                      className="mt-2 py-3 rounded text-sm font-bold tracking-wider"
-                      style={{ ...glassChipStyle(), color: "var(--text-secondary)", cursor: "pointer" }}
-                    >
-                      LOAD MORE
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            <NewsFeed market={market} active={open} onClose={onClose} />
           </motion.div>
         </motion.div>
       )}

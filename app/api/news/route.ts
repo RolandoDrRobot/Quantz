@@ -117,6 +117,23 @@ async function fetchCategory(category: string, key: string): Promise<FinnhubArti
   }
 }
 
+// Some sources (e.g. Forexlive) send the summary as raw, sometimes truncated,
+// HTML — "<ul><li><a href=…" was showing up verbatim in the feed. Strips the
+// tags (including a cut-off one at the end) and the common entities.
+function plainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^>]*$/, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function GET(request: Request) {
   const key = process.env.FINNHUB_API_KEY;
   if (!key) {
@@ -147,13 +164,14 @@ export async function GET(request: Request) {
       if (!a.headline || !a.url || !a.datetime) continue;
       if (seen.has(a.url)) continue;
       seen.add(a.url);
-      const combinedText = `${a.headline} ${a.summary ?? ""}`;
+      const summary = plainText(a.summary ?? "");
+      const combinedText = `${a.headline} ${summary}`;
       const relevantTo = relevantMarkets(combinedText);
       if (relevantTo.length === 0) continue; // only news that actually touches one of our tracked markets
       merged.push({
         id: String(a.id ?? a.url),
         headline: a.headline,
-        summary: a.summary ?? "",
+        summary,
         url: a.url,
         image: a.image || null,
         source: a.source || "Unknown",
