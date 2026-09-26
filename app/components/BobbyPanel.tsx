@@ -6,7 +6,7 @@ import type { IconType } from "react-icons";
 import {
   FiTrendingUp, FiTrendingDown, FiPauseCircle,
   FiAlertTriangle, FiRefreshCw, FiZap, FiCpu, FiCheck, FiX, FiSend,
-  FiBarChart2, FiBookOpen, FiHeart, FiClock,
+  FiBarChart2, FiBookOpen, FiClock,
 } from "react-icons/fi";
 import type { RawCandle } from "../api/market/route";
 import type { AnalysisResult, Signal } from "../lib/analysis";
@@ -19,15 +19,13 @@ import { buildPredictionProfileSummary, type PredictionProfileSummary } from "..
 import { glassStyle, glassChipStyle } from "../lib/glass";
 import { getSessionInfo, sessionColor } from "../lib/sessions";
 import JournalPanel from "./JournalPanel";
-import WendyPanel from "./WendyPanel";
 
 const MARKET_KEYS: MarketKey[] = ["nasdaq", "dowjones", "gold", "bitcoin"];
 
-export type PanelTab = "analysis" | "journal" | "wendy";
+export type PanelTab = "analysis" | "journal";
 const TABS: { key: PanelTab; label: string; Icon: IconType }[] = [
   { key: "analysis", label: "TAYLOR", Icon: FiBarChart2 },
   { key: "journal",  label: "AXE",    Icon: FiBookOpen },
-  { key: "wendy",    label: "WENDY",    Icon: FiHeart },
 ];
 
 const SIGNAL_CONFIG: Record<Signal, { label: string; color: string; Icon: IconType }> = {
@@ -705,8 +703,7 @@ export default function BobbyPanel({
 
       {/* Tab bar — Analysis (Taylor's read + chat), Journal (manual, editable trade
           ledger — separate from the automatic prediction log), Checklist (pre-trade
-          ritual against the actual strategy rules), Wendy (psychology check-in, not
-          market analysis). Always visible on both mobile and desktop. */}
+          ritual against the actual strategy rules). Always visible on both mobile and desktop. */}
       <div
         className="flex items-center gap-1.5 px-3 pb-2 lg:px-4 lg:py-2.5 shrink-0"
         style={{ background: "var(--bg-panel)" }}
@@ -735,8 +732,8 @@ export default function BobbyPanel({
       {/* Mobile-only asset switcher — the sheet covers the whole screen, so
           the market buttons above the chart (behind it) are unreachable
           without closing the sheet first. Mirrors that same switcher, just
-          reachable from in here too. Analysis tab only — Journal/Wendy
-          aren't per-market views, so switching there doesn't apply. */}
+          reachable from in here too. Analysis tab only — Journal
+          isn't a per-market view, so switching there doesn't apply. */}
       {onMarketChange && activeTab === "analysis" && (
         <div
           className="flex items-center gap-1.5 px-3 pb-2 shrink-0 overflow-x-auto"
@@ -947,17 +944,10 @@ export default function BobbyPanel({
         </div>
       )}
 
-      {activeTab === "wendy" && (
-        <div className="flex-1 overflow-hidden">
-          <WendyPanel />
-        </div>
-      )}
-
       {/* Mobile only — pinned to the bottom so the controls stay in thumb reach.
           Desktop renders the same footerControls inline, right under Taylor's
           thread instead (see the block right before the Warnings section).
-          Analysis tab only — Journal/Checklist have their own in-content controls,
-          Wendy carries her own input bar inside WendyPanel. */}
+          Analysis tab only — Journal/Checklist have their own in-content controls. */}
       {onClose && activeTab === "analysis" && (
         <div
           className="flex flex-col gap-2 px-3 pt-2 shrink-0"
